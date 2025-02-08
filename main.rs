@@ -75,7 +75,7 @@ fn get_input(prompt: &str, default: &str) -> String {
 }
 
 fn main() {
-    let host = get_input("Host (default: meex.lol:11234) > ", DEFAULT_HOST);
+    let host = get_input(&format!("Host (default: {}) > ", DEFAULT_HOST), DEFAULT_HOST);
     let prefix = get_input("Prefix (default: none) > ", "");
 
     thread::spawn({
