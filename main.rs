@@ -53,28 +53,30 @@ fn recv_loop(host: &str) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn read_host() -> Option<String> {
-    let mut out = stdout().lock();
-    out.write_all("Host (default: meex.lol:11234) > ".as_bytes()).ok()?;
-    out.flush().ok()?;
-    stdin().lock().lines().next()
-        .map(|o| o.ok())
-        .flatten()
-        .map(|o| o.trim().to_string())
+fn get_input(prompt: &str, default: &str) -> String {
+    let input = || -> Option<String> {
+        let mut out = stdout().lock();
+        out.write_all(prompt.as_bytes()).ok()?;
+        out.flush().ok()?;
+        stdin().lock().lines().next()
+            .map(|o| o.ok())
+            .flatten()
+    }();
+
+    if let Some(input) = &input {
+        if input.is_empty() { 
+            default 
+        } else { 
+            input
+        }
+    } else { 
+        default 
+    }.to_string()
 }
 
 fn main() {
-    let host = read_host();
-
-    let host = if let Some(host) = &host {
-        if host.is_empty() { 
-            DEFAULT_HOST 
-        } else { 
-            host
-        }
-    } else { 
-        DEFAULT_HOST 
-    }.to_string();
+    let host = get_input("Host (default: meex.lol:11234) > ", DEFAULT_HOST);
+    let prefix = get_input("Prefix (default: none) > ", "");
 
     thread::spawn({
         let host = host.clone();
@@ -87,6 +89,6 @@ fn main() {
 
     let mut lines = stdin().lock().lines();
     while let Some(Ok(message)) = lines.next() {
-        send_message(&host, &message).expect("Error sending message");
+        send_message(&host, &format!("{}{}", &prefix, &message)).expect("Error sending message");
     }
 }
