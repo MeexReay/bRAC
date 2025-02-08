@@ -1,32 +1,16 @@
 use std::{error::Error, io::{stdin, stdout, BufRead, Read, Write}, net::TcpStream, thread};
 
 const MAX_MESSAGES: usize = 100;
+const DEFAULT_HOST: &str = "meex.lol:11234";
 
-type E = Box<dyn Error>;
-
-fn send_message(host: &str, message: &str) -> Result<(), E> {
+fn send_message(host: &str, message: &str) -> Result<(), Box<dyn Error>> {
     let mut stream = TcpStream::connect(host)?;
     stream.write_all(&[0x01])?;
     stream.write_all(message.as_bytes())?;
     Ok(())
 }
 
-fn sanitize_string(s: &str, sanitize_newlines: bool) -> String {
-    let mut sanitized = s.replace(&['\x08', '\x0D', '\x1B'][..], "");
-
-    if sanitize_newlines {
-        sanitized = sanitized.replace("\n", "\\\\n");
-        if !s.ends_with('\n') {
-            sanitized.push('\n');
-        }
-    }
-
-    sanitized
-}
-
-
-/// max messages count: 100
-fn read_messages(host: &str) -> Result<Vec<String>, E> {
+fn read_messages(host: &str) -> Result<Vec<String>, Box<dyn Error>> {
     let mut stream = TcpStream::connect(host)?;
     stream.write_all(&[0x00])?;
     let packet_size = {
@@ -44,7 +28,6 @@ fn read_messages(host: &str) -> Result<Vec<String>, E> {
         stream.read_exact(&mut buf)?;
         format!("{}{}", &buf_str, String::from_utf8_lossy(&buf).to_string())
     };
-    let packet_data = sanitize_string(&packet_data, false);
     let mut lines: Vec<String> = packet_data.split("\n").map(|o| o.to_string()).collect();
     lines.reverse();
     lines.truncate(MAX_MESSAGES);
@@ -52,15 +35,15 @@ fn read_messages(host: &str) -> Result<Vec<String>, E> {
     Ok(lines)
 }
 
-fn print_console(messages: Vec<String>) -> Result<(), E> {
+fn print_console(messages: Vec<String>) -> Result<(), Box<dyn Error>> {
     let mut out = stdout().lock();
-    let text = format!("{}\n> ", messages.join("\n"));
+    let text = format!("{}{}\n> ", "\n".repeat(MAX_MESSAGES - messages.len()), messages.join("\n"));
     out.write_all(text.as_bytes())?;
     out.flush()?;
     Ok(())
 }
 
-fn recv_loop(host: &str) -> Result<(), E> {
+fn recv_loop(host: &str) -> Result<(), Box<dyn Error>> {
     let mut cache = Vec::new();
     while let Ok(messages) = read_messages(host) {
         if cache == messages { continue }
@@ -84,13 +67,13 @@ fn main() {
     let host = read_host();
 
     let host = if let Some(host) = &host {
-        if host.is_empty() {
-            "meex.lol:11234"
-        } else {
-            host.as_str()
+        if host.is_empty() { 
+            DEFAULT_HOST 
+        } else { 
+            host
         }
-    } else {
-        "meex.lol:11234"
+    } else { 
+        DEFAULT_HOST 
     }.to_string();
 
     thread::spawn({
