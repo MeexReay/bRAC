@@ -1,19 +1,19 @@
 use std::{
-    collections::HashMap, error::Error, io::{stdin, stdout, BufRead, Read, Write}, net::TcpStream, sync::{Arc, RwLock}, thread, time::Duration
+    collections::HashMap, error::Error, io::{stdin, stdout, BufRead, Read, Stdout, Write}, net::TcpStream, sync::{Arc, Mutex, RwLock}, thread, time::Duration
 };
 
 use colored::{Color, Colorize};
 use rand::random;
 use regex::Regex;
-use termion::{event::Key, input::TermRead, raw::IntoRawMode};
+use termion::{async_stdin, clear, cursor, event::Key, input::TermRead, raw::{IntoRawMode, RawTerminal}};
 use lazy_static::lazy_static;
 
 
 const MAX_MESSAGES: usize = 100;
 const DEFAULT_HOST: &str = "meex.lol:11234";
 const MAGIC_KEY: &str = "\u{B9AC}\u{3E70}";
-// const ADVERTISEMENT: &str = "\r\x1B[1A use bRAC client! https://github.com/MeexReay/bRAC \x1B[1B";
-const ADVERTISEMENT: &str = "";
+const ADVERTISEMENT: &str = "\r\x1B[1A use bRAC client! https://github.com/MeexReay/bRAC \x1B[1B";
+const ADVERTISEMENT_ENABLED: bool = false;
 const UPDATE_TIME: u64 = 50;
 
 
@@ -38,7 +38,7 @@ fn send_message(host: &str, message: &str) -> Result<(), Box<dyn Error>> {
         } else { 
             String::new()
         },
-        ADVERTISEMENT
+        if ADVERTISEMENT_ENABLED {ADVERTISEMENT} else {""}
     );
     stream.write_all(data.as_bytes())?;
     Ok(())
@@ -93,14 +93,14 @@ fn read_messages(host: &str) -> Result<String, Box<dyn Error>> {
     Ok(packet_data)
 }
 
-fn recv_loop(host: &str, cache: Arc<RwLock<String>>, input: Arc<RwLock<String>>) -> Result<(), Box<dyn Error>> {
+fn recv_loop(terminal: Arc<Mutex<RawTerminal<Stdout>>>, host: &str, cache: Arc<RwLock<String>>, input: Arc<RwLock<String>>) -> Result<(), Box<dyn Error>> {
     while let Ok(data) = read_messages(host) {
         if data == cache.read().unwrap().clone() { 
             continue 
         }
 
         *cache.write().unwrap() = data;
-        print_console(&cache.read().unwrap(), &input.read().unwrap())?;
+        print_console(terminal.clone(), &cache.read().unwrap(), &input.read().unwrap())?;
         thread::sleep(Duration::from_millis(UPDATE_TIME));
     }
     Ok(())
@@ -149,7 +149,8 @@ fn format_message(message: String) -> Option<String> {
     let message = message.trim_end_matches(ADVERTISEMENT);
     let message = Regex::new(r"\{[^}]*\}\ ").unwrap().replace(&message, "").to_string();
     let message = sanitize_text(&message);
-    if message.starts_with(ADVERTISEMENT
+    if ADVERTISEMENT.len() > 0 && 
+        message.starts_with(ADVERTISEMENT
         .trim_start_matches("\r")
         .trim_start_matches("\n")) {
         return None
@@ -186,7 +187,7 @@ fn on_command(host: &str, command: &str) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn print_console(messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
+fn print_console(terminal: Arc<Mutex<RawTerminal<Stdout>>>, messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
     let mut messages = messages.split("\n")
         .map(|o| o.to_string())
         .collect::<Vec<String>>();
@@ -194,7 +195,6 @@ fn print_console(messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
     messages.truncate(MAX_MESSAGES);
     messages.reverse();
     let messages: Vec<String> = messages.into_iter().filter_map(format_message).collect();
-    let mut out = stdout().into_raw_mode()?;
     let text = format!(
         "{}{}\n> {}", 
         "\n".repeat(MAX_MESSAGES - messages.len()), 
@@ -203,8 +203,8 @@ fn print_console(messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
         input
     );
     for line in text.lines() {
-        write!(out, "\r\n{}", line)?;
-        out.flush()?;
+        write!(terminal.lock().unwrap(), "\r\n{}", line)?;
+        terminal.lock().unwrap().flush()?;
     }
     Ok(())
 }
@@ -217,18 +217,37 @@ fn main() {
     let messages = Arc::new(RwLock::new(String::new()));
     let input = Arc::new(RwLock::new(String::new()));
 
+    let terminal = stdout().into_raw_mode().unwrap();
+    terminal.activate_raw_mode().unwrap();
+
+    let terminal = Arc::new(Mutex::new(terminal));
+
     thread::spawn({
         let host = host.clone();
         let messages = messages.clone();
         let input = input.clone();
+        let terminal = terminal.clone();
 
         move || {
-            let _ = recv_loop(&host, messages, input);
+            let _ = recv_loop(terminal, &host, messages, input);
             println!("Connection closed");
         }
     });
 
-    let _ = stdout().into_raw_mode().unwrap();
+    thread::spawn({
+        let messages = messages.clone();
+        let input = input.clone();
+        let terminal = terminal.clone();
+
+        move || {
+            print_console(
+                terminal.clone(), 
+                &messages.read().unwrap(), 
+                &input.read().unwrap()
+            ).expect("Error printing console");
+            thread::sleep(Duration::from_millis(UPDATE_TIME));
+        }
+    });
 
     let stdin = stdin();
     for key in stdin.keys() {
@@ -240,21 +259,46 @@ fn main() {
                         on_command(&host, &message).expect("Error on command");
                     } else {
                         send_message(&host, &format!("{}<{}> {}", MAGIC_KEY, name, message)).expect("Error sending message");
-                        input.write().unwrap().clear();
                     }
                 }
-                print_console(&messages.read().unwrap(), &input.read().unwrap()).expect("Error printing console");
+
+                let input_len = input.read().unwrap().len();
+                write!(terminal.lock().unwrap(), 
+                    "{}{}{}", 
+                    cursor::Left(1).to_string().repeat(input_len), 
+                    " ".repeat(input_len), 
+                    cursor::Left(1).to_string().repeat(input_len)
+                ).unwrap();
+                terminal.lock().unwrap().flush().unwrap();
+                input.write().unwrap().clear();
             }
             Key::Backspace => {
-                input.write().unwrap().pop();
+                if input.write().unwrap().pop().is_some() {
+                    write!(terminal.lock().unwrap(), "{} {}", cursor::Left(1), cursor::Left(1)).unwrap();
+                    terminal.lock().unwrap().flush().unwrap();
+                }
             }
             Key::Char(c) => {
                 input.write().unwrap().push(c);
+                write!(terminal.lock().unwrap(), "{}", c).unwrap();
+                terminal.lock().unwrap().flush().unwrap();
             }
-            Key::Esc => break,
-            Key::Ctrl('c') => break,
-            Key::Ctrl('z') => break,
-            Key::Ctrl('x') => break,
+            Key::Esc => {
+                terminal.lock().unwrap().suspend_raw_mode().unwrap();
+                break;
+            },
+            Key::Ctrl('c') => {
+                terminal.lock().unwrap().suspend_raw_mode().unwrap();
+                break;
+            },
+            Key::Ctrl('z') => {
+                terminal.lock().unwrap().suspend_raw_mode().unwrap();
+                break;
+            },
+            Key::Ctrl('x') => {
+                terminal.lock().unwrap().suspend_raw_mode().unwrap();
+                break;
+            },
             _ => {}
         }
     }
