@@ -5,7 +5,7 @@ use std::{
 use colored::Colorize;
 use rand::random;
 use regex::Regex;
-use termion::{color, event::Key, input::TermRead, raw::IntoRawMode, style};
+use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
 const MAX_MESSAGES: usize = 100;
 const DEFAULT_HOST: &str = "meex.lol:11234";
