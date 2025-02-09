@@ -1,4 +1,4 @@
-use std::{error::Error, io::{stdin, stdout, BufRead, Read, Write}, net::TcpStream, thread, usize::MAX};
+use std::{error::Error, io::{stdin, stdout, BufRead, Read, Write}, net::TcpStream, thread};
 
 const MAX_MESSAGES: usize = 100;
 const DEFAULT_HOST: &str = "meex.lol:11234";
