@@ -17,14 +17,15 @@ better RAC client
 ### download binary
 
 go to [releases](https://github.com/MeexReay/bRAC/releases/latest) and download file you need. its simple.
+(there are no releases now, wait for one or [build from source](https://github.com/MeexReay/bRAC#download-binary))
 
 ### build from source
 
 (you have to install [rust](https://rust-lang.org) at first)
 
 ```bash
-cargo build # build
-cargo run   # run
+cargo build --release # build release (target/release/bRAC)
+cargo run   # run (builds and runs bRAC itself)
 ```
 
 ## commands
