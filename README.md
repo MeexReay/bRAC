@@ -6,4 +6,6 @@ better RAC client
 ```bash
 rustc main.rs -o main # build
 ./main                # run
+cargo build # build with cargo
+cargo run   # run with cargo
 ```

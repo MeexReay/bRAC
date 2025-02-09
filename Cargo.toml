@@ -1,0 +1,10 @@
+[package]
+name = "bRAC"
+version = "1.99.2"
+edition = "2021"
+
+[dependencies]
+
+[[bin]]
+name = "bRAC"
+path = "main.rs"
