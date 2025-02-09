@@ -1,18 +1,29 @@
 use std::{
-    collections::HashMap, error::Error, io::{stdin, stdout, BufRead, Read, Stdout, Write}, net::TcpStream, sync::{Arc, Mutex, RwLock}, thread, time::Duration
+    error::Error,
+    io::{stdin, stdout, BufRead, Read, Write}, 
+    net::TcpStream,
+    sync::{Arc, RwLock}, 
+    thread, 
+    time::Duration
 };
 
 use colored::{Color, Colorize};
+use crossterm::{
+    cursor::MoveLeft, 
+    event::{self, Event, KeyCode}, 
+    terminal::{disable_raw_mode, enable_raw_mode}, 
+    ExecutableCommand
+};
 use rand::random;
 use regex::Regex;
-use termion::{async_stdin, clear, cursor, event::Key, input::TermRead, raw::{IntoRawMode, RawTerminal}};
 use lazy_static::lazy_static;
 
 
-const MAX_MESSAGES: usize = 100;
 const DEFAULT_HOST: &str = "meex.lol:11234";
-const MAGIC_KEY: &str = "\u{B9AC}\u{3E70}";
 const ADVERTISEMENT: &str = "\r\x1B[1A use bRAC client! https://github.com/MeexReay/bRAC \x1B[1B";
+
+const MAX_MESSAGES: usize = 100;
+const MAGIC_KEY: &str = "\u{B9AC}\u{3E70}";
 const ADVERTISEMENT_ENABLED: bool = false;
 const UPDATE_TIME: u64 = 50;
 
@@ -93,14 +104,14 @@ fn read_messages(host: &str) -> Result<String, Box<dyn Error>> {
     Ok(packet_data)
 }
 
-fn recv_loop(terminal: Arc<Mutex<RawTerminal<Stdout>>>, host: &str, cache: Arc<RwLock<String>>, input: Arc<RwLock<String>>) -> Result<(), Box<dyn Error>> {
+fn recv_loop(host: &str, cache: Arc<RwLock<String>>, input: Arc<RwLock<String>>) -> Result<(), Box<dyn Error>> {
     while let Ok(data) = read_messages(host) {
         if data == cache.read().unwrap().clone() { 
             continue 
         }
 
         *cache.write().unwrap() = data;
-        print_console(terminal.clone(), &cache.read().unwrap(), &input.read().unwrap())?;
+        print_console(&cache.read().unwrap(), &input.read().unwrap())?;
         thread::sleep(Duration::from_millis(UPDATE_TIME));
     }
     Ok(())
@@ -179,7 +190,7 @@ fn format_message(message: String) -> Option<String> {
     })
 }
 
-fn on_command(host: &str, command: &str, input: Arc<RwLock<String>>) -> Result<(), Box<dyn Error>> {
+fn on_command(host: &str, command: &str) -> Result<(), Box<dyn Error>> {
     let command = command.trim_start_matches("/");
     let (command, args) = command.split_once(" ").unwrap_or((&command, ""));
     let args = args.split(" ").collect::<Vec<&str>>();
@@ -195,7 +206,7 @@ fn on_command(host: &str, command: &str, input: Arc<RwLock<String>>) -> Result<(
     Ok(())
 }
 
-fn print_console(terminal: Arc<Mutex<RawTerminal<Stdout>>>, messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
+fn print_console(messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
     let mut messages = messages.split("\n")
         .map(|o| o.to_string())
         .collect::<Vec<String>>();
@@ -211,8 +222,8 @@ fn print_console(terminal: Arc<Mutex<RawTerminal<Stdout>>>, messages: &str, inpu
         input
     );
     for line in text.lines() {
-        write!(terminal.lock().unwrap(), "\r\n{}", line)?;
-        terminal.lock().unwrap().flush()?;
+        write!(stdout().lock(), "\r\n{}", line)?;
+        stdout().lock().flush()?;
     }
     Ok(())
 }
@@ -225,19 +236,15 @@ fn main() {
     let messages = Arc::new(RwLock::new(String::new()));
     let input = Arc::new(RwLock::new(String::new()));
 
-    let terminal = stdout().into_raw_mode().unwrap();
-    terminal.activate_raw_mode().unwrap();
-
-    let terminal = Arc::new(Mutex::new(terminal));
+    enable_raw_mode().unwrap();
 
     thread::spawn({
         let host = host.clone();
         let messages = messages.clone();
         let input = input.clone();
-        let terminal = terminal.clone();
 
         move || {
-            let _ = recv_loop(terminal, &host, messages, input);
+            let _ = recv_loop(&host, messages, input);
             println!("Connection closed");
         }
     });
@@ -245,11 +252,9 @@ fn main() {
     thread::spawn({
         let messages = messages.clone();
         let input = input.clone();
-        let terminal = terminal.clone();
 
         move || {
             print_console(
-                terminal.clone(), 
                 &messages.read().unwrap(), 
                 &input.read().unwrap()
             ).expect("Error printing console");
@@ -257,59 +262,58 @@ fn main() {
         }
     });
 
-    let stdin = stdin();
-    for key in stdin.keys() {
-        match key.unwrap() {
-            Key::Char('\n') => {
-                let message = input.read().unwrap().clone();
+    loop {
+        if !event::poll(Duration::from_millis(50)).unwrap_or(false) { continue }
 
-                {
-                    let input_len = input.read().unwrap().len();
-                    write!(terminal.lock().unwrap(), 
-                        "{}{}{}", 
-                        cursor::Left(1).to_string().repeat(input_len), 
-                        " ".repeat(input_len), 
-                        cursor::Left(1).to_string().repeat(input_len)
-                    ).unwrap();
-                    terminal.lock().unwrap().flush().unwrap();
-                    input.write().unwrap().clear();
-                }
+        let event = match event::read() {
+            Ok(i) => i,
+            Err(_) => { continue },
+        };
 
-                if !message.is_empty() {
-                    if message.starts_with("/") {
-                        on_command(&host, &message, input.clone()).expect("Error on command");
-                    } else {
-                        send_message(&host, &format!("{}<{}> {}", MAGIC_KEY, name, message)).expect("Error sending message");
+        match event {
+            Event::Key(event) => {
+                match event.code {
+                    KeyCode::Enter => {
+                        let message = input.read().unwrap().clone();
+        
+                        let input_len = input.read().unwrap().len();
+                        stdout().lock().execute(MoveLeft(input_len as u16)).unwrap();
+                        write!(stdout(), "{}{}", " ".repeat(input_len), MoveLeft(input_len as u16).to_string()).unwrap();
+                        stdout().lock().flush().unwrap();
+                        input.write().unwrap().clear();
+        
+                        if !message.is_empty() {
+                            if message.starts_with("/") {
+                                on_command(&host, &message).expect("Error on command");
+                            } else {
+                                send_message(&host, &format!("{}<{}> {}", MAGIC_KEY, name, message)).expect("Error sending message");
+                            }
+                        }
                     }
+                    KeyCode::Backspace => {
+                        if input.write().unwrap().pop().is_some() {
+                            stdout().lock().execute(MoveLeft(1)).unwrap();
+                            write!(stdout(), " {}", MoveLeft(1).to_string()).unwrap();
+                            stdout().lock().flush().unwrap();
+                        }
+                    }
+                    KeyCode::Char(c) => {
+                        input.write().unwrap().push(c);
+                        write!(stdout(), "{}", c).unwrap();
+                        stdout().lock().flush().unwrap();
+                    }
+                    KeyCode::Esc => {
+                        disable_raw_mode().unwrap();
+                        break;
+                    },
+                    _ => {}
                 }
+            },
+            Event::Paste(data) => {
+                input.write().unwrap().push_str(&data);
+                write!(stdout(), "{}", &data).unwrap();
+                stdout().lock().flush().unwrap();
             }
-            Key::Backspace => {
-                if input.write().unwrap().pop().is_some() {
-                    write!(terminal.lock().unwrap(), "{} {}", cursor::Left(1), cursor::Left(1)).unwrap();
-                    terminal.lock().unwrap().flush().unwrap();
-                }
-            }
-            Key::Char(c) => {
-                input.write().unwrap().push(c);
-                write!(terminal.lock().unwrap(), "{}", c).unwrap();
-                terminal.lock().unwrap().flush().unwrap();
-            }
-            Key::Esc => {
-                terminal.lock().unwrap().suspend_raw_mode().unwrap();
-                break;
-            },
-            Key::Ctrl('c') => {
-                terminal.lock().unwrap().suspend_raw_mode().unwrap();
-                break;
-            },
-            Key::Ctrl('z') => {
-                terminal.lock().unwrap().suspend_raw_mode().unwrap();
-                break;
-            },
-            Key::Ctrl('x') => {
-                terminal.lock().unwrap().suspend_raw_mode().unwrap();
-                break;
-            },
             _ => {}
         }
     }

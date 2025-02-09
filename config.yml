@@ -1,4 +1,5 @@
-host: meex.lol:11234
-name: null
-magic_key: "\uB9AC\u3E70"
-ad: "\r\x1B[1A use bRAC client! https://github.com/MeexReay/bRAC \x1B[1B"
+host: meex.lol:11234 # reverse proxy through tor
+name: null # username (null - ask every time)
+magic_key: "\uB9AC\u3E70" # default bRAC marker
+ad_enabled: false # enable sending ad of bRAC above your message
+update_time: 50 # update messages interval
