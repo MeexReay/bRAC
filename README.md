@@ -3,12 +3,12 @@ better RAC client
 
 ## features
 
+- cheat commands
 - no ip and date visible
-- plays sound on receiving messages
-- using tor proxy by default
+- uses TOR proxy server by default
+- plays sound when users receive your messages
 - coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc)
 - RACv1.99.x compatible
-- cheat commands
 
 ![image](https://github.com/user-attachments/assets/a2858662-50f1-4554-949c-f55addf48fcc)
 
@@ -21,38 +21,36 @@ cargo build # build
 cargo run   # run
 ```
 
-## extensions
+## commands
 
-### colored usernames
+`/clear` - clear chat \
+`/spam *args` - spam with text
 
-#### bRAC
+## colored usernames
+
+### bRAC
 
 regex - `\uB9AC\u3E70<(.*?)> (.*)` \
 color - green \
 example - `리㹰<nick> text`
 
-#### CRAB
+### CRAB
 
 regex - `\u2550\u2550\u2550<(.*?)> (.*)` \
 color - light red \
 example - `═══<nick> text`
 
-#### Mefedroniy
+### Mefedroniy
 
 regex - `(.*?): (.*)` \
 color - light magenta \
 example - `nick: text`
 
-#### clRAC
+### clRAC
 
 regex - `<(.*?)> (.*)` \
 color - cyan \
 example - `<nick> text`
-
-### commands
-
-/clear - clear chat
-/spam *args - spam in chat with text
 
 ## see also
 
