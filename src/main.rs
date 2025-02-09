@@ -14,7 +14,7 @@ const MAGIC_KEY: &str = "리㹰";
 fn send_message(host: &str, message: &str) -> Result<(), Box<dyn Error>> {
     let mut stream = TcpStream::connect(host)?;
     stream.write_all(&[0x01])?;
-    let data = format!("\r{}{}", 
+    let data = format!("\r\x07{}{}", 
         message,
         if message.chars().count() < 39 { 
             " ".repeat(39-message.chars().count()) 
@@ -83,7 +83,7 @@ fn recv_loop(host: &str, cache: Arc<RwLock<String>>, input: Arc<RwLock<String>>)
         }
 
         *cache.write().unwrap() = data;
-        print_console(&cache.read().unwrap(), &input.read().unwrap())?;
+        print_console(&cache.read().unwrap(), &input.read().unwrap(), true)?;
     }
     Ok(())
 }
@@ -109,11 +109,17 @@ fn get_input(prompt: &str, default: &str) -> String {
     }.to_string()
 }
 
+fn sanitize_text(input: &str) -> String {
+    let ansi_regex = Regex::new(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])").unwrap();
+    let control_chars_regex = Regex::new(r"[\x00-\x1F\x7F]").unwrap();
+    let without_ansi = ansi_regex.replace_all(input, "");
+    let cleaned_text = control_chars_regex.replace_all(&without_ansi, "");
+    cleaned_text.into_owned()
+}
+
 fn on_message(message: String) -> String {
     let message = Regex::new(r"\{[^}]*\}\ ").unwrap().replace(&message, "").to_string();
-    let message = message.replace("\r", "");
-    let message = message.replace("\0", "");
-    let message = message.replace("\t", "");
+    let message = sanitize_text(&message);
 
     if let Some(captures) = Regex::new(r"\[(.*?)\] <(.*?)> (.*)").unwrap().captures(&message) {
         let date = &captures[1];
@@ -173,7 +179,7 @@ fn on_message(message: String) -> String {
     }
 }
 
-fn print_console(messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
+fn print_console(messages: &str, input: &str, sound: bool) -> Result<(), Box<dyn Error>> {
     let mut messages = messages.split("\n")
         .map(|o| o.to_string())
         .collect::<Vec<String>>();
@@ -182,7 +188,13 @@ fn print_console(messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
     messages.reverse();
     let messages: Vec<String> = messages.into_iter().map(on_message).collect();
     let mut out = stdout().into_raw_mode()?;
-    let text = format!("{}{}\n> {}", "\n".repeat(MAX_MESSAGES - messages.len()), messages.join("\n"), input);
+    let text = format!(
+        "{}{}\n{}> {}", 
+        "\n".repeat(MAX_MESSAGES - messages.len()), 
+        messages.join("\n"), 
+        if sound { "\x07" } else { "" }, 
+        input
+    );
     for line in text.lines() {
         write!(out, "\r\n{}", line)?;
         out.flush()?;
@@ -220,7 +232,7 @@ fn main() {
                     send_message(&host, &format!("{}<{}> {}", MAGIC_KEY, name, message)).expect("Error sending message");
                     input.write().unwrap().clear();
                 }
-                print_console(&messages.read().unwrap(), &input.read().unwrap()).expect("Error printing console");
+                print_console(&messages.read().unwrap(), &input.read().unwrap(), false).expect("Error printing console");
             }
             Key::Backspace => {
                 input.write().unwrap().pop();
