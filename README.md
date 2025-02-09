@@ -26,27 +26,27 @@ cargo run   # run
 
 #### bRAC
 
-regex - `\[(.*?)\] \uB9AC\u3E70<(.*?)> (.*)` \
+regex - `\uB9AC\u3E70<(.*?)> (.*)` \
 color - green \
-example - `[date] 리㹰<nick> text`
+example - `리㹰<nick> text`
 
 #### CRAB
 
-regex - `\[(.*?)\] \u2550\u2550\u2550<(.*?)> (.*)` \
+regex - `\u2550\u2550\u2550<(.*?)> (.*)` \
 color - light red \
-example - `[date] ═══<nick> text`
+example - `═══<nick> text`
 
 #### Mefedroniy
 
-regex - `\[(.*?)\] (.*?): (.*)` \
+regex - `(.*?): (.*)` \
 color - light magenta \
-example - `[date] nick: text`
+example - `nick: text`
 
 #### clRAC
 
-regex - `\[(.*?)\] <(.*?)> (.*)` \
+regex - `<(.*?)> (.*)` \
 color - cyan \
-example - `[date] <nick> text`
+example - `<nick> text`
 
 ## see also
 

@@ -1,29 +1,46 @@
 use std::{
-    error::Error, io::{stdin, stdout, BufRead, Read, Write}, net::TcpStream, sync::{Arc, RwLock}, thread
+    collections::HashMap, error::Error, io::{stdin, stdout, BufRead, Read, Write}, net::TcpStream, sync::{Arc, RwLock}, thread, time::Duration
 };
 
-use colored::Colorize;
+use colored::{Color, Colorize};
 use rand::random;
 use regex::Regex;
 use termion::{event::Key, input::TermRead, raw::IntoRawMode};
+use lazy_static::lazy_static;
+
 
 const MAX_MESSAGES: usize = 100;
 const DEFAULT_HOST: &str = "meex.lol:11234";
 const MAGIC_KEY: &str = "\u{B9AC}\u{3E70}";
+// const ADVERTISEMENT: &str = "\r\x1B[1A use bRAC client! https://github.com/MeexReay/bRAC \x1B[1B";
+const ADVERTISEMENT: &str = "";
+const UPDATE_TIME: u64 = 50;
+
+
+lazy_static! {
+    static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
+    static ref COLORED_USERNAMES: Vec<(Regex, Color)> = vec![
+        (Regex::new(&format!(r"{}<(.*?)> (.*)", MAGIC_KEY)).unwrap(), Color::Green),
+        (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), Color::BrightRed),
+        (Regex::new(r"(.*?): (.*)").unwrap(), Color::Magenta),
+        (Regex::new(r"<(.*?)> (.*)").unwrap(), Color::Cyan),
+    ];
+}
+
 
 fn send_message(host: &str, message: &str) -> Result<(), Box<dyn Error>> {
     let mut stream = TcpStream::connect(host)?;
     stream.write_all(&[0x01])?;
-    let data = format!("\r\x07{}{}", 
+    let data = format!("\r\x07{}{}{}", 
         message,
         if message.chars().count() < 39 { 
             " ".repeat(39-message.chars().count()) 
         } else { 
             String::new()
-        }
+        },
+        ADVERTISEMENT
     );
     stream.write_all(data.as_bytes())?;
-    stream.write_all("\0".repeat(1023 - data.len()).as_bytes())?;
     Ok(())
 }
 
@@ -83,7 +100,8 @@ fn recv_loop(host: &str, cache: Arc<RwLock<String>>, input: Arc<RwLock<String>>)
         }
 
         *cache.write().unwrap() = data;
-        print_console(&cache.read().unwrap(), &input.read().unwrap(), true)?;
+        print_console(&cache.read().unwrap(), &input.read().unwrap())?;
+        thread::sleep(Duration::from_millis(UPDATE_TIME));
     }
     Ok(())
 }
@@ -117,82 +135,71 @@ fn sanitize_text(input: &str) -> String {
     cleaned_text.into_owned()
 }
 
-fn on_message(message: String) -> String {
+/// nick content nick_color
+fn find_username_color(message: &str) -> Option<(String, String, Color)> {
+    for (re, color) in COLORED_USERNAMES.iter() {
+        if let Some(captures) = re.captures(message) {
+            return Some((captures[1].to_string(), captures[2].to_string(), color.clone()))
+        }
+    }
+    None
+}
+
+fn format_message(message: String) -> Option<String> {
+    let message = message.trim_end_matches(ADVERTISEMENT);
     let message = Regex::new(r"\{[^}]*\}\ ").unwrap().replace(&message, "").to_string();
     let message = sanitize_text(&message);
+    if message.starts_with(ADVERTISEMENT
+        .trim_start_matches("\r")
+        .trim_start_matches("\n")) {
+        return None
+    }
 
-    if let Some(captures) = Regex::new(r"\[(.*?)\] <(.*?)> (.*)").unwrap().captures(&message) {
-        let date = &captures[1];
-        let nick = &captures[2];
-        let content = &captures[3];
+    let date = DATE_REGEX.captures(&message)?;
+    let (date, message) = (date.get(1)?.as_str().to_string(), date.get(2)?.as_str().to_string());
 
-        format!(
-            "{} {} {}",
-            format!("[{}]", date).white().dimmed(),
-            format!("<{}>", nick).cyan().bold(),
-            content.white().blink()
-        )
-    } else if let Some(captures) = Regex::new(&format!(r"\[(.*?)\] {}<(.*?)> (.*)", MAGIC_KEY)).unwrap().captures(&message) {
-        let date = &captures[1];
-        let nick = &captures[2];
-        let content = &captures[3];
+    Some(if let Some(captures) = find_username_color(&message) {
+        let nick = captures.0;
+        let content = captures.1;
+        let color = captures.2;
 
         format!(
             "{} {} {}",
             format!("[{}]", date).white().dimmed(),
-            format!("<{}>", nick).green().bold(),
-            content.white().blink()
-        )
-    } else if let Some(captures) = Regex::new(r"\[(.*?)\] (.*?): (.*)").unwrap().captures(&message) {
-        let date = &captures[1];
-        let nick = &captures[2];
-        let content = &captures[3];
-
-        format!(
-            "{} {} {}",
-            format!("[{}]", date).white().dimmed(),
-            format!("<{}>", nick).magenta().bold(),
-            content.white().blink()
-        )
-    } else if let Some(captures) = Regex::new(r"\[(.*?)\] \u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap().captures(&message) {
-        let date = &captures[1];
-        let nick = &captures[2];
-        let content = &captures[3];
-
-        format!(
-            "{} {} {}",
-            format!("[{}]", date).white().dimmed(),
-            format!("<{}>", nick).bright_red().bold(),
-            content.white().blink()
-        )
-    } else if let Some(captures) = Regex::new(r"\[(.*?)\] (.*)").unwrap().captures(&message) {
-        let date = &captures[1];
-        let content = &captures[2];
-
-        format!(
-            "{} {}",
-            format!("[{}]", date).white().dimmed(),
+            format!("<{}>", nick).color(color).bold(),
             content.white().blink()
         )
     } else {
-        message.to_string()
-    }
+        format!(
+            "{} {}",
+            format!("[{}]", date).white().dimmed(),
+            message.white().blink()
+        )
+    })
 }
 
-fn print_console(messages: &str, input: &str, sound: bool) -> Result<(), Box<dyn Error>> {
+fn on_command(host: &str, command: &str) -> Result<(), Box<dyn Error>> {
+    if command == "/clear" {
+        send_message(host, &"\n".repeat(MAX_MESSAGES))?;
+    }
+
+    Ok(())
+}
+
+fn print_console(messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
     let mut messages = messages.split("\n")
         .map(|o| o.to_string())
         .collect::<Vec<String>>();
     messages.reverse();
     messages.truncate(MAX_MESSAGES);
     messages.reverse();
-    let messages: Vec<String> = messages.into_iter().map(on_message).collect();
+    let messages: Vec<String> = messages.into_iter().filter_map(format_message).collect();
     let mut out = stdout().into_raw_mode()?;
     let text = format!(
-        "{}{}\n{}> {}", 
+        "{}{}\n> {}", 
         "\n".repeat(MAX_MESSAGES - messages.len()), 
         messages.join("\n"), 
-        if sound { "\x07" } else { "" }, 
+        // if sound { "\x07" } else { "" }, 
         input
     );
     for line in text.lines() {
@@ -229,10 +236,14 @@ fn main() {
             Key::Char('\n') => {
                 let message = input.read().unwrap().clone();
                 if !message.is_empty() {
-                    send_message(&host, &format!("{}<{}> {}", MAGIC_KEY, name, message)).expect("Error sending message");
-                    input.write().unwrap().clear();
+                    if message.starts_with("/") {
+                        on_command(&host, &message).expect("Error on command");
+                    } else {
+                        send_message(&host, &format!("{}<{}> {}", MAGIC_KEY, name, message)).expect("Error sending message");
+                        input.write().unwrap().clear();
+                    }
                 }
-                print_console(&messages.read().unwrap(), &input.read().unwrap(), false).expect("Error printing console");
+                print_console(&messages.read().unwrap(), &input.read().unwrap()).expect("Error printing console");
             }
             Key::Backspace => {
                 input.write().unwrap().pop();
