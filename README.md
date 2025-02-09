@@ -24,6 +24,8 @@ go to [releases](https://github.com/MeexReay/bRAC/releases/latest) and download 
 (you have to install [rust](https://rust-lang.org) at first)
 
 ```bash
+git clone https://github.com/MeexReay/bRAC.git
+cd bRAC
 cargo build --release # build release (target/release/bRAC)
 cargo run   # run (builds and runs bRAC itself)
 ```
