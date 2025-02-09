@@ -180,8 +180,14 @@ fn format_message(message: String) -> Option<String> {
 }
 
 fn on_command(host: &str, command: &str) -> Result<(), Box<dyn Error>> {
-    if command == "/clear" {
-        send_message(host, &"\n".repeat(MAX_MESSAGES))?;
+    let command = command.trim_start_matches("/");
+    let (command, args) = command.split_once(" ").unwrap_or((&command, ""));
+    let args = args.split(" ").collect::<Vec<&str>>();
+
+    if command == "clear" {
+        send_message(host, &format!("\r\x1B[1A{}", " ".repeat(64)).repeat(MAX_MESSAGES))?;
+    } else if command == "spam" {
+        send_message(host, &format!("\r\x1B[1A{}{}", args.join(" "), " ".repeat(10)).repeat(MAX_MESSAGES))?;
     }
 
     Ok(())
