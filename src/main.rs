@@ -2,6 +2,7 @@ use std::{
     error::Error, io::{stdin, stdout, BufRead, Read, Write}, net::TcpStream, sync::{Arc, RwLock}, thread
 };
 
+use colored::Colorize;
 use rand::random;
 use regex::Regex;
 use termion::{color, event::Key, input::TermRead, raw::IntoRawMode, style};
@@ -119,45 +120,56 @@ fn on_message(message: String) -> String {
         let nick = &captures[2];
         let content = &captures[3];
 
-        let mut result = String::new();
-        result.push_str(&format!("{}{}[{}] ", color::Fg(color::White), style::Faint, date));
-        result.push_str(&format!("{}{}{}<{}> ", style::Reset, style::Bold, color::Fg(color::Cyan), nick));
-        result.push_str(&format!("{}{}{}", color::Fg(color::White), style::Blink, content));
-        result.push_str(&style::Reset.to_string());
-        result
-    } else if let Some(captures) = Regex::new(&format!("\\[(.*?)\\] {}<(.*?)> (.*)", MAGIC_KEY)).unwrap().captures(&message) {
+        format!(
+            "{} {} {}",
+            format!("[{}]", date).white().dimmed(),
+            format!("<{}>", nick).cyan().bold(),
+            content.white().blink()
+        )
+    } else if let Some(captures) = Regex::new(&format!(r"\[(.*?)\] {}<(.*?)> (.*)", MAGIC_KEY)).unwrap().captures(&message) {
         let date = &captures[1];
         let nick = &captures[2];
         let content = &captures[3];
 
-        let mut result = String::new();
-        result.push_str(&format!("{}{}[{}] ", color::Fg(color::White), style::Faint, date));
-        result.push_str(&format!("{}{}{}<{}> ", style::Reset, style::Bold, color::Fg(color::Green), nick));
-        result.push_str(&format!("{}{}{}", color::Fg(color::White), style::Blink, content));
-        result.push_str(&style::Reset.to_string());
-        result
+        format!(
+            "{} {} {}",
+            format!("[{}]", date).white().dimmed(),
+            format!("<{}>", nick).green().bold(),
+            content.white().blink()
+        )
     } else if let Some(captures) = Regex::new(r"\[(.*?)\] (.*?): (.*)").unwrap().captures(&message) {
         let date = &captures[1];
         let nick = &captures[2];
         let content = &captures[3];
 
-        let mut result = String::new();
-        result.push_str(&format!("{}{}[{}] ", color::Fg(color::White), style::Faint, date));
-        result.push_str(&format!("{}{}{}<{}> ", style::Reset, style::Bold, color::Fg(color::LightMagenta), nick));
-        result.push_str(&format!("{}{}{}", color::Fg(color::White), style::Blink, content));
-        result.push_str(&style::Reset.to_string());
-        result
+        format!(
+            "{} {} {}",
+            format!("[{}]", date).white().dimmed(),
+            format!("<{}>", nick).magenta().bold(),
+            content.white().blink()
+        )
+    } else if let Some(captures) = Regex::new(r"\[(.*?)\] \u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap().captures(&message) {
+        let date = &captures[1];
+        let nick = &captures[2];
+        let content = &captures[3];
+
+        format!(
+            "{} {} {}",
+            format!("[{}]", date).white().dimmed(),
+            format!("<{}>", nick).bright_red().bold(),
+            content.white().blink()
+        )
     } else if let Some(captures) = Regex::new(r"\[(.*?)\] (.*)").unwrap().captures(&message) {
         let date = &captures[1];
         let content = &captures[2];
 
-        let mut result = String::new();
-        result.push_str(&format!("{}{}[{}] ", color::Fg(color::White), style::Faint, date));
-        result.push_str(&format!("{}{}{}{}", style::Reset, color::Fg(color::White), style::Blink, content));
-        result.push_str(&style::Reset.to_string());
-        result
+        format!(
+            "{} {}",
+            format!("[{}]", date).white().dimmed(),
+            content.white().blink()
+        )
     } else {
-        message
+        message.to_string()
     }
 }
 
@@ -208,6 +220,7 @@ fn main() {
                     send_message(&host, &format!("{}<{}> {}", MAGIC_KEY, name, message)).expect("Error sending message");
                     input.write().unwrap().clear();
                 }
+                print_console(&messages.read().unwrap(), &input.read().unwrap()).expect("Error printing console");
             }
             Key::Backspace => {
                 input.write().unwrap().pop();
@@ -221,7 +234,5 @@ fn main() {
             Key::Ctrl('x') => break,
             _ => {}
         }
-
-        print_console(&messages.read().unwrap(), &input.read().unwrap()).expect("Error printing console");
     }
 }
