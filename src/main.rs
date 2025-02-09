@@ -1,16 +1,28 @@
-use std::{error::Error, fmt::format, fs, io::{stdin, stdout, BufRead, Read, Write}, net::TcpStream, sync::{Arc, RwLock}, thread, time::{self, Duration, SystemTime, UNIX_EPOCH}};
+use std::{
+    error::Error, io::{stdin, stdout, BufRead, Read, Write}, net::TcpStream, sync::{Arc, RwLock}, thread
+};
 
 use rand::random;
-use termion::{event::Key, input::TermRead, raw::IntoRawMode};
+use regex::Regex;
+use termion::{color, event::Key, input::TermRead, raw::IntoRawMode, style};
 
 const MAX_MESSAGES: usize = 100;
 const DEFAULT_HOST: &str = "meex.lol:11234";
+const MAGIC_KEY: &str = "리㹰";
 
 fn send_message(host: &str, message: &str) -> Result<(), Box<dyn Error>> {
     let mut stream = TcpStream::connect(host)?;
     stream.write_all(&[0x01])?;
-    stream.write_all(message.as_bytes())?;
-    stream.write_all("\0".repeat(1023 - message.len()).as_bytes())?;
+    let data = format!("\r{}{}", 
+        message,
+        if message.chars().count() < 39 { 
+            " ".repeat(39-message.chars().count()) 
+        } else { 
+            String::new()
+        }
+    );
+    stream.write_all(data.as_bytes())?;
+    stream.write_all("\0".repeat(1023 - data.len()).as_bytes())?;
     Ok(())
 }
 
@@ -47,7 +59,6 @@ fn read_messages(host: &str) -> Result<String, Box<dyn Error>> {
             .parse()?
     };
 
-    // println!("{} {}", skip, packet_size);
     stream.write_all(&[0x01])?;
 
     let packet_data = {
@@ -97,6 +108,42 @@ fn get_input(prompt: &str, default: &str) -> String {
     }.to_string()
 }
 
+fn on_message(message: String) -> String {
+    let message = Regex::new(r"\{[^}]*\}\ ").unwrap().replace(&message, "").to_string();
+    let message = message.replace("\r", "");
+    let message = message.replace("\0", "");
+    let message = message.replace("\t", "");
+
+    let captures = Regex::new(r"\[(.*?)\] <(.*?)> (.*)").unwrap().captures(&message)
+        .or_else(|| Regex::new(&format!("\\[(.*?)\\] {}<(.*?)> (.*)", MAGIC_KEY)).unwrap().captures(&message))
+        .or_else(|| Regex::new(&format!("\\[(.*?)\\] {} <(.*?)> (.*)", MAGIC_KEY)).unwrap().captures(&message))
+        .or_else(|| Regex::new(r"\[(.*?)\] (.*?): (.*)").unwrap().captures(&message));
+
+    if let Some(captures) = captures {
+        let date = &captures[1];
+        let nick = &captures[2];
+        let content = &captures[3];
+
+        let mut result = String::new();
+        result.push_str(&format!("{}{}[{}] ", color::Fg(color::White), style::Faint, date));
+        result.push_str(&format!("{}{}{}<{}> ", style::Reset, style::Bold, color::Fg(color::Cyan), nick));
+        result.push_str(&format!("{}{}{}", color::Fg(color::White), style::Blink, content));
+        result.push_str(&style::Reset.to_string());
+        result
+    } else if let Some(captures) = Regex::new(r"\[(.*?)\] (.*)").unwrap().captures(&message) {
+        let date = &captures[1];
+        let content = &captures[2];
+
+        let mut result = String::new();
+        result.push_str(&format!("{}{}[{}] ", color::Fg(color::White), style::Faint, date));
+        result.push_str(&format!("{}{}{}{}", style::Reset, color::Fg(color::White), style::Blink, content));
+        result.push_str(&style::Reset.to_string());
+        result
+    } else {
+        message
+    }
+}
+
 fn print_console(messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
     let mut messages = messages.split("\n")
         .map(|o| o.to_string())
@@ -104,6 +151,7 @@ fn print_console(messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
     messages.reverse();
     messages.truncate(MAX_MESSAGES);
     messages.reverse();
+    let messages: Vec<String> = messages.into_iter().map(on_message).collect();
     let mut out = stdout().into_raw_mode()?;
     let text = format!("{}{}\n> {}", "\n".repeat(MAX_MESSAGES - messages.len()), messages.join("\n"), input);
     for line in text.lines() {
@@ -132,7 +180,7 @@ fn main() {
         }
     });
 
-    let stdout = stdout().into_raw_mode().unwrap();
+    let _ = stdout().into_raw_mode().unwrap();
 
     let stdin = stdin();
     for key in stdin.keys() {
@@ -140,7 +188,7 @@ fn main() {
             Key::Char('\n') => {
                 let message = input.read().unwrap().clone();
                 if !message.is_empty() {
-                    send_message(&host, &format!("<{}> {}", name, message)).expect("Error sending message");
+                    send_message(&host, &format!("{}<{}> {}", MAGIC_KEY, name, message)).expect("Error sending message");
                     input.write().unwrap().clear();
                 }
             }
