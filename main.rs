@@ -1,4 +1,4 @@
-use std::{error::Error, io::{stdin, stdout, BufRead, Read, Write}, net::TcpStream, thread};
+use std::{error::Error, fmt::format, io::{stdin, stdout, BufRead, Read, Write}, net::TcpStream, thread, time::{self, SystemTime, UNIX_EPOCH}};
 
 const MAX_MESSAGES: usize = 100;
 const DEFAULT_HOST: &str = "meex.lol:11234";
@@ -53,7 +53,7 @@ fn read_messages(host: &str, skip: usize) -> Result<String, Box<dyn Error>> {
         let mut data = vec![0; to_read];
         stream.read_exact(&mut data)?;
         data.retain(|x| *x != 0);
-        while data.len() != to_read {
+        while String::from_utf8_lossy(&data).len() != to_read {
             let mut buf = vec![0; to_read - data.len()];
             stream.read_exact(&mut buf)?;
             data.append(&mut buf);
@@ -112,7 +112,10 @@ fn get_input(prompt: &str, default: &str) -> String {
 
 fn main() {
     let host = get_input(&format!("Host (default: {}) > ", DEFAULT_HOST), DEFAULT_HOST);
-    let name = get_input("Name (default: none) > ", "");
+
+    let anon_name = format!("Anon#{:X}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs());
+
+    let name = get_input(&format!("Name (default: {}) > ", anon_name), &anon_name);
 
     thread::spawn({
         let host = host.clone();
