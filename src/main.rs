@@ -114,12 +114,7 @@ fn on_message(message: String) -> String {
     let message = message.replace("\0", "");
     let message = message.replace("\t", "");
 
-    let captures = Regex::new(r"\[(.*?)\] <(.*?)> (.*)").unwrap().captures(&message)
-        .or_else(|| Regex::new(&format!("\\[(.*?)\\] {}<(.*?)> (.*)", MAGIC_KEY)).unwrap().captures(&message))
-        .or_else(|| Regex::new(&format!("\\[(.*?)\\] {} <(.*?)> (.*)", MAGIC_KEY)).unwrap().captures(&message))
-        .or_else(|| Regex::new(r"\[(.*?)\] (.*?): (.*)").unwrap().captures(&message));
-
-    if let Some(captures) = captures {
+    if let Some(captures) = Regex::new(r"\[(.*?)\] <(.*?)> (.*)").unwrap().captures(&message) {
         let date = &captures[1];
         let nick = &captures[2];
         let content = &captures[3];
@@ -127,6 +122,28 @@ fn on_message(message: String) -> String {
         let mut result = String::new();
         result.push_str(&format!("{}{}[{}] ", color::Fg(color::White), style::Faint, date));
         result.push_str(&format!("{}{}{}<{}> ", style::Reset, style::Bold, color::Fg(color::Cyan), nick));
+        result.push_str(&format!("{}{}{}", color::Fg(color::White), style::Blink, content));
+        result.push_str(&style::Reset.to_string());
+        result
+    } else if let Some(captures) = Regex::new(&format!("\\[(.*?)\\] {}<(.*?)> (.*)", MAGIC_KEY)).unwrap().captures(&message) {
+        let date = &captures[1];
+        let nick = &captures[2];
+        let content = &captures[3];
+
+        let mut result = String::new();
+        result.push_str(&format!("{}{}[{}] ", color::Fg(color::White), style::Faint, date));
+        result.push_str(&format!("{}{}{}<{}> ", style::Reset, style::Bold, color::Fg(color::Green), nick));
+        result.push_str(&format!("{}{}{}", color::Fg(color::White), style::Blink, content));
+        result.push_str(&style::Reset.to_string());
+        result
+    } else if let Some(captures) = Regex::new(r"\[(.*?)\] (.*?): (.*)").unwrap().captures(&message) {
+        let date = &captures[1];
+        let nick = &captures[2];
+        let content = &captures[3];
+
+        let mut result = String::new();
+        result.push_str(&format!("{}{}[{}] ", color::Fg(color::White), style::Faint, date));
+        result.push_str(&format!("{}{}{}<{}> ", style::Reset, style::Bold, color::Fg(color::LightMagenta), nick));
         result.push_str(&format!("{}{}{}", color::Fg(color::White), style::Blink, content));
         result.push_str(&style::Reset.to_string());
         result
