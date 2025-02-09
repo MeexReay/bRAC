@@ -112,7 +112,7 @@ fn get_input(prompt: &str, default: &str) -> String {
 
 fn main() {
     let host = get_input(&format!("Host (default: {}) > ", DEFAULT_HOST), DEFAULT_HOST);
-    let prefix = get_input("Prefix (default: none) > ", "");
+    let name = get_input("Name (default: none) > ", "");
 
     thread::spawn({
         let host = host.clone();
