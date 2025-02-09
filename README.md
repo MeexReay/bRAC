@@ -3,56 +3,63 @@ better RAC client
 
 ## features
 
+- cheat commands
 - no ip and date visible
-- plays sound on receiving messages
-- using tor proxy by default
+- uses TOR proxy server by default
+- plays sound when users receive your messages
 - coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc)
 - RACv1.99.x compatible
-- cheat commands
 
 ![image](https://github.com/user-attachments/assets/a2858662-50f1-4554-949c-f55addf48fcc)
 
-## how to use
+## how to run
 
-(you have to install [rust](https://rust-lang.org) at first)
+### download binary
+
+go to [releases](https://github.com/MeexReay/bRAC/releases/latest) and download file you need. its simple.
+(there are no releases now, wait for one or [build from source](https://github.com/MeexReay/bRAC#download-binary))
+
+### build from source
+
+(you have to install [rust]([https://rust-lang.org](https://www.rust-lang.org/tools/install)) at first)
 
 ```bash
-cargo build # build
-cargo run   # run
+git clone https://github.com/MeexReay/bRAC.git
+cd bRAC
+cargo build --release # build release (target/release/bRAC)
+cargo run   # run (builds and runs bRAC itself)
 ```
 
-## extensions
+## commands
 
-### colored usernames
+`/clear` - clear chat \
+`/spam *args` - spam with text
 
-#### bRAC
+## colored usernames
+
+### bRAC
 
 regex - `\uB9AC\u3E70<(.*?)> (.*)` \
 color - green \
 example - `리㹰<nick> text`
 
-#### CRAB
+### CRAB
 
 regex - `\u2550\u2550\u2550<(.*?)> (.*)` \
 color - light red \
 example - `═══<nick> text`
 
-#### Mefedroniy
+### Mefedroniy
 
 regex - `(.*?): (.*)` \
 color - light magenta \
 example - `nick: text`
 
-#### clRAC
+### clRAC
 
 regex - `<(.*?)> (.*)` \
 color - cyan \
 example - `<nick> text`
-
-### commands
-
-/clear - clear chat
-/spam *args - spam in chat with text
 
 ## see also
 
