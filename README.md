@@ -12,7 +12,13 @@ better RAC client
 
 ![image](https://github.com/user-attachments/assets/a2858662-50f1-4554-949c-f55addf48fcc)
 
-## how to use
+## how to run
+
+### download binary
+
+go to [releases](https://github.com/MeexReay/bRAC/releases/latest) and download file you need. its simple.
+
+### build from source
 
 (you have to install [rust](https://rust-lang.org) at first)
 
