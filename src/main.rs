@@ -9,7 +9,7 @@ use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
 const MAX_MESSAGES: usize = 100;
 const DEFAULT_HOST: &str = "meex.lol:11234";
-const MAGIC_KEY: &str = "리㹰";
+const MAGIC_KEY: &str = "\u{B9AC}\u{3E70}";
 
 fn send_message(host: &str, message: &str) -> Result<(), Box<dyn Error>> {
     let mut stream = TcpStream::connect(host)?;

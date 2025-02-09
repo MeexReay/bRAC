@@ -20,6 +20,34 @@ cargo build # build
 cargo run   # run
 ```
 
+## extensions
+
+### colored usernames
+
+#### bRAC
+
+regex - `\[(.*?)\] \uB9AC\u3E70<(.*?)> (.*)` \
+color - green \
+example - `[date] 리㹰<nick> text`
+
+#### CRAB
+
+regex - `\[(.*?)\] \u2550\u2550\u2550<(.*?)> (.*)` \
+color - light red \
+example - `[date] ═══<nick> text`
+
+#### Mefedroniy
+
+regex - `\[(.*?)\] (.*?): (.*)` \
+color - light magenta \
+example - `[date] nick: text`
+
+#### clRAC
+
+regex - `\[(.*?)\] <(.*?)> (.*)` \
+color - cyan \
+example - `[date] <nick> text`
+
 ## see also
 
 - [CRAB - client & server for RAC](https://gitea.bedohswe.eu.org/pixtaded/crab)
