@@ -8,6 +8,7 @@ better RAC client
 - using tor proxy by default
 - coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc)
 - RACv1.99.x compatible
+- cheat commands
 
 ![image](https://github.com/user-attachments/assets/a2858662-50f1-4554-949c-f55addf48fcc)
 
@@ -47,6 +48,11 @@ example - `nick: text`
 regex - `<(.*?)> (.*)` \
 color - cyan \
 example - `<nick> text`
+
+### commands
+
+/clear - clear chat
+/spam *args - spam in chat with text
 
 ## see also
 

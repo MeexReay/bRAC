@@ -179,15 +179,17 @@ fn format_message(message: String) -> Option<String> {
     })
 }
 
-fn on_command(host: &str, command: &str) -> Result<(), Box<dyn Error>> {
+fn on_command(host: &str, command: &str, input: Arc<RwLock<String>>) -> Result<(), Box<dyn Error>> {
     let command = command.trim_start_matches("/");
     let (command, args) = command.split_once(" ").unwrap_or((&command, ""));
     let args = args.split(" ").collect::<Vec<&str>>();
 
     if command == "clear" {
         send_message(host, &format!("\r\x1B[1A{}", " ".repeat(64)).repeat(MAX_MESSAGES))?;
+        // *input.write().unwrap() = "/ заспамлено)))".to_string();
     } else if command == "spam" {
         send_message(host, &format!("\r\x1B[1A{}{}", args.join(" "), " ".repeat(10)).repeat(MAX_MESSAGES))?;
+        // *input.write().unwrap() = "/ заспамлено)))".to_string();
     }
 
     Ok(())
@@ -260,23 +262,26 @@ fn main() {
         match key.unwrap() {
             Key::Char('\n') => {
                 let message = input.read().unwrap().clone();
+
+                {
+                    let input_len = input.read().unwrap().len();
+                    write!(terminal.lock().unwrap(), 
+                        "{}{}{}", 
+                        cursor::Left(1).to_string().repeat(input_len), 
+                        " ".repeat(input_len), 
+                        cursor::Left(1).to_string().repeat(input_len)
+                    ).unwrap();
+                    terminal.lock().unwrap().flush().unwrap();
+                    input.write().unwrap().clear();
+                }
+
                 if !message.is_empty() {
                     if message.starts_with("/") {
-                        on_command(&host, &message).expect("Error on command");
+                        on_command(&host, &message, input.clone()).expect("Error on command");
                     } else {
                         send_message(&host, &format!("{}<{}> {}", MAGIC_KEY, name, message)).expect("Error sending message");
                     }
                 }
-
-                let input_len = input.read().unwrap().len();
-                write!(terminal.lock().unwrap(), 
-                    "{}{}{}", 
-                    cursor::Left(1).to_string().repeat(input_len), 
-                    " ".repeat(input_len), 
-                    cursor::Left(1).to_string().repeat(input_len)
-                ).unwrap();
-                terminal.lock().unwrap().flush().unwrap();
-                input.write().unwrap().clear();
             }
             Key::Backspace => {
                 if input.write().unwrap().pop().is_some() {
