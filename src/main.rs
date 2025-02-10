@@ -70,6 +70,9 @@ fn on_command(host: &str, command: &str) -> Result<(), Box<dyn Error>> {
     } else if command == "spam" {
         send_message(host, &format!("\r\x1B[1A{}{}", args.join(" "), " ".repeat(10)).repeat(MAX_MESSAGES))?;
         // *input.write().unwrap() = "/ заспамлено)))".to_string();
+    } else if command == "help" {
+        write!(stdout(), "/clear - clear console; /spam *args - spam console with text; /help - show help message")?;
+        stdout().flush()?;
     }
 
     Ok(())

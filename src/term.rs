@@ -4,7 +4,7 @@ use colored::{Color, Colorize};
 use crossterm::{cursor::MoveLeft, event::{self, Event, KeyCode}, terminal::{disable_raw_mode, enable_raw_mode}, ExecutableCommand};
 use regex::Regex;
 
-use crate::{on_command, rac::send_message, ADVERTISEMENT, COLORED_USERNAMES, DATE_REGEX, MAGIC_KEY, MAX_MESSAGES, UPDATE_TIME};
+use crate::{on_command, rac::send_message, ADVERTISEMENT, COLORED_USERNAMES, DATE_REGEX, MAGIC_KEY, MAX_MESSAGES};
 
 pub fn print_console(messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
     let mut messages = messages.split("\n")
@@ -80,7 +80,7 @@ fn find_username_color(message: &str) -> Option<(String, String, Color)> {
     None
 }
 
-fn poll_events(input: Arc<RwLock<String>>, host: String, name: String) {
+fn poll_events(input: Arc<RwLock<String>>, messages: Arc<RwLock<String>>, host: String, name: String) {
     loop {
         if !event::poll(Duration::from_millis(50)).unwrap_or(false) { continue }
 
@@ -95,18 +95,27 @@ fn poll_events(input: Arc<RwLock<String>>, host: String, name: String) {
                     KeyCode::Enter => {
                         let message = input.read().unwrap().clone();
         
-                        let input_len = input.read().unwrap().chars().count();
-                        stdout().lock().execute(MoveLeft(input_len as u16)).unwrap();
-                        write!(stdout(), "{}{}", " ".repeat(input_len), MoveLeft(input_len as u16).to_string()).unwrap();
-                        stdout().lock().flush().unwrap();
-                        input.write().unwrap().clear();
-        
                         if !message.is_empty() {
+                            let input_len = input.read().unwrap().chars().count();
+                            write!(stdout(), 
+                                "{}{}{}", 
+                                MoveLeft(1).to_string().repeat(input_len), 
+                                " ".repeat(input_len), 
+                                MoveLeft(1).to_string().repeat(input_len)
+                            ).unwrap();
+                            stdout().lock().flush().unwrap();
+                            input.write().unwrap().clear();
+
                             if message.starts_with("/") {
                                 on_command(&host, &message).expect("Error on command");
                             } else {
                                 send_message(&host, &format!("{}<{}> {}", MAGIC_KEY, name, message)).expect("Error sending message");
                             }
+                        } else {
+                            print_console(
+                                &messages.read().unwrap(), 
+                                &input.read().unwrap()
+                            ).expect("Error printing console");
                         }
                     }
                     KeyCode::Backspace => {
@@ -141,18 +150,20 @@ fn poll_events(input: Arc<RwLock<String>>, host: String, name: String) {
 pub fn run_main_loop(messages: Arc<RwLock<String>>, input: Arc<RwLock<String>>, host: String, name: String) {
     enable_raw_mode().unwrap();
 
-    thread::spawn({
-        let messages = messages.clone();
-        let input = input.clone();
+    // thread::spawn({
+    //     let messages = messages.clone();
+    //     let input = input.clone();
 
-        move || {
-            print_console(
-                &messages.read().unwrap(), 
-                &input.read().unwrap()
-            ).expect("Error printing console");
-            thread::sleep(Duration::from_millis(UPDATE_TIME));
-        }
-    });
+    //     move || {
+    //         loop {
+    //             print_console(
+    //                 &messages.read().unwrap(), 
+    //                 &input.read().unwrap()
+    //             ).expect("Error printing console");
+    //             thread::sleep(Duration::from_secs(5));
+    //         }
+    //     }
+    // });
     
-    poll_events(input.clone(), host, name);
+    poll_events(input.clone(), messages.clone(), host, name);
 }
