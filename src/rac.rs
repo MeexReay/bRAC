@@ -6,7 +6,7 @@ pub fn send_message(host: &str, message: &str, disable_hiding_ip: bool) -> Resul
     let mut stream = TcpStream::connect(host)?;
     stream.write_all(&[0x01])?;
     let data = format!("{}{}{}{}",
-        if disable_hiding_ip {
+        if !disable_hiding_ip {
             "\r\x07"
         } else {
             ""
