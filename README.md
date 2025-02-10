@@ -63,7 +63,7 @@ example - `<nick> text`
 
 ## see also
 
-- [RAC protocol (v1.99.2)]([https://gitea.bedohswe.eu.org/](https://gitea.bedohswe.eu.org/pixtaded/crab#rac-protocol))
+- [RAC protocol (v1.99.2)](https://gitea.bedohswe.eu.org/pixtaded/crab#rac-protocol)
 - [CRAB - client & server for RAC](https://gitea.bedohswe.eu.org/pixtaded/crab)
 - [AlmatyD - server for RAC](https://gitea.bedohswe.eu.org/bedohswe/almatyd)
 - [RAC protocol (v1.0)](https://bedohswe.eu.org/text/rac/protocol.md.html)
