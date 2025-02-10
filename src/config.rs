@@ -32,7 +32,9 @@ pub fn load_config(path: PathBuf) -> Config {
             update_time,
             max_messages
         };
-        fs::write(path, serde_yml::to_string(&config).expect("Config save error"));
+        let config_text = serde_yml::to_string(&config).expect("Config save error");
+        fs::create_dir_all(&path.parent().expect("Config save error")).expect("Config save error");
+        fs::write(&path, config_text).expect("Config save error");
         config
     } else {
         let config = &fs::read_to_string(&path).expect("Config load error");
