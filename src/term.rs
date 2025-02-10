@@ -1,7 +1,7 @@
 use std::{error::Error, io::{stdout, Write}, sync::{atomic::AtomicUsize, Arc, RwLock}, time::Duration};
 
 use colored::{Color, Colorize};
-use crossterm::{cursor::MoveLeft, event::{self, Event, KeyCode}, terminal::{disable_raw_mode, enable_raw_mode}, ExecutableCommand};
+use crossterm::{cursor::MoveLeft, event::{self, Event, KeyCode, KeyModifiers, ModifierKeyCode}, terminal::{disable_raw_mode, enable_raw_mode}, ExecutableCommand};
 use regex::Regex;
 
 use crate::{config::Config, on_command, rac::send_message, ADVERTISEMENT, COLORED_USERNAMES, DATE_REGEX};
@@ -134,15 +134,19 @@ fn poll_events(
                             stdout().lock().flush().unwrap();
                         }
                     }
+                    KeyCode::Esc => {
+                        disable_raw_mode().unwrap();
+                        break;
+                    }
                     KeyCode::Char(c) => {
+                        if event.modifiers.contains(KeyModifiers::CONTROL) && "zxcZXCячсЯЧС".contains(c) {
+                            disable_raw_mode().unwrap();
+                            break;
+                        }
                         input.write().unwrap().push(c);
                         write!(stdout(), "{}", c).unwrap();
                         stdout().lock().flush().unwrap();
                     }
-                    KeyCode::Esc => {
-                        disable_raw_mode().unwrap();
-                        break;
-                    },
                     _ => {}
                 }
             },
