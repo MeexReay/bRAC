@@ -1,5 +1,5 @@
 use std::{
-    error::Error, io::{stdin, stdout, BufRead, Write}, sync::{Arc, RwLock}
+    error::Error, io::{stdin, stdout, BufRead, Write}, sync::{atomic::AtomicUsize, Arc, RwLock}
 };
 
 use colored::Color;
@@ -149,14 +149,14 @@ fn main() {
     }
 
     if args.read_messages {
-        print!("{}", read_messages(&config.host).expect("Error reading messages"));
+        print!("{}", read_messages(&config.host, config.max_messages).expect("Error reading messages").0.join("\n"));
         return;
     }
 
     let disable_formatting = args.disable_formatting;
     let disable_commands = args.disable_commands;
 
-    let messages = Arc::new(RwLock::new(String::new()));
+    let messages = Arc::new((RwLock::new(Vec::new()), AtomicUsize::new(0)));
     let input = Arc::new(RwLock::new(String::new()));
     let config = Arc::new(config);
 
