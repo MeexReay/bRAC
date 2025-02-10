@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-TARGETS=(
-    x86_64-unknown-linux-gnu
-    i686-unknown-linux-gnu
-    x86_64-pc-windows-gnu
-    i686-pc-windows-gnu
-)
-for TARGET in "${TARGETS[@]}"; do
-    cargo build --release --target "$TARGET"
-    echo "$TARGET" built
-done
+cargo build --release --target x86_64-unknown-linux-gnu
+echo x86_64-unknown-linux-gnu built
+cargo build --release --target i686-unknown-linux-gnu
+echo i686-unknown-linux-gnu built
+cargo build --release --target x86_64-pc-windows-gnu
+echo x86_64-pc-windows-gnu built
+# cargo build --release --target i686-pc-windows-gnu
+# echo i686-pc-windows-gnu built
+# cargo build --release --target x86_64-pc-windows-msvc
+# echo x86_64-pc-windows-msvc built
+# cargo build --release --target i686-pc-windows-msvc
+# echo i686-pc-windows-msvc built

@@ -1,4 +1,5 @@
-use std::{fs, path::{Path, PathBuf}, thread, time::Duration};
+#[allow(unused_imports)]
+use std::{env, fs, path::{Path, PathBuf}, thread, time::Duration};
 use homedir::my_home;
 use serde_yml;
 
