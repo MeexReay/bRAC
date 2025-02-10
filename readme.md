@@ -56,6 +56,7 @@ max_messages: 100                  # chat messages limit
   -f, --disable-formatting               Disable message formatting and sanitizing
   -c, --disable-commands                 Disable slash commands
   -i, --disable-ip-hiding                Disable ip hiding
+  -v, --enable-users-ip-viewing          Enable users IP viewing
   -h, --help                             Print help
   -V, --version                          Print version
 ```
@@ -65,6 +66,7 @@ max_messages: 100                  # chat messages limit
 `/help` - show help message \
 `/clear` - clear chat \
 `/spam *args` - spam with text
+`/ping` - get server ping (send + read)
 
 ## see also
 

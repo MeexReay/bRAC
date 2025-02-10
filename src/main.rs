@@ -57,9 +57,10 @@ fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>> {
         send_message(ctx.clone(), &format!("\r\x1B[1A{}{}", args.join(" "), " ".repeat(10)).repeat(ctx.max_messages))?;
     } else if command == "help" {
         write!(stdout(), "Help message:\r
+/help - show help message\r
 /clear - clear console\r
 /spam *args - spam console with text\r
-/help - show help message\r
+/ping - check server ping\r
 \r
 Press enter to close")?;
         stdout().flush()?;
