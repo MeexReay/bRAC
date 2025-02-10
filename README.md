@@ -16,12 +16,12 @@ better RAC client
 
 ### download binary
 
-go to [releases](https://github.com/MeexReay/bRAC/releases/latest) and download file you need. its simple.
+go to [releases](https://github.com/MeexReay/bRAC/releases/latest) and download file you need. its simple. \
 (there are no releases now, wait for one or [build from source](https://github.com/MeexReay/bRAC#download-binary))
 
 ### build from source
 
-(you have to install [rust]([https://rust-lang.org](https://www.rust-lang.org/tools/install)) at first)
+(you have to install [rust](https://www.rust-lang.org/tools/install) at first)
 
 ```bash
 git clone https://github.com/MeexReay/bRAC.git
@@ -63,9 +63,9 @@ example - `<nick> text`
 
 ## see also
 
+- [RAC protocol (v1.99.2)](https://gitea.bedohswe.eu.org/pixtaded/crab#rac-protocol)
 - [CRAB - client & server for RAC](https://gitea.bedohswe.eu.org/pixtaded/crab)
 - [AlmatyD - server for RAC](https://gitea.bedohswe.eu.org/bedohswe/almatyd)
 - [RAC protocol (v1.0)](https://bedohswe.eu.org/text/rac/protocol.md.html)
-- [RAC protocol (v1.99.1)](https://gitea.bedohswe.eu.org/)
 
 
