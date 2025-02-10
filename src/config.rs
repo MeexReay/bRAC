@@ -29,28 +29,35 @@ fn default_update_time() -> usize { 50 }
 fn default_host() -> String { "meex.lol:11234".to_string() }
 fn default_message_format() -> String { MESSAGE_FORMAT.to_string() }
 
+pub fn configure(path: PathBuf) -> Config {
+    let host = get_input("Host (default: meex.lol:11234) > ").unwrap_or("meex.lol:11234".to_string());
+    let name = get_input("Name (default: ask every time) > ");
+    let update_time = get_input("Update interval (default: 50) > ").map(|o| o.parse().ok()).flatten().unwrap_or(50);
+    let max_messages = get_input("Max messages (default: 100) > ").map(|o| o.parse().ok()).flatten().unwrap_or(100);
+    let enable_ip_viewing = get_input("Enable users IP viewing? (Y/N, default: N) > ").map(|o| o.to_lowercase() != "n").unwrap_or(false);
+    let disable_ip_hiding = get_input("Enable your IP viewing? (Y/N, default: N) > ").map(|o| o.to_lowercase() != "n").unwrap_or(false);
+
+    let config = Config {
+        host,
+        name,
+        message_format: MESSAGE_FORMAT.to_string(),
+        update_time,
+        max_messages,
+        enable_ip_viewing,
+        disable_ip_hiding
+    };
+
+    let config_text = serde_yml::to_string(&config).expect("Config save error");
+    fs::create_dir_all(&path.parent().expect("Config save error")).expect("Config save error");
+    fs::write(&path, config_text).expect("Config save error");
+    println!("Config saved! You can edit it in the path got with `bRAC --config-path`");
+
+    config
+}
+
 pub fn load_config(path: PathBuf) -> Config {
     if !fs::exists(&path).unwrap_or_default() {
-        let host = get_input("Host (default: meex.lol:11234) > ").unwrap_or("meex.lol:11234".to_string());
-        let name = get_input("Name (default: ask every time) > ");
-        let update_time = get_input("Update interval (default: 50) > ").map(|o| o.parse().ok()).flatten().unwrap_or(50);
-        let max_messages = get_input("Max messages (default: 100) > ").map(|o| o.parse().ok()).flatten().unwrap_or(100);
-        let enable_ip_viewing = get_input("Enable users IP viewing? (Y/N, default: N) > ").map(|o| o.to_lowercase() != "n").unwrap_or(false);
-        let disable_ip_hiding = get_input("Enable your IP viewing? (Y/N, default: N) > ").map(|o| o.to_lowercase() != "n").unwrap_or(false);
-
-        let config = Config {
-            host,
-            name,
-            message_format: MESSAGE_FORMAT.to_string(),
-            update_time,
-            max_messages,
-            enable_ip_viewing,
-            disable_ip_hiding
-        };
-        let config_text = serde_yml::to_string(&config).expect("Config save error");
-        fs::create_dir_all(&path.parent().expect("Config save error")).expect("Config save error");
-        fs::write(&path, config_text).expect("Config save error");
-        println!("Config saved! You can edit it in the path got with `bRAC --config-path`");
+        let config = configure(path.clone());
         thread::sleep(Duration::from_secs(4));
         config
     } else {

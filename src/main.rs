@@ -3,7 +3,7 @@ use std::{
 };
 
 use colored::Color;
-use config::{get_config_path, load_config};
+use config::{configure, get_config_path, load_config};
 use rac::{read_messages, run_recv_loop, send_message};
 use rand::random;
 use regex::Regex;
@@ -103,7 +103,7 @@ struct Args {
     host: Option<String>,
 
     /// Use specified name
-    #[arg(short, long)]
+    #[arg(short='n', long)]
     name: Option<String>,
 
     /// Use specified message format
@@ -111,11 +111,11 @@ struct Args {
     message_format: Option<String>,
 
     /// Print unformatted messages from chat and exit
-    #[arg(short, long)]
+    #[arg(short='r', long)]
     read_messages: bool,
 
     /// Send unformatted message to chat and exit
-    #[arg(short, long, value_name="MESSAGE")]
+    #[arg(short='s', long, value_name="MESSAGE")]
     send_message: Option<String>,
 
     /// Disable message formatting and sanitizing
@@ -133,6 +133,10 @@ struct Args {
     /// Enable users IP viewing
     #[arg(short='v', long)]
     enable_users_ip_viewing: bool,
+
+    /// Configure client
+    #[arg(short='C', long)]
+    configure: bool,
 }
 
 
@@ -153,15 +157,20 @@ struct Context {
 
 fn main() {
     let args = Args::parse();
+
+    let config_path = get_config_path();
+
+    if args.config_path {
+        print!("{}", config_path.to_string_lossy());
+        return;
+    }
+
+    if args.configure {
+        configure(config_path);
+        return;
+    }
     
     let context = {
-        let config_path = get_config_path();
-    
-        if args.config_path {
-            print!("{}", config_path.to_string_lossy());
-            return;
-        }
-
         let config = load_config(config_path);
 
         Context {

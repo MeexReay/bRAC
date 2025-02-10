@@ -47,18 +47,19 @@ max_messages: 100                  # chat messages limit
 ## command args
 
 ```
-  -p, --config-path                      Print config path
-  -H, --host <HOST>                      Use specified host
-  -n, --name <NAME>                      Use specified name
-  -F, --message-format <MESSAGE_FORMAT>  Use specified message format
-  -r, --read-messages                    Print unformatted messages from chat and exit
-  -s, --send-message <MESSAGE>           Send unformatted message to chat and exit
-  -f, --disable-formatting               Disable message formatting and sanitizing
-  -c, --disable-commands                 Disable slash commands
-  -i, --disable-ip-hiding                Disable ip hiding
-  -v, --enable-users-ip-viewing          Enable users IP viewing
-  -h, --help                             Print help
-  -V, --version                          Print version
+-p, --config-path                      Print config path
+-H, --host <HOST>                      Use specified host
+-n, --name <NAME>                      Use specified name
+-F, --message-format <MESSAGE_FORMAT>  Use specified message format
+-r, --read-messages                    Print unformatted messages from chat and exit
+-s, --send-message <MESSAGE>           Send unformatted message to chat and exit
+-f, --disable-formatting               Disable message formatting and sanitizing
+-c, --disable-commands                 Disable slash commands
+-i, --disable-ip-hiding                Disable ip hiding
+-v, --enable-users-ip-viewing          Enable users IP viewing
+-C, --configure                        Configure client
+-h, --help                             Print help
+-V, --version                          Print version
 ```
 
 ## commands
