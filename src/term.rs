@@ -6,14 +6,18 @@ use regex::Regex;
 
 use crate::{config::Config, on_command, rac::send_message, ADVERTISEMENT, COLORED_USERNAMES, DATE_REGEX};
 
-pub fn print_console(config: Arc<Config>, messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
+pub fn print_console(config: Arc<Config>, messages: &str, input: &str, disable_formatting: bool) -> Result<(), Box<dyn Error>> {
     let mut messages = messages.split("\n")
         .map(|o| o.to_string())
         .collect::<Vec<String>>();
     messages.reverse();
     messages.truncate(config.max_messages);
     messages.reverse();
-    let messages: Vec<String> = messages.into_iter().filter_map(format_message).collect();
+    let messages: Vec<String> = if disable_formatting {
+        messages
+    } else {
+        messages.into_iter().filter_map(format_message).collect()
+    };
     let text = format!(
         "{}{}\n> {}", 
         "\n".repeat(config.max_messages - messages.len()), 
@@ -80,7 +84,7 @@ fn find_username_color(message: &str) -> Option<(String, String, Color)> {
     None
 }
 
-fn poll_events(config: Arc<Config>, input: Arc<RwLock<String>>, messages: Arc<RwLock<String>>, host: String, name: String) {
+fn poll_events(config: Arc<Config>, input: Arc<RwLock<String>>, messages: Arc<RwLock<String>>, host: String, name: String, disable_formatting: bool, disable_commands: bool, disable_hiding_ip: bool) {
     loop {
         if !event::poll(Duration::from_millis(50)).unwrap_or(false) { continue }
 
@@ -106,17 +110,18 @@ fn poll_events(config: Arc<Config>, input: Arc<RwLock<String>>, messages: Arc<Rw
                             stdout().lock().flush().unwrap();
                             input.write().unwrap().clear();
 
-                            if message.starts_with("/") {
-                                on_command(config.clone(), &host, &message).expect("Error on command");
+                            if message.starts_with("/") && !disable_commands {
+                                on_command(config.clone(), &host, disable_hiding_ip, &message).expect("Error on command");
                             } else {
                                 let message = config.message_format.replace("{name}", &name).replace("{text}", &message);
-                                send_message(&host, &message).expect("Error sending message");
+                                send_message(&host, &message, disable_hiding_ip).expect("Error sending message");
                             }
                         } else {
                             print_console(
                                 config.clone(),
                                 &messages.read().unwrap(), 
-                                &input.read().unwrap()
+                                &input.read().unwrap(),
+                                disable_formatting
                             ).expect("Error printing console");
                         }
                     }
@@ -149,7 +154,7 @@ fn poll_events(config: Arc<Config>, input: Arc<RwLock<String>>, messages: Arc<Rw
     }
 }
 
-pub fn run_main_loop(config: Arc<Config>, messages: Arc<RwLock<String>>, input: Arc<RwLock<String>>, host: String, name: String) {
+pub fn run_main_loop(config: Arc<Config>, messages: Arc<RwLock<String>>, input: Arc<RwLock<String>>, host: String, name: String, disable_formatting: bool, disable_commands: bool, disable_hiding_ip: bool) {
     enable_raw_mode().unwrap();
 
     // thread::spawn({
@@ -167,5 +172,5 @@ pub fn run_main_loop(config: Arc<Config>, messages: Arc<RwLock<String>>, input: 
     //     }
     // });
     
-    poll_events(config, input.clone(), messages.clone(), host, name);
+    poll_events(config, input.clone(), messages.clone(), host, name, disable_formatting, disable_commands, disable_hiding_ip);
 }

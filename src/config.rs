@@ -16,8 +16,8 @@ pub struct Config {
 }
 
 pub fn load_config(path: PathBuf) -> Config {
-    println!("Config path: {}", path.to_string_lossy());
-    println!("Loading config...");
+    // println!("Config path: {}", path.to_string_lossy());
+    // println!("Loading config...");
 
     let config = if !fs::exists(&path).unwrap_or_default() {
         let host = get_input("Host (default: meex.lol:11234) > ").unwrap_or("meex.lol:11234".to_string());
@@ -41,7 +41,7 @@ pub fn load_config(path: PathBuf) -> Config {
         serde_yml::from_str(config).expect("Config load error")
     };
 
-    println!("Config loaded successfully!");
+    // println!("Config loaded successfully!");
 
     config
 }

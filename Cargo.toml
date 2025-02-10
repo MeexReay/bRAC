@@ -12,3 +12,4 @@ crossterm = "0.28.1"
 serde = { version = "1.0.217", features = ["serde_derive"] }
 serde_yml = "0.0.12"
 homedir = "0.3.4"
+clap = { version = "4.5.28", features = ["derive"] }

@@ -30,11 +30,37 @@ cargo build --release # build release (target/release/bRAC)
 cargo run   # run (builds and runs bRAC itself)
 ```
 
+## config
+
+```yml
+host: meex.lol:11234               # server host
+name: null                         # user name
+message_format: 리㹰<{name}> {text} # message format
+update_time: 50                    # update chat interval
+max_messages: 100                  # chat messages limit
+```
+
+## command args
+
+```
+  -p, --config-path                      Print config path
+  -H, --host <HOST>                      Use specified host
+  -n, --name <NAME>                      Use specified name
+  -F, --message-format <MESSAGE_FORMAT>  Use specified message format
+  -r, --read-messages                    Print unformatted messages from chat and exit
+  -s, --send-message <MESSAGE>           Send unformatted message to chat and exit
+  -f, --disable-formatting               Disable message formatting and sanitizing
+  -c, --disable-commands                 Disable slash commands
+  -i, --disable-ip-hiding                Disable ip hiding
+  -h, --help                             Print help
+  -V, --version                          Print version
+```
+
 ## commands
 
+`/help` - show help message \
 `/clear` - clear chat \
-`/spam *args` - spam with text \
-`/help` - show help message
+`/spam *args` - spam with text
 
 ## colored usernames
 
