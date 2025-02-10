@@ -9,3 +9,6 @@ regex = "1.11.1"
 colored = "3.0.0"
 lazy_static = "1.5.0"
 crossterm = "0.28.1"
+serde = { version = "1.0.217", features = ["serde_derive"] }
+serde_yml = "0.0.12"
+homedir = "0.3.4"

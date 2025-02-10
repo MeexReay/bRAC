@@ -1,22 +1,22 @@
-use std::{error::Error, io::{stdout, Write}, sync::{Arc, RwLock}, thread, time::Duration};
+use std::{error::Error, io::{stdout, Write}, sync::{Arc, RwLock}, time::Duration};
 
 use colored::{Color, Colorize};
 use crossterm::{cursor::MoveLeft, event::{self, Event, KeyCode}, terminal::{disable_raw_mode, enable_raw_mode}, ExecutableCommand};
 use regex::Regex;
 
-use crate::{on_command, rac::send_message, ADVERTISEMENT, COLORED_USERNAMES, DATE_REGEX, MAGIC_KEY, MAX_MESSAGES};
+use crate::{config::Config, on_command, rac::send_message, ADVERTISEMENT, COLORED_USERNAMES, DATE_REGEX};
 
-pub fn print_console(messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
+pub fn print_console(config: Arc<Config>, messages: &str, input: &str) -> Result<(), Box<dyn Error>> {
     let mut messages = messages.split("\n")
         .map(|o| o.to_string())
         .collect::<Vec<String>>();
     messages.reverse();
-    messages.truncate(MAX_MESSAGES);
+    messages.truncate(config.max_messages);
     messages.reverse();
     let messages: Vec<String> = messages.into_iter().filter_map(format_message).collect();
     let text = format!(
         "{}{}\n> {}", 
-        "\n".repeat(MAX_MESSAGES - messages.len()), 
+        "\n".repeat(config.max_messages - messages.len()), 
         messages.join("\n"), 
         // if sound { "\x07" } else { "" }, 
         input
@@ -80,7 +80,7 @@ fn find_username_color(message: &str) -> Option<(String, String, Color)> {
     None
 }
 
-fn poll_events(input: Arc<RwLock<String>>, messages: Arc<RwLock<String>>, host: String, name: String) {
+fn poll_events(config: Arc<Config>, input: Arc<RwLock<String>>, messages: Arc<RwLock<String>>, host: String, name: String) {
     loop {
         if !event::poll(Duration::from_millis(50)).unwrap_or(false) { continue }
 
@@ -107,12 +107,14 @@ fn poll_events(input: Arc<RwLock<String>>, messages: Arc<RwLock<String>>, host: 
                             input.write().unwrap().clear();
 
                             if message.starts_with("/") {
-                                on_command(&host, &message).expect("Error on command");
+                                on_command(config.clone(), &host, &message).expect("Error on command");
                             } else {
-                                send_message(&host, &format!("{}<{}> {}", MAGIC_KEY, name, message)).expect("Error sending message");
+                                let message = config.message_format.replace("{name}", &name).replace("{text}", &message);
+                                send_message(&host, &message).expect("Error sending message");
                             }
                         } else {
                             print_console(
+                                config.clone(),
                                 &messages.read().unwrap(), 
                                 &input.read().unwrap()
                             ).expect("Error printing console");
@@ -147,7 +149,7 @@ fn poll_events(input: Arc<RwLock<String>>, messages: Arc<RwLock<String>>, host: 
     }
 }
 
-pub fn run_main_loop(messages: Arc<RwLock<String>>, input: Arc<RwLock<String>>, host: String, name: String) {
+pub fn run_main_loop(config: Arc<Config>, messages: Arc<RwLock<String>>, input: Arc<RwLock<String>>, host: String, name: String) {
     enable_raw_mode().unwrap();
 
     // thread::spawn({
@@ -165,5 +167,5 @@ pub fn run_main_loop(messages: Arc<RwLock<String>>, input: Arc<RwLock<String>>, 
     //     }
     // });
     
-    poll_events(input.clone(), messages.clone(), host, name);
+    poll_events(config, input.clone(), messages.clone(), host, name);
 }

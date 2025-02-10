@@ -3,7 +3,7 @@ better RAC client
 
 ## features
 
-- cheat commands
+- cheat commands (type /help)
 - no ip and date visible
 - uses TOR proxy server by default
 - plays sound when users receive your messages
@@ -32,7 +32,8 @@ cargo run   # run (builds and runs bRAC itself)
 ## commands
 
 `/clear` - clear chat \
-`/spam *args` - spam with text
+`/spam *args` - spam with text \
+`/help` - show help message
 
 ## colored usernames
 

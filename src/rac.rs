@@ -1,6 +1,6 @@
 use std::{error::Error, io::{Read, Write}, net::TcpStream, sync::{Arc, RwLock}, thread, time::Duration};
 
-use super::{ADVERTISEMENT, ADVERTISEMENT_ENABLED, term::print_console, UPDATE_TIME};
+use crate::{config::Config, term::print_console, ADVERTISEMENT, ADVERTISEMENT_ENABLED};
 
 pub fn send_message(host: &str, message: &str) -> Result<(), Box<dyn Error>> {
     let mut stream = TcpStream::connect(host)?;
@@ -67,23 +67,23 @@ fn read_messages(host: &str) -> Result<String, Box<dyn Error>> {
     Ok(packet_data)
 }
 
-fn recv_loop(host: &str, cache: Arc<RwLock<String>>, input: Arc<RwLock<String>>) -> Result<(), Box<dyn Error>> {
+fn recv_loop(config: Arc<Config>, host: &str, cache: Arc<RwLock<String>>, input: Arc<RwLock<String>>) -> Result<(), Box<dyn Error>> {
     while let Ok(data) = read_messages(host) {
         if data == cache.read().unwrap().clone() { 
             continue 
         }
 
         *cache.write().unwrap() = data;
-        print_console(&cache.read().unwrap(), &input.read().unwrap())?;
-        thread::sleep(Duration::from_millis(UPDATE_TIME));
+        print_console(config.clone(), &cache.read().unwrap(), &input.read().unwrap())?;
+        thread::sleep(Duration::from_millis(config.update_time as u64));
     }
     Ok(())
 }
 
-pub fn run_recv_loop(host: String, messages: Arc<RwLock<String>>, input: Arc<RwLock<String>>) {
+pub fn run_recv_loop(config: Arc<Config>, host: String, messages: Arc<RwLock<String>>, input: Arc<RwLock<String>>) {
     thread::spawn({
         move || {
-            let _ = recv_loop(&host, messages, input);
+            let _ = recv_loop(config.clone(), &host, messages, input);
             println!("Connection closed");
         }
     });
