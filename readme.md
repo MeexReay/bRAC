@@ -65,7 +65,7 @@ max_messages: 100                  # chat messages limit
 
 `/help` - show help message \
 `/clear` - clear chat \
-`/spam *args` - spam with text
+`/spam *args` - spam with text \
 `/ping` - get server ping (send + read)
 
 ## see also
