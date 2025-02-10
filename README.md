@@ -66,7 +66,6 @@ max_messages: 100                  # chat messages limit
 
 - [RAC protocol (v1.99.2)](https://gitea.bedohswe.eu.org/pixtaded/crab#rac-protocol)
 - [CRAB - client & server for RAC](https://gitea.bedohswe.eu.org/pixtaded/crab)
+- [Colored usernames](https://github.com/MeexReay/bRAC/blob/main/colored_usernames.md)
 - [AlmatyD - server for RAC](https://gitea.bedohswe.eu.org/bedohswe/almatyd)
 - [RAC protocol (v1.0)](https://bedohswe.eu.org/text/rac/protocol.md.html)
-
-
