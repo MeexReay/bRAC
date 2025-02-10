@@ -73,7 +73,6 @@ Press enter to close")?;
 
             if let Some((data, size)) = data {
                 if let Some(last) = data.iter().rev().find(|o| o.contains(&message)) {
-                    println!("{}", last);
                     if last.contains(&message) {
                         break;
                     } else {
