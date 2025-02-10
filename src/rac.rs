@@ -1,18 +1,18 @@
-use std::{error::Error, io::{Read, Write}, net::TcpStream, sync::{atomic::{AtomicUsize, Ordering}, Arc, RwLock}, thread, time::Duration};
+use std::{error::Error, io::{Read, Write}, net::TcpStream, sync::{atomic::Ordering, Arc}, thread, time::Duration};
 
-use crate::{config::Config, term::print_console, ADVERTISEMENT, ADVERTISEMENT_ENABLED};
+use super::{term::print_console, Context, ADVERTISEMENT, ADVERTISEMENT_ENABLED};
 
-pub fn send_message(host: &str, message: &str, disable_hiding_ip: bool) -> Result<(), Box<dyn Error>> {
-    let mut stream = TcpStream::connect(host)?;
+pub fn send_message(context: Arc<Context>, message: &str) -> Result<(), Box<dyn Error>> {
+    let mut stream = TcpStream::connect(&context.host)?;
     stream.write_all(&[0x01])?;
     let data = format!("{}{}{}{}",
-        if !disable_hiding_ip {
+        if !context.disable_hiding_ip {
             "\r\x07"
         } else {
             ""
         },
         message,
-        if !disable_hiding_ip && message.chars().count() < 39 { 
+        if !context.disable_hiding_ip && message.chars().count() < 39 { 
             " ".repeat(39-message.chars().count()) 
         } else { 
             String::new()
@@ -33,8 +33,8 @@ fn skip_null(stream: &mut TcpStream) -> Result<Vec<u8>, Box<dyn Error>> {
     }
 }
 
-pub fn read_messages(host: &str, max_messages: usize, last_size: usize) -> Result<Option<(Vec<String>, usize)>, Box<dyn Error>> {
-    let mut stream = TcpStream::connect(host)?;
+pub fn read_messages(context: Arc<Context>, last_size: usize) -> Result<Option<(Vec<String>, usize)>, Box<dyn Error>> {
+    let mut stream = TcpStream::connect(&context.host)?;
 
     stream.write_all(&[0x00])?;
 
@@ -75,30 +75,28 @@ pub fn read_messages(host: &str, max_messages: usize, last_size: usize) -> Resul
 
     let lines: Vec<&str> = packet_data.split("\n").collect();
     let lines: Vec<String> = lines.clone().into_iter()
-        .skip(lines.len() - max_messages)
+        .skip(lines.len() - context.max_messages)
         .map(|o| o.to_string())
         .collect();
 
     Ok(Some((lines, packet_size)))
 }
 
-fn recv_loop(config: Arc<Config>, host: &str, cache: Arc<(RwLock<Vec<String>>, AtomicUsize)>, input: Arc<RwLock<String>>, disable_formatting: bool) -> Result<(), Box<dyn Error>> {
-    while let Ok(data) = read_messages(host, config.max_messages, cache.1.load(Ordering::SeqCst)) {
-        if let Some(data) = data {
-            *cache.0.write().unwrap() = data.0.clone();
-            cache.1.store(data.1, Ordering::SeqCst);
-            print_console(config.clone(), data.0, &input.read().unwrap(), disable_formatting)?;
-            thread::sleep(Duration::from_millis(config.update_time as u64));
-        }
-    }
-    Ok(())
-}
-
-pub fn run_recv_loop(config: Arc<Config>, host: String, messages: Arc<(RwLock<Vec<String>>, AtomicUsize)>, input: Arc<RwLock<String>>, disable_formatting: bool) {
+pub fn run_recv_loop(context: Arc<Context>) {
     thread::spawn({
+        let cache = context.messages.clone();
+        let update_time = context.update_time;
+        let input = context.input.clone();
+
         move || {
-            let _ = recv_loop(config.clone(), &host, messages, input, disable_formatting);
-            println!("Connection closed");
+            loop { 
+                if let Ok(Some(data)) = read_messages(context.clone(), cache.1.load(Ordering::SeqCst)) {
+                    *cache.0.write().unwrap() = data.0.clone();
+                    cache.1.store(data.1, Ordering::SeqCst);
+                    print_console(context.clone(), data.0, &input.read().unwrap()).expect("Error printing console");
+                    thread::sleep(Duration::from_millis(update_time as u64));
+                }
+            }
         }
     });
 }

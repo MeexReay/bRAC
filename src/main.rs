@@ -1,9 +1,9 @@
 use std::{
-    error::Error, io::{stdin, stdout, BufRead, Write}, sync::{atomic::AtomicUsize, Arc, RwLock}
+    error::Error, io::{stdin, stdout, BufRead, Write}, sync::{atomic::{AtomicUsize, Ordering}, Arc, RwLock}, time::SystemTime
 };
 
 use colored::Color;
-use config::{get_config_path, load_config, Config};
+use config::{get_config_path, load_config};
 use rac::{read_messages, run_recv_loop, send_message};
 use rand::random;
 use regex::Regex;
@@ -16,7 +16,7 @@ const ADVERTISEMENT: &str = "\r\x1B[1A use bRAC client! https://github.com/MeexR
 const ADVERTISEMENT_ENABLED: bool = false;
 
 lazy_static! {
-    static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
+    static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] \{(.*?)\} (.*)").unwrap();
     static ref COLORED_USERNAMES: Vec<(Regex, Color)> = vec![
         (Regex::new(r"\u{B9AC}\u{3E70}<(.*?)> (.*)").unwrap(), Color::Green),
         (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), Color::BrightRed),
@@ -46,17 +46,15 @@ fn get_input(prompt: &str) -> Option<String> {
     }
 }
 
-fn on_command(config: Arc<Config>, host: &str, disable_hiding_ip: bool, command: &str) -> Result<(), Box<dyn Error>> {
+fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>> {
     let command = command.trim_start_matches("/");
     let (command, args) = command.split_once(" ").unwrap_or((&command, ""));
     let args = args.split(" ").collect::<Vec<&str>>();
 
     if command == "clear" {
-        send_message(host, &format!("\r\x1B[1A{}", " ".repeat(64)).repeat(config.max_messages), disable_hiding_ip)?;
-        // *input.write().unwrap() = "/ заспамлено)))".to_string();
+        send_message(ctx.clone(), &format!("\r\x1B[1A{}", " ".repeat(64)).repeat(ctx.max_messages))?;
     } else if command == "spam" {
-        send_message(host, &format!("\r\x1B[1A{}{}", args.join(" "), " ".repeat(10)).repeat(config.max_messages), disable_hiding_ip)?;
-        // *input.write().unwrap() = "/ заспамлено)))".to_string();
+        send_message(ctx.clone(), &format!("\r\x1B[1A{}{}", args.join(" "), " ".repeat(10)).repeat(ctx.max_messages))?;
     } else if command == "help" {
         write!(stdout(), "Help message:\r
 /clear - clear console\r
@@ -65,6 +63,28 @@ fn on_command(config: Arc<Config>, host: &str, disable_hiding_ip: bool, command:
 \r
 Press enter to close")?;
         stdout().flush()?;
+    } else if command == "ping" {
+        let mut before = ctx.messages.1.load(Ordering::SeqCst);
+        let start = SystemTime::now();
+        let message = format!("Checking ping... {:X}", random::<u16>());
+        send_message(ctx.clone(), &message)?;
+        loop {
+            let data = read_messages(ctx.clone(), before).ok().flatten();
+
+            if let Some((data, size)) = data {
+                if let Some(last) = data.iter().rev().find(|o| o.contains(&message)) {
+                    println!("{}", last);
+                    if last.contains(&message) {
+                        break;
+                    } else {
+                        before = size;
+                    }
+                } else {
+                    before = size;
+                }
+            }
+        }
+        send_message(ctx.clone(), &format!("Ping = {}ms", start.elapsed().unwrap().as_millis()))?;
     }
 
     Ok(())
@@ -109,64 +129,77 @@ struct Args {
     /// Disable ip hiding
     #[arg(short='i', long)]
     disable_ip_hiding: bool,
+
+    /// Enable users IP viewing
+    #[arg(short='v', long)]
+    enable_users_ip_viewing: bool,
+}
+
+
+struct Context {
+    messages: Arc<(RwLock<Vec<String>>, AtomicUsize)>, 
+    input: Arc<RwLock<String>>,
+    host: String, 
+    name: String, 
+    disable_formatting: bool, 
+    disable_commands: bool, 
+    disable_hiding_ip: bool,
+    message_format: String,
+    update_time: usize,
+    max_messages: usize,
+    enable_ip_viewing: bool
 }
 
 
 fn main() {
     let args = Args::parse();
-
-    let config_path = get_config_path();
-
-    if args.config_path {
-        print!("{}", config_path.to_string_lossy());
-        return;
-    }
     
-    // let start_time = SystemTime::now();
-    let mut config = load_config(config_path);
+    let context = {
+        let config_path = get_config_path();
+    
+        if args.config_path {
+            print!("{}", config_path.to_string_lossy());
+            return;
+        }
 
-    let name = match args.name.clone().or(config.name.clone()) {
-        Some(i) => i,
-        None => {
-            let anon_name = format!("Anon#{:X}", random::<u16>());
-            get_input(&format!("Name (default: {}) > ", anon_name)).unwrap_or(anon_name)
-        },
+        let config = load_config(config_path);
+
+        Context {
+            messages: Arc::new((RwLock::new(Vec::new()), AtomicUsize::new(0))), 
+            input: Arc::new(RwLock::new(String::new())),
+
+            message_format: args.message_format.clone().unwrap_or(config.message_format.clone()), 
+            host: args.host.clone().unwrap_or(config.host.clone()), 
+            name: match args.name.clone().or(config.name.clone()) {
+                Some(i) => i,
+                None => {
+                    let anon_name = format!("Anon#{:X}", random::<u16>());
+                    get_input(&format!("Name (default: {}) > ", anon_name)).unwrap_or(anon_name)
+                },
+            }, 
+            disable_formatting: args.disable_formatting, 
+            disable_commands: args.disable_commands, 
+            disable_hiding_ip: args.disable_ip_hiding,
+            update_time: config.update_time,
+            max_messages: config.max_messages,
+            enable_ip_viewing: args.enable_users_ip_viewing || config.enable_ip_viewing
+        }
     };
 
-    if let Some(host) = args.host {
-        config.host = host;
-    }
-    
-    if let Some(message_format) = args.message_format {
-        config.message_format = message_format;
-    }
-
-    let disable_hiding_ip = args.disable_ip_hiding;
-
-    if let Some(message) = args.send_message {
-        send_message(&config.host, &message, disable_hiding_ip).expect("Error sending message");
-        return;
-    }
+    let context = Arc::new(context);
 
     if args.read_messages {
-        print!("{}", read_messages(&config.host, config.max_messages, 0).ok().flatten().expect("Error reading messages").0.join("\n"));
+        print!("{}", read_messages(context.clone(), 0).ok().flatten().expect("Error reading messages").0.join("\n"));
+    }
+
+    if let Some(message) = &args.send_message {
+        send_message(context.clone(), message).expect("Error sending message");
+    }
+
+    if args.send_message.is_some() || args.read_messages {
         return;
     }
 
-    let disable_formatting = args.disable_formatting;
-    let disable_commands = args.disable_commands;
-
-    let messages = Arc::new((RwLock::new(Vec::new()), AtomicUsize::new(0)));
-    let input = Arc::new(RwLock::new(String::new()));
-    let config = Arc::new(config);
-
-
-
-    // let elapsed = start_time.elapsed().unwrap().as_millis();
-    // if elapsed < 1500 {
-    //     thread::sleep(Duration::from_millis((1500 - elapsed) as u64));
-    // }
-
-    run_recv_loop(config.clone(), config.host.clone(), messages.clone(), input.clone(), disable_formatting);
-    run_main_loop(config.clone(), messages.clone(), input.clone(), config.host.clone(), name.clone(), disable_formatting, disable_commands, disable_hiding_ip);
+    run_recv_loop(context.clone());
+    run_main_loop(context.clone());
 }
