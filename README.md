@@ -21,7 +21,7 @@ go to [releases](https://github.com/MeexReay/bRAC/releases/latest) and download 
 
 ### build from source
 
-(you have to install [rust]([https://rust-lang.org](https://www.rust-lang.org/tools/install)) at first)
+(you have to install [rust](https://www.rust-lang.org/tools/install) at first)
 
 ```bash
 git clone https://github.com/MeexReay/bRAC.git
