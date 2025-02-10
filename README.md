@@ -62,32 +62,6 @@ max_messages: 100                  # chat messages limit
 `/clear` - clear chat \
 `/spam *args` - spam with text
 
-## colored usernames
-
-### bRAC
-
-regex - `\uB9AC\u3E70<(.*?)> (.*)` \
-color - green \
-example - `리㹰<nick> text`
-
-### CRAB
-
-regex - `\u2550\u2550\u2550<(.*?)> (.*)` \
-color - light red \
-example - `═══<nick> text`
-
-### Mefedroniy
-
-regex - `(.*?): (.*)` \
-color - light magenta \
-example - `nick: text`
-
-### clRAC
-
-regex - `<(.*?)> (.*)` \
-color - cyan \
-example - `<nick> text`
-
 ## see also
 
 - [RAC protocol (v1.99.2)](https://gitea.bedohswe.eu.org/pixtaded/crab#rac-protocol)
