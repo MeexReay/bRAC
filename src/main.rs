@@ -149,7 +149,7 @@ fn main() {
     }
 
     if args.read_messages {
-        print!("{}", read_messages(&config.host, config.max_messages).expect("Error reading messages").0.join("\n"));
+        print!("{}", read_messages(&config.host, config.max_messages, 0).ok().flatten().expect("Error reading messages").0.join("\n"));
         return;
     }
 

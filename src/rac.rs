@@ -33,7 +33,7 @@ fn skip_null(stream: &mut TcpStream) -> Result<Vec<u8>, Box<dyn Error>> {
     }
 }
 
-pub fn read_messages(host: &str, max_messages: usize) -> Result<(Vec<String>, usize), Box<dyn Error>> {
+pub fn read_messages(host: &str, max_messages: usize, last_size: usize) -> Result<Option<(Vec<String>, usize)>, Box<dyn Error>> {
     let mut stream = TcpStream::connect(host)?;
 
     stream.write_all(&[0x00])?;
@@ -56,6 +56,10 @@ pub fn read_messages(host: &str, max_messages: usize) -> Result<(Vec<String>, us
             .parse()?
     };
 
+    if last_size == packet_size {
+        return Ok(None);
+    }
+
     stream.write_all(&[0x01])?;
 
     let packet_data = {
@@ -75,19 +79,17 @@ pub fn read_messages(host: &str, max_messages: usize) -> Result<(Vec<String>, us
         .map(|o| o.to_string())
         .collect();
 
-    Ok((lines, packet_size))
+    Ok(Some((lines, packet_size)))
 }
 
 fn recv_loop(config: Arc<Config>, host: &str, cache: Arc<(RwLock<Vec<String>>, AtomicUsize)>, input: Arc<RwLock<String>>, disable_formatting: bool) -> Result<(), Box<dyn Error>> {
-    while let Ok(data) = read_messages(host, config.max_messages) {
-        if data.1 == cache.1.load(Ordering::SeqCst) { 
-            continue 
+    while let Ok(data) = read_messages(host, config.max_messages, cache.1.load(Ordering::SeqCst)) {
+        if let Some(data) = data {
+            *cache.0.write().unwrap() = data.0.clone();
+            cache.1.store(data.1, Ordering::SeqCst);
+            print_console(config.clone(), data.0, &input.read().unwrap(), disable_formatting)?;
+            thread::sleep(Duration::from_millis(config.update_time as u64));
         }
-
-        *cache.0.write().unwrap() = data.0.clone();
-        cache.1.store(data.1, Ordering::SeqCst);
-        print_console(config.clone(), data.0, &input.read().unwrap(), disable_formatting)?;
-        thread::sleep(Duration::from_millis(config.update_time as u64));
     }
     Ok(())
 }
