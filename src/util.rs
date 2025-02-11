@@ -1,4 +1,4 @@
-use std::{collections::HashSet, io::{stdin, stdout, BufRead, Write}, ops::Range};
+use std::{io::{stdin, stdout, BufRead, Write}, ops::Range};
 
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -10,6 +10,10 @@ lazy_static! {
 
 fn get_matches(regex: &Regex, text: &str) -> Vec<Range<usize>> {
     regex.find_iter(text).map(|mat| mat.range()).collect()
+}
+
+pub fn char_index_to_byte_index(text: &str, char_index: usize) -> usize {
+    text.char_indices().skip(char_index).next().map(|o| o.0).unwrap_or(text.len())
 }
 
 pub fn string_chunks(text: &str, width: usize) -> Vec<(String, usize)> {

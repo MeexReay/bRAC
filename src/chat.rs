@@ -4,7 +4,7 @@ use colored::{Color, Colorize};
 use crossterm::{cursor::{MoveLeft, MoveRight}, event::{self, Event, KeyCode, KeyModifiers, MouseEventKind}, execute, terminal::{self, disable_raw_mode, enable_raw_mode}};
 use rand::random;
 
-use crate::{proto::send_message_auth, util::string_chunks, IP_REGEX};
+use crate::{proto::send_message_auth, util::{char_index_to_byte_index, string_chunks}, IP_REGEX};
 
 use super::{proto::read_messages, util::sanitize_text, COLORED_USERNAMES, DATE_REGEX, config::Context, proto::send_message};
 
@@ -322,7 +322,8 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                             continue 
                         }
                         let len = input.read().unwrap().chars().count();
-                        history[history_cursor].remove(cursor-1);
+                        let i = char_index_to_byte_index(&history[history_cursor], cursor-1);
+                        history[history_cursor].remove(i);
                         *input.write().unwrap() = history[history_cursor].clone();
                         replace_input_left(cursor, len, &history[history_cursor], cursor-1);
                         cursor -= 1;
@@ -332,7 +333,8 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                             continue 
                         }
                         let len = input.read().unwrap().chars().count();
-                        history[history_cursor].remove(cursor);
+                        let i = char_index_to_byte_index(&history[history_cursor], cursor);
+                        history[history_cursor].remove(i);
                         *input.write().unwrap() = history[history_cursor].clone();
                         replace_input_left(cursor, len, &history[history_cursor], cursor);
                     }
@@ -388,11 +390,12 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                             on_close();
                             break;
                         }
-                        history[history_cursor].insert(cursor, c);
-                        input.write().unwrap().insert(cursor, c);
+                        let i = char_index_to_byte_index(&history[history_cursor], cursor);
+                        history[history_cursor].insert(i, c);
+                        input.write().unwrap().insert(i, c);
                         write!(stdout(), "{}{}", 
-                            history[history_cursor][cursor..].to_string(), 
-                            MoveLeft(1).to_string().repeat(history[history_cursor].len()-cursor-1)
+                            history[history_cursor][i..].to_string(), 
+                            MoveLeft(1).to_string().repeat(history[history_cursor].chars().count()-cursor-1)
                         ).unwrap();
                         stdout().lock().flush().unwrap();
                         cursor += 1;
@@ -401,9 +404,15 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                 }
             },
             Event::Paste(data) => {
-                input.write().unwrap().push_str(&data);
-                write!(stdout(), "{}", &data).unwrap();
+                let i = char_index_to_byte_index(&history[history_cursor], cursor);
+                history[history_cursor].insert_str(i, &data);
+                input.write().unwrap().insert_str(i, &data);
+                write!(stdout(), "{}{}", 
+                    history[history_cursor][cursor..].to_string(), 
+                    MoveLeft(1).to_string().repeat(history[history_cursor].len()-cursor-1)
+                ).unwrap();
                 stdout().lock().flush().unwrap();
+                cursor += data.len();
             },
             Event::Resize(_, _) => {
                 print_console(
