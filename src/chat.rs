@@ -96,8 +96,9 @@ pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> R
     let scroll = (1f64 - scroll as f64 / messages.len() as f64) * (height) as f64;
     let scroll = scroll as usize;
 
-    let text = format!(
-        "{}\r\n> {}", 
+    let formatted_messages = if ctx.disable_formatting {
+        messages
+    } else {
         messages[messages.len()-height-1..].into_iter()
             .flat_map(|o| string_chunks(&o, width as usize - 1))
             .enumerate()
@@ -111,7 +112,12 @@ pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> R
                         "|"
                     }
                 )
-            }).collect::<Vec<String>>().join("\r\n"), 
+            }).collect::<Vec<String>>()
+    };
+
+    let text = format!(
+        "{}\r\n> {}", 
+        formatted_messages.join("\r\n"),
         input
     );
 
