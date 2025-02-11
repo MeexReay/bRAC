@@ -1,7 +1,7 @@
 use std::{cmp::{max, min}, error::Error, io::{stdout, Write}, sync::{atomic::{AtomicUsize, Ordering}, Arc, RwLock}, thread, time::{Duration, SystemTime}};
 
 use colored::{Color, Colorize};
-use crossterm::{cursor::{MoveLeft, MoveRight}, event::{self, Event, KeyCode, KeyModifiers, MouseEventKind}, terminal::{self, disable_raw_mode, enable_raw_mode}};
+use crossterm::{cursor::{MoveLeft, MoveRight}, event::{self, Event, KeyCode, KeyModifiers, MouseEventKind}, execute, terminal::{self, disable_raw_mode, enable_raw_mode}};
 use rand::random;
 
 use crate::{proto::send_message_auth, util::string_chunks, IP_REGEX};
@@ -92,27 +92,57 @@ pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> R
     let (width, height) = terminal::size()?;
     let (width, height) = (width as usize, height as usize);
 
-    let scroll = ctx.scroll.load(Ordering::SeqCst);
-    let scroll = (1f64 - scroll as f64 / messages.len() as f64) * (height) as f64;
-    let scroll = scroll as usize;
+    let messages = messages
+        .into_iter()
+        .flat_map(|o| string_chunks(&o, width as usize - 1))
+        .collect::<Vec<(String, usize)>>();
+
+    let scroll = min(ctx.scroll.load(Ordering::SeqCst), messages.len()-height);
+    let scroll_f = ((1f64 - scroll as f64 / (messages.len()-height+1) as f64) * (height-2) as f64).round() as usize+1;
+
+
+    let messages = if height < messages.len() {
+        if scroll < messages.len() - height {
+            messages[
+                messages.len()-height-scroll..
+                messages.len()-scroll
+            ].to_vec()
+        } else {
+            if scroll < messages.len() {
+                messages[
+                    0..
+                    messages.len()-scroll
+                ].to_vec()
+            } else {
+                vec![]
+            }
+        }
+    } else {
+        messages
+    };
 
     let formatted_messages = if ctx.disable_formatting {
         messages
+            .into_iter()
+            .map(|(i, _)| i)
+            .collect::<Vec<String>>()
     } else {
-        messages[messages.len()-height-1..].into_iter()
-            .flat_map(|o| string_chunks(&o, width as usize - 1))
+        messages
+            .into_iter()
             .enumerate()
             .map(|(i, (s, l))| {
                 format!("{}{}{}", 
                     s, 
                     " ".repeat(width - 1 - l), 
-                    if i == scroll {
+                    if i == scroll_f {
                         "#"
                     } else {
                         "|"
                     }
                 )
-            }).collect::<Vec<String>>()
+            })
+            .collect::<Vec<String>>()
+            
     };
 
     let text = format!(
@@ -306,7 +336,7 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                         replace_input_left(cursor, len, &history[history_cursor], cursor);
                     }
                     KeyCode::Esc => {
-                        disable_raw_mode()?;
+                        on_close();
                         break;
                     }
                     KeyCode::Up | KeyCode::Down => {
@@ -321,10 +351,22 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                         cursor = history[history_cursor].chars().count();
                     }
                     KeyCode::PageUp => {
-
+                        let height = terminal::size().unwrap().1 as usize;
+                        ctx.scroll.store(min(ctx.scroll.load(Ordering::SeqCst)+height, ctx.messages.messages().len()), Ordering::SeqCst);
+                        print_console(
+                            ctx.clone(),
+                            messages.messages(), 
+                            &input.read().unwrap()
+                        )?;
                     }
                     KeyCode::PageDown => {
-
+                        let height = terminal::size().unwrap().1 as usize;
+                        ctx.scroll.store(max(ctx.scroll.load(Ordering::SeqCst), height)-height, Ordering::SeqCst);
+                        print_console(
+                            ctx.clone(),
+                            messages.messages(), 
+                            &input.read().unwrap()
+                        )?;
                     }
                     KeyCode::Left => {
                         if cursor > 0 {
@@ -342,7 +384,7 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                     }
                     KeyCode::Char(c) => {
                         if event.modifiers.contains(KeyModifiers::CONTROL) && "zxcZXCячсЯЧС".contains(c) {
-                            disable_raw_mode().unwrap();
+                            on_close();
                             break;
                         }
                         history[history_cursor].insert(cursor, c);
@@ -372,10 +414,20 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
             Event::Mouse(data) => {
                 match data.kind {
                     MouseEventKind::ScrollUp => {
-
+                        ctx.scroll.store(min(ctx.scroll.load(Ordering::SeqCst)+3, ctx.messages.messages().len()), Ordering::SeqCst);
+                        print_console(
+                            ctx.clone(),
+                            messages.messages(), 
+                            &input.read().unwrap()
+                        )?;
                     },
                     MouseEventKind::ScrollDown => {
-
+                        ctx.scroll.store(max(ctx.scroll.load(Ordering::SeqCst), 3)-3, Ordering::SeqCst);
+                        print_console(
+                            ctx.clone(),
+                            messages.messages(), 
+                            &input.read().unwrap()
+                        )?;
                     },
                     _ => {}
                 }
@@ -401,8 +453,14 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+pub fn on_close() {
+    disable_raw_mode().unwrap();
+    execute!(stdout(), event::DisableMouseCapture).unwrap();
+}
+
 pub fn run_main_loop(ctx: Arc<Context>) {
     enable_raw_mode().unwrap();
+    execute!(stdout(), event::EnableMouseCapture).unwrap();
 
     thread::spawn({
         let ctx = ctx.clone();
