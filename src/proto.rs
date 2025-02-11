@@ -1,8 +1,6 @@
-use std::{error::Error, io::{Read, Write}, net::TcpStream, sync::Arc, thread, time::Duration};
+use std::{error::Error, io::{Read, Write}, net::TcpStream};
 
-use crate::config::Context;
 
-use super::chat::print_console;
 
 pub fn send_message(host: &str, message: &str) -> Result<(), Box<dyn Error>> {
     let mut stream = TcpStream::connect(host)?;

@@ -1,8 +1,7 @@
 use std::{cmp::{max, min}, error::Error, io::{stdout, Write}, sync::{atomic::{AtomicUsize, Ordering}, Arc, RwLock}, thread, time::{Duration, SystemTime}};
 
-use clap::builder::Str;
 use colored::{Color, Colorize};
-use crossterm::{cursor::MoveLeft, event::{self, Event, KeyCode, KeyModifiers, MouseEventKind}, terminal::{disable_raw_mode, enable_raw_mode}};
+use crossterm::{cursor::{MoveLeft, MoveRight}, event::{self, Event, KeyCode, KeyModifiers, MouseEventKind}, terminal::{disable_raw_mode, enable_raw_mode}};
 use rand::random;
 
 use crate::IP_REGEX;
@@ -194,6 +193,22 @@ fn replace_input(cursor: usize, len: usize, text: &str) {
     stdout().lock().flush().unwrap();
 }
 
+fn replace_input_left(cursor: usize, len: usize, text: &str, left: usize) {
+    let spaces = if text.chars().count() < len {
+        len-text.chars().count()
+    } else {
+        0
+    };
+    write!(stdout(), 
+        "{}{}{}{}", 
+        MoveLeft(1).to_string().repeat(cursor), 
+        text,
+        " ".repeat(spaces), 
+        MoveLeft(1).to_string().repeat(len-left)
+    ).unwrap();
+    stdout().lock().flush().unwrap();
+}
+
 
 fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     let mut history: Vec<String> = vec![String::new()];
@@ -243,12 +258,23 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                         }
                     }
                     KeyCode::Backspace => {
-                        let len = input.read().unwrap().chars().count();
-                        if input.write().unwrap().pop().is_some() {
-                            history[history_cursor].pop();
-                            replace_input(cursor, len, &history[history_cursor]);
-                            cursor -= 1;
+                        if cursor == 0 || !(0..=history[history_cursor].len()).contains(&(cursor)) {
+                            continue 
                         }
+                        let len = input.read().unwrap().chars().count();
+                        history[history_cursor].remove(cursor-1);
+                        *input.write().unwrap() = history[history_cursor].clone();
+                        replace_input_left(cursor, len, &history[history_cursor], cursor-1);
+                        cursor -= 1;
+                    }
+                    KeyCode::Delete => {
+                        if cursor == 0 || !(0..history[history_cursor].len()).contains(&(cursor)) {
+                            continue 
+                        }
+                        let len = input.read().unwrap().chars().count();
+                        history[history_cursor].remove(cursor);
+                        *input.write().unwrap() = history[history_cursor].clone();
+                        replace_input_left(cursor, len, &history[history_cursor], cursor);
                     }
                     KeyCode::Esc => {
                         disable_raw_mode()?;
@@ -272,19 +298,30 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
 
                     }
                     KeyCode::Left => {
-                        cursor = max(1, cursor + 1) - 1;
+                        if cursor > 0 {
+                            cursor -= 1;
+                            write!(stdout(), "{}", MoveLeft(1).to_string(), ).unwrap();
+                            stdout().lock().flush().unwrap();
+                        }
                     }
                     KeyCode::Right => {
-                        cursor += 1;
+                        if cursor < history[history_cursor].len() {
+                            cursor += 1;
+                            write!(stdout(), "{}", MoveRight(1).to_string(), ).unwrap();
+                            stdout().lock().flush().unwrap();
+                        }
                     }
                     KeyCode::Char(c) => {
                         if event.modifiers.contains(KeyModifiers::CONTROL) && "zxcZXCячсЯЧС".contains(c) {
                             disable_raw_mode().unwrap();
                             break;
                         }
-                        history[history_cursor].push(c);
-                        input.write().unwrap().push(c);
-                        write!(stdout(), "{}", c).unwrap();
+                        history[history_cursor].insert(cursor, c);
+                        input.write().unwrap().insert(cursor, c);
+                        write!(stdout(), "{}{}", 
+                            history[history_cursor][cursor..].to_string(), 
+                            MoveLeft(1).to_string().repeat(history[history_cursor].len()-cursor-1)
+                        ).unwrap();
                         stdout().lock().flush().unwrap();
                         cursor += 1;
                     }
@@ -316,7 +353,11 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
 
 pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     if let Ok(Some((messages, size))) = read_messages(&ctx.host, ctx.max_messages, ctx.messages.packet_size()) {
-        let messages: Vec<String> = messages.into_iter().flat_map(|o| format_message(ctx.clone(), o)).collect();
+        let messages: Vec<String> = if ctx.disable_formatting {
+            messages 
+        } else {
+            messages.into_iter().flat_map(|o| format_message(ctx.clone(), o)).collect()
+        };
         ctx.messages.update(messages.clone(), size);
         print_console(ctx.clone(), messages, &ctx.input.read().unwrap())?;
     }
