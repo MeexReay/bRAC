@@ -1,10 +1,10 @@
 use std::{cmp::{max, min}, error::Error, io::{stdout, Write}, sync::{atomic::{AtomicUsize, Ordering}, Arc, RwLock}, thread, time::{Duration, SystemTime}};
 
 use colored::{Color, Colorize};
-use crossterm::{cursor::{MoveLeft, MoveRight}, event::{self, Event, KeyCode, KeyModifiers, MouseEventKind}, terminal::{disable_raw_mode, enable_raw_mode}};
+use crossterm::{cursor::{MoveLeft, MoveRight}, event::{self, Event, KeyCode, KeyModifiers, MouseEventKind}, terminal::{self, disable_raw_mode, enable_raw_mode}};
 use rand::random;
 
-use crate::IP_REGEX;
+use crate::{util::string_chunks, IP_REGEX};
 
 use super::{proto::read_messages, util::sanitize_text, COLORED_USERNAMES, DATE_REGEX, config::Context, proto::send_message};
 
@@ -88,11 +88,30 @@ Press enter to close")?;
 }
 
 
-pub fn print_console(context: Arc<Context>, messages: Vec<String>, input: &str) -> Result<(), Box<dyn Error>> {
+pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> Result<(), Box<dyn Error>> {
+    let (width, height) = terminal::size()?;
+    let (width, height) = (width as usize, height as usize);
+
+    let scroll = ctx.scroll.load(Ordering::SeqCst);
+    let scroll = (1f64 - scroll as f64 / messages.len() as f64) * (height - 1) as f64;
+    let scroll = scroll as usize;
+
     let text = format!(
-        "{}{}\r\n> {}", 
-        "\r\n".repeat(context.max_messages - messages.len()), 
-        messages.join("\r\n"), 
+        "{}\r\n> {}", 
+        messages[messages.len()-height-1..].into_iter()
+            .flat_map(|o| string_chunks(&o, width as usize - 1))
+            .enumerate()
+            .map(|(i, (s, l))| {
+                format!("{}{}{}", 
+                    s, 
+                    " ".repeat(width - 1 - l), 
+                    if i == scroll {
+                        "#"
+                    } else {
+                        "|"
+                    }
+                )
+            }).collect::<Vec<String>>().join("\r\n"), 
         input
     );
 
@@ -332,6 +351,13 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                 input.write().unwrap().push_str(&data);
                 write!(stdout(), "{}", &data).unwrap();
                 stdout().lock().flush().unwrap();
+            },
+            Event::Resize(_, _) => {
+                print_console(
+                    ctx.clone(),
+                    messages.messages(), 
+                    &input.read().unwrap()
+                )?;
             },
             Event::Mouse(data) => {
                 match data.kind {
