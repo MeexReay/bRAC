@@ -4,7 +4,7 @@ use colored::{Color, Colorize};
 use crossterm::{cursor::{MoveLeft, MoveRight}, event::{self, Event, KeyCode, KeyModifiers, MouseEventKind}, terminal::{self, disable_raw_mode, enable_raw_mode}};
 use rand::random;
 
-use crate::{util::string_chunks, IP_REGEX};
+use crate::{proto::send_message_auth, util::string_chunks, IP_REGEX};
 
 use super::{proto::read_messages, util::sanitize_text, COLORED_USERNAMES, DATE_REGEX, config::Context, proto::send_message};
 
@@ -269,10 +269,14 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                             if message.starts_with("/") && !ctx.disable_commands {
                                 on_command(ctx.clone(), &message)?;
                             } else {
-                                let message = ctx.message_format
-                                    .replace("{name}", &ctx.name)
-                                    .replace("{text}", &message);
-                                send_message(&ctx.host, &message)?;
+                                if let Some(password) = &ctx.auth_password {
+                                    send_message_auth(&ctx.host, &ctx.name, password, &message)?;
+                                } else {
+                                    let message = ctx.message_format
+                                        .replace("{name}", &ctx.name)
+                                        .replace("{text}", &message);
+                                    send_message(&ctx.host, &message)?;
+                                }
                             }
                         } else {
                             print_console(
