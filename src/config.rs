@@ -1,9 +1,12 @@
+use std::sync::{atomic::AtomicUsize, Arc, RwLock};
 #[allow(unused_imports)]
 use std::{env, fs, path::{Path, PathBuf}, thread, time::Duration};
 use homedir::my_home;
+use rand::random;
 use serde_yml;
+use clap::Parser;
 
-use super::get_input;
+use super::util::get_input;
 
 const MESSAGE_FORMAT: &str = "\u{B9AC}\u{3E70}<{name}> {text}";
 
@@ -25,23 +28,49 @@ pub struct Config {
     pub disable_ip_hiding: bool,
 }
 
-fn default_max_messages() -> usize { 100 }
+fn default_max_messages() -> usize { 1000 }
 fn default_update_time() -> usize { 50 }
 fn default_host() -> String { "meex.lol:11234".to_string() }
 fn default_message_format() -> String { MESSAGE_FORMAT.to_string() }
 
+fn ask_usize(name: impl ToString, default: usize) -> usize {
+    get_input(format!("{} (default: {}) > ", name.to_string(), default))
+        .and_then(|o| o.parse().ok()).unwrap_or(default)
+}
+
+fn ask_string(name: impl ToString, default: impl ToString + Clone) -> String {
+    ask_string_option(name, default.clone()).unwrap_or(default.to_string())
+}
+
+fn ask_string_option(name: impl ToString, default: impl ToString) -> Option<String> {
+    let default = default.to_string();
+    get_input(format!("{} (default: {}) > ", name.to_string(), default))
+}
+
+fn ask_bool(name: impl ToString, default: bool) -> bool {
+    get_input(format!("{} (Y/N, default: {}) > ", name.to_string(), default))
+        .map(|o| o.to_lowercase() != "n")
+        .unwrap_or(default)
+}
+
 pub fn configure(path: PathBuf) -> Config {
-    let host = get_input("Host (default: meex.lol:11234) > ").unwrap_or("meex.lol:11234".to_string());
-    let name = get_input("Name (default: ask every time) > ");
-    let update_time = get_input("Update interval (default: 50) > ").map(|o| o.parse().ok()).flatten().unwrap_or(50);
-    let max_messages = get_input("Max messages (default: 100) > ").map(|o| o.parse().ok()).flatten().unwrap_or(100);
-    let enable_ip_viewing = get_input("Enable users IP viewing? (Y/N, default: N) > ").map(|o| o.to_lowercase() != "n").unwrap_or(false);
-    let disable_ip_hiding = get_input("Enable your IP viewing? (Y/N, default: N) > ").map(|o| o.to_lowercase() != "n").unwrap_or(false);
+    println!("To configure the client, please answer a few questions. It won't take long.");
+    println!("You can reconfigure client in any moment via `bRAC --configure`");
+    println!("Config stores in path `{}`", path.to_string_lossy());
+    println!();
+
+    let host = ask_string("Host", default_host());
+    let name = ask_string_option("Name", "ask every time");
+    let update_time = ask_usize("Update interval", default_update_time());
+    let max_messages = ask_usize("Max messages", default_max_messages());
+    let message_format = ask_string("Message format", default_message_format());
+    let enable_ip_viewing = ask_bool("Enable users IP viewing?", false);
+    let disable_ip_hiding = ask_bool("Enable your IP viewing?", false);
 
     let config = Config {
         host,
         name,
-        message_format: MESSAGE_FORMAT.to_string(),
+        message_format,
         update_time,
         max_messages,
         enable_ip_viewing,
@@ -90,4 +119,92 @@ pub fn get_config_path() -> PathBuf {
     };
 
     config_path
+}
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+pub struct Args {
+    /// Print config path
+    #[arg(short='p', long)]
+    pub config_path: bool,
+
+    /// Use specified host
+    #[arg(short='H', long)]
+    pub host: Option<String>,
+
+    /// Use specified name
+    #[arg(short='n', long)]
+    pub name: Option<String>,
+
+    /// Use specified message format
+    #[arg(short='F', long)]
+    pub message_format: Option<String>,
+
+    /// Print unformatted messages from chat and exit
+    #[arg(short='r', long)]
+    pub read_messages: bool,
+
+    /// Send unformatted message to chat and exit
+    #[arg(short='s', long, value_name="MESSAGE")]
+    pub send_message: Option<String>,
+
+    /// Disable message formatting and sanitizing
+    #[arg(short='f', long)]
+    pub disable_formatting: bool,
+
+    /// Disable slash commands
+    #[arg(short='c', long)]
+    pub disable_commands: bool,
+
+    /// Disable ip hiding
+    #[arg(short='i', long)]
+    pub disable_ip_hiding: bool,
+
+    /// Enable users IP viewing
+    #[arg(short='v', long)]
+    pub enable_users_ip_viewing: bool,
+
+    /// Configure client
+    #[arg(short='C', long)]
+    pub configure: bool,
+}
+
+pub struct Context {
+    pub messages: Arc<(RwLock<Vec<String>>, AtomicUsize)>, 
+    pub input: Arc<RwLock<String>>,
+    pub host: String, 
+    pub name: String, 
+    pub disable_formatting: bool, 
+    pub disable_commands: bool, 
+    pub disable_hiding_ip: bool,
+    pub message_format: String,
+    pub update_time: usize,
+    pub max_messages: usize,
+    pub enable_ip_viewing: bool,
+    pub scroll: Arc<AtomicUsize>
+}
+
+impl Context {
+    pub fn new(config: &Config, args: &Args) -> Context {
+        Context {
+            messages: Arc::new((RwLock::new(Vec::new()), AtomicUsize::new(0))), 
+            input: Arc::new(RwLock::new(String::new())),
+            message_format: args.message_format.clone().unwrap_or(config.message_format.clone()), 
+            host: args.host.clone().unwrap_or(config.host.clone()), 
+            name: match args.name.clone().or(config.name.clone()) {
+                Some(i) => i,
+                None => {
+                    let anon_name = format!("Anon#{:X}", random::<u16>());
+                    get_input(&format!("Name (default: {}) > ", anon_name)).unwrap_or(anon_name)
+                },
+            }, 
+            disable_formatting: args.disable_formatting, 
+            disable_commands: args.disable_commands, 
+            disable_hiding_ip: args.disable_ip_hiding,
+            update_time: config.update_time,
+            max_messages: config.max_messages,
+            enable_ip_viewing: args.enable_users_ip_viewing || config.enable_ip_viewing,
+            scroll: Arc::new(AtomicUsize::new(0))
+        }
+    }
 }

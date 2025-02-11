@@ -1,6 +1,6 @@
 use std::{error::Error, io::{Read, Write}, net::TcpStream, sync::{atomic::Ordering, Arc}, thread, time::Duration};
 
-use super::{term::print_console, Context, ADVERTISEMENT, ADVERTISEMENT_ENABLED};
+use super::{chat::print_console, Context, ADVERTISEMENT, ADVERTISEMENT_ENABLED};
 
 pub fn send_message(context: Arc<Context>, message: &str) -> Result<(), Box<dyn Error>> {
     let mut stream = TcpStream::connect(&context.host)?;

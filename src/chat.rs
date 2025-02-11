@@ -1,10 +1,54 @@
-use std::{error::Error, io::{stdout, Write}, sync::Arc, time::Duration};
+use std::{error::Error, io::{stdout, Write}, sync::{atomic::Ordering, Arc}, time::{Duration, SystemTime}};
 
 use colored::{Color, Colorize};
 use crossterm::{cursor::MoveLeft, event::{self, Event, KeyCode, KeyModifiers}, terminal::{disable_raw_mode, enable_raw_mode}, ExecutableCommand};
-use regex::Regex;
+use rand::random;
 
-use super::{on_command, rac::send_message, Context, ADVERTISEMENT, COLORED_USERNAMES, DATE_REGEX};
+use super::{proto::read_messages, util::sanitize_text, ADVERTISEMENT, COLORED_USERNAMES, DATE_REGEX, config::Context, proto::send_message};
+
+fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>> {
+    let command = command.trim_start_matches("/");
+    let (command, args) = command.split_once(" ").unwrap_or((&command, ""));
+    let args = args.split(" ").collect::<Vec<&str>>();
+
+    if command == "clear" {
+        send_message(ctx.clone(), &format!("\r\x1B[1A{}", " ".repeat(64)).repeat(ctx.max_messages))?;
+    } else if command == "spam" {
+        send_message(ctx.clone(), &format!("\r\x1B[1A{}{}", args.join(" "), " ".repeat(10)).repeat(ctx.max_messages))?;
+    } else if command == "help" {
+        write!(stdout(), "Help message:\r
+/help - show help message\r
+/clear - clear console\r
+/spam *args - spam console with text\r
+/ping - check server ping\r
+\r
+Press enter to close")?;
+        stdout().flush()?;
+    } else if command == "ping" {
+        let mut before = ctx.messages.1.load(Ordering::SeqCst);
+        let start = SystemTime::now();
+        let message = format!("Checking ping... {:X}", random::<u16>());
+        send_message(ctx.clone(), &message)?;
+        loop {
+            let data = read_messages(ctx.clone(), before).ok().flatten();
+
+            if let Some((data, size)) = data {
+                if let Some(last) = data.iter().rev().find(|o| o.contains(&message)) {
+                    if last.contains(&message) {
+                        break;
+                    } else {
+                        before = size;
+                    }
+                } else {
+                    before = size;
+                }
+            }
+        }
+        send_message(ctx.clone(), &format!("Ping = {}ms", start.elapsed().unwrap().as_millis()))?;
+    }
+
+    Ok(())
+}
 
 pub fn print_console(context: Arc<Context>, messages: Vec<String>, input: &str) -> Result<(), Box<dyn Error>> {
     let text = format!(
@@ -67,14 +111,6 @@ fn format_message(ctx: Arc<Context>, message: String) -> Option<String> {
     })
 }
 
-fn sanitize_text(input: &str) -> String {
-    let ansi_regex = Regex::new(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])").unwrap();
-    let control_chars_regex = Regex::new(r"[\x00-\x1F\x7F]").unwrap();
-    let without_ansi = ansi_regex.replace_all(input, "");
-    let cleaned_text = control_chars_regex.replace_all(&without_ansi, "");
-    cleaned_text.into_owned()
-}
-
 fn find_username_color(message: &str) -> Option<(String, String, Color)> {
     for (re, color) in COLORED_USERNAMES.iter() {
         if let Some(captures) = re.captures(message) {
@@ -135,6 +171,22 @@ fn poll_events(ctx: Arc<Context>) {
                         disable_raw_mode().unwrap();
                         break;
                     }
+                    KeyCode::Up => {
+                        disable_raw_mode().unwrap();
+                        break;
+                    }
+                    KeyCode::Down => {
+                        disable_raw_mode().unwrap();
+                        break;
+                    }
+                    KeyCode::PageUp => {
+                        disable_raw_mode().unwrap();
+                        break;
+                    }
+                    KeyCode::PageDown => {
+                        disable_raw_mode().unwrap();
+                        break;
+                    }
                     KeyCode::Char(c) => {
                         if event.modifiers.contains(KeyModifiers::CONTROL) && "zxcZXCячсЯЧС".contains(c) {
                             disable_raw_mode().unwrap();
@@ -151,6 +203,9 @@ fn poll_events(ctx: Arc<Context>) {
                 ctx.input.write().unwrap().push_str(&data);
                 write!(stdout(), "{}", &data).unwrap();
                 stdout().lock().flush().unwrap();
+            },
+            Event::Mouse(data) => {
+                
             }
             _ => {}
         }
