@@ -135,9 +135,9 @@ pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> R
                     s, 
                     " ".repeat(width - 1 - l), 
                     if i == scroll_f {
-                        "#"
+                        "▐".bright_yellow()
                     } else {
-                        "|"
+                        "▕".yellow()
                     }
                 )
             })
@@ -146,8 +146,9 @@ pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> R
     };
 
     let text = format!(
-        "{}\r\n> {}", 
+        "{}\r\n{} {}", 
         formatted_messages.join("\r\n"),
+        ">".bright_yellow(),
         input
     );
 

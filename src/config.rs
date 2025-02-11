@@ -1,6 +1,7 @@
 use std::sync::{atomic::AtomicUsize, Arc, RwLock};
 #[allow(unused_imports)]
 use std::{env, fs, path::{Path, PathBuf}, thread, time::Duration};
+use colored::Colorize;
 use homedir::my_home;
 use rand::random;
 use serde_yml;
@@ -36,7 +37,7 @@ fn default_host() -> String { "meex.lol:11234".to_string() }
 fn default_message_format() -> String { MESSAGE_FORMAT.to_string() }
 
 fn ask_usize(name: impl ToString, default: usize) -> usize {
-    get_input(format!("{} (default: {}) > ", name.to_string(), default))
+    get_input(format!("{} (default: {}) > ", name.to_string(), default).bright_yellow())
         .and_then(|o| o.parse().ok()).unwrap_or(default)
 }
 
@@ -46,19 +47,19 @@ fn ask_string(name: impl ToString, default: impl ToString + Clone) -> String {
 
 fn ask_string_option(name: impl ToString, default: impl ToString) -> Option<String> {
     let default = default.to_string();
-    get_input(format!("{} (default: {}) > ", name.to_string(), default))
+    get_input(format!("{} (default: {}) > ", name.to_string(), default).bright_yellow())
 }
 
 fn ask_bool(name: impl ToString, default: bool) -> bool {
-    get_input(format!("{} (Y/N, default: {}) > ", name.to_string(), default))
+    get_input(format!("{} (Y/N, default: {}) > ", name.to_string(), if default { "Y" } else { "N" }).bright_yellow())
         .map(|o| o.to_lowercase() != "n")
         .unwrap_or(default)
 }
 
 pub fn configure(path: PathBuf) -> Config {
-    println!("To configure the client, please answer a few questions. It won't take long.");
-    println!("You can reconfigure client in any moment via `bRAC --configure`");
-    println!("Config stores in path `{}`", path.to_string_lossy());
+    println!("{}", "To configure the client, please answer a few questions. It won't take long.".yellow());
+    println!("{}", "You can reconfigure client in any moment via `bRAC --configure`".yellow());
+    println!("{}", format!("Config stores in path `{}`", path.to_string_lossy()).yellow());
     println!();
 
     let host = ask_string("Host", default_host());
@@ -82,7 +83,9 @@ pub fn configure(path: PathBuf) -> Config {
     let config_text = serde_yml::to_string(&config).expect("Config save error");
     fs::create_dir_all(&path.parent().expect("Config save error")).expect("Config save error");
     fs::write(&path, config_text).expect("Config save error");
-    println!("Config saved! You can edit it in the path got with `bRAC --config-path`");
+
+    println!();
+    println!("{}", "Config saved! You can reconfigure it in any moment via `bRAC --configure`".yellow());
 
     config
 }
