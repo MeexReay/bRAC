@@ -178,11 +178,7 @@ fn find_username_color(message: &str) -> Option<(String, String, Color)> {
 }
 
 
-fn write_backspace(len: usize) {
-    write_backspace_with_text(len, "")
-}
-
-fn write_backspace_with_text(len: usize, text: &str) {
+fn replace_input(cursor: usize, len: usize, text: &str) {
     let spaces = if text.chars().count() < len {
         len-text.chars().count()
     } else {
@@ -190,7 +186,7 @@ fn write_backspace_with_text(len: usize, text: &str) {
     };
     write!(stdout(), 
         "{}{}{}{}", 
-        MoveLeft(1).to_string().repeat(len), 
+        MoveLeft(1).to_string().repeat(cursor), 
         text,
         " ".repeat(spaces), 
         MoveLeft(1).to_string().repeat(spaces)
@@ -222,11 +218,13 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                         let message = input.read().unwrap().clone();
         
                         if !message.is_empty() {
-                            write_backspace(message.chars().count());
+                            replace_input(cursor, message.chars().count(), "");
                             input.write().unwrap().clear();
 
-                            history.insert(history_cursor, message.clone());
-                            history_cursor += 1;
+                            cursor = 0;
+
+                            history_cursor = history.len()-1;
+                            history.push(String::new());
 
                             if message.starts_with("/") && !ctx.disable_commands {
                                 on_command(ctx.clone(), &message)?;
@@ -245,9 +243,11 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                         }
                     }
                     KeyCode::Backspace => {
+                        let len = input.read().unwrap().chars().count();
                         if input.write().unwrap().pop().is_some() {
                             history[history_cursor].pop();
-                            write_backspace(1);
+                            replace_input(cursor, len, &history[history_cursor]);
+                            cursor -= 1;
                         }
                     }
                     KeyCode::Esc => {
@@ -256,13 +256,14 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                     }
                     KeyCode::Up | KeyCode::Down => {
                         history_cursor = if event.code == KeyCode::Up {
-                            max(history_cursor + 1, 1) - 1
+                            max(history_cursor, 1) - 1
                         } else {
                             min(history_cursor + 1, history.len() - 1)
                         };
-                        let was_len = input.read().unwrap().chars().count();
+                        let len = input.read().unwrap().chars().count();
                         *input.write().unwrap() = history[history_cursor].clone();
-                        write_backspace_with_text(was_len, &history[history_cursor]);
+                        replace_input(cursor, len, &history[history_cursor]);
+                        cursor = history[history_cursor].chars().count();
                     }
                     KeyCode::PageUp => {
 
@@ -271,10 +272,10 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
 
                     }
                     KeyCode::Left => {
-
+                        cursor = max(1, cursor + 1) - 1;
                     }
                     KeyCode::Right => {
-
+                        cursor += 1;
                     }
                     KeyCode::Char(c) => {
                         if event.modifiers.contains(KeyModifiers::CONTROL) && "zxcZXCячсЯЧС".contains(c) {
@@ -285,6 +286,7 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                         input.write().unwrap().push(c);
                         write!(stdout(), "{}", c).unwrap();
                         stdout().lock().flush().unwrap();
+                        cursor += 1;
                     }
                     _ => {}
                 }
