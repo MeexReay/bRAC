@@ -1,25 +1,13 @@
-use std::{error::Error, io::{Read, Write}, net::TcpStream, sync::{atomic::Ordering, Arc}, thread, time::Duration};
+use std::{error::Error, io::{Read, Write}, net::TcpStream, sync::Arc, thread, time::Duration};
 
-use super::{chat::print_console, Context, ADVERTISEMENT, ADVERTISEMENT_ENABLED};
+use crate::config::Context;
 
-pub fn send_message(context: Arc<Context>, message: &str) -> Result<(), Box<dyn Error>> {
-    let mut stream = TcpStream::connect(&context.host)?;
+use super::chat::print_console;
+
+pub fn send_message(host: &str, message: &str) -> Result<(), Box<dyn Error>> {
+    let mut stream = TcpStream::connect(host)?;
     stream.write_all(&[0x01])?;
-    let data = format!("{}{}{}{}",
-        if !context.disable_hiding_ip {
-            "\r\x07"
-        } else {
-            ""
-        },
-        message,
-        if !context.disable_hiding_ip && message.chars().count() < 39 { 
-            " ".repeat(39-message.chars().count()) 
-        } else { 
-            String::new()
-        },
-        if ADVERTISEMENT_ENABLED {ADVERTISEMENT} else {""}
-    );
-    stream.write_all(data.as_bytes())?;
+    stream.write_all(message.as_bytes())?;
     Ok(())
 }
 
@@ -33,8 +21,8 @@ fn skip_null(stream: &mut TcpStream) -> Result<Vec<u8>, Box<dyn Error>> {
     }
 }
 
-pub fn read_messages(context: Arc<Context>, last_size: usize) -> Result<Option<(Vec<String>, usize)>, Box<dyn Error>> {
-    let mut stream = TcpStream::connect(&context.host)?;
+pub fn read_messages(host: &str, max_messages: usize, last_size: usize) -> Result<Option<(Vec<String>, usize)>, Box<dyn Error>> {
+    let mut stream = TcpStream::connect(host)?;
 
     stream.write_all(&[0x00])?;
 
@@ -75,28 +63,9 @@ pub fn read_messages(context: Arc<Context>, last_size: usize) -> Result<Option<(
 
     let lines: Vec<&str> = packet_data.split("\n").collect();
     let lines: Vec<String> = lines.clone().into_iter()
-        .skip(lines.len() - context.max_messages)
+        .skip(lines.len() - max_messages)
         .map(|o| o.to_string())
         .collect();
 
     Ok(Some((lines, packet_size)))
-}
-
-pub fn run_recv_loop(context: Arc<Context>) {
-    thread::spawn({
-        let cache = context.messages.clone();
-        let update_time = context.update_time;
-        let input = context.input.clone();
-
-        move || {
-            loop { 
-                if let Ok(Some(data)) = read_messages(context.clone(), cache.1.load(Ordering::SeqCst)) {
-                    *cache.0.write().unwrap() = data.0.clone();
-                    cache.1.store(data.1, Ordering::SeqCst);
-                    print_console(context.clone(), data.0, &input.read().unwrap()).expect("Error printing console");
-                    thread::sleep(Duration::from_millis(update_time as u64));
-                }
-            }
-        }
-    });
 }

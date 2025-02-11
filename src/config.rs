@@ -6,6 +6,8 @@ use rand::random;
 use serde_yml;
 use clap::Parser;
 
+use crate::chat::ChatStorage;
+
 use super::util::get_input;
 
 const MESSAGE_FORMAT: &str = "\u{B9AC}\u{3E70}<{name}> {text}";
@@ -170,7 +172,7 @@ pub struct Args {
 }
 
 pub struct Context {
-    pub messages: Arc<(RwLock<Vec<String>>, AtomicUsize)>, 
+    pub messages: Arc<ChatStorage>, 
     pub input: Arc<RwLock<String>>,
     pub host: String, 
     pub name: String, 
@@ -187,7 +189,7 @@ pub struct Context {
 impl Context {
     pub fn new(config: &Config, args: &Args) -> Context {
         Context {
-            messages: Arc::new((RwLock::new(Vec::new()), AtomicUsize::new(0))), 
+            messages: Arc::new(ChatStorage::new()), 
             input: Arc::new(RwLock::new(String::new())),
             message_format: args.message_format.clone().unwrap_or(config.message_format.clone()), 
             host: args.host.clone().unwrap_or(config.host.clone()), 
