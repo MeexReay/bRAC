@@ -31,7 +31,7 @@ pub struct Config {
     pub disable_ip_hiding: bool,
 }
 
-fn default_max_messages() -> usize { 1000 }
+fn default_max_messages() -> usize { 200 }
 fn default_update_time() -> usize { 50 }
 fn default_host() -> String { "meex.lol:11234".to_string() }
 fn default_message_format() -> String { MESSAGE_FORMAT.to_string() }
