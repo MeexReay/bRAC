@@ -93,7 +93,7 @@ pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> R
     let (width, height) = (width as usize, height as usize);
 
     let scroll = ctx.scroll.load(Ordering::SeqCst);
-    let scroll = (1f64 - scroll as f64 / messages.len() as f64) * (height - 1) as f64;
+    let scroll = (1f64 - scroll as f64 / messages.len() as f64) * (height) as f64;
     let scroll = scroll as usize;
 
     let text = format!(
