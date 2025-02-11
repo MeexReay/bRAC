@@ -174,8 +174,8 @@ pub struct Args {
     pub configure: bool,
 
     /// Authentication password
-    #[arg(short='a', long, value_name="PASSWORD")]
-    pub auth: Option<String>,
+    #[arg(short='a', long)]
+    pub auth: bool,
 }
 
 pub struct Context {
@@ -191,7 +191,7 @@ pub struct Context {
     pub max_messages: usize,
     pub enable_ip_viewing: bool,
     pub scroll: Arc<AtomicUsize>,
-    pub auth_password: Option<String>,
+    pub auth: bool,
 }
 
 impl Context {
@@ -209,7 +209,7 @@ impl Context {
             max_messages: config.max_messages,
             enable_ip_viewing: args.enable_users_ip_viewing || config.enable_ip_viewing,
             scroll: Arc::new(AtomicUsize::new(0)),
-            auth_password: args.auth.clone()
+            auth: args.auth
         }
     }
 }

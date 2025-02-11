@@ -161,15 +161,15 @@ pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> R
 
 
 fn prepare_message(context: Arc<Context>, message: &str) -> String {
-    format!("{}{}{}",
+    format!("{}{}{}\r",
         if !context.disable_hiding_ip {
             "\r\x07"
         } else {
             ""
         },
         message,
-        if !context.disable_hiding_ip && message.chars().count() < 39 { 
-            " ".repeat(39-message.chars().count()) 
+        if !context.disable_hiding_ip && message.chars().count() < 53 { 
+            " ".repeat(53-message.chars().count()) 
         } else { 
             String::new()
         }
@@ -300,12 +300,12 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                             if message.starts_with("/") && !ctx.disable_commands {
                                 on_command(ctx.clone(), &message)?;
                             } else {
-                                if let Some(password) = &ctx.auth_password {
-                                    send_message_auth(&ctx.host, &ctx.name, password, &message)?;
+                                let message = prepare_message(ctx.clone(), &ctx.message_format
+                                    .replace("{name}", &ctx.name)
+                                    .replace("{text}", &message));
+                                if ctx.auth {
+                                    send_message_auth(&ctx.host, &message)?;
                                 } else {
-                                    let message = ctx.message_format
-                                        .replace("{name}", &ctx.name)
-                                        .replace("{text}", &message);
                                     send_message(&ctx.host, &message)?;
                                 }
                             }

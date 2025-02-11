@@ -9,37 +9,31 @@ pub fn send_message(host: &str, message: &str) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn send_message_auth(host: &str, name: &str, password: &str, message: &str) -> Result<(), Box<dyn Error>> {
+pub fn send_message_auth(host: &str, message: &str) -> Result<(), Box<dyn Error>> {
+    register_user(host, message, message)?;
     let mut stream = TcpStream::connect(host)?;
     stream.write_all(&[0x02])?;
-    stream.write_all(name.as_bytes())?;
-    stream.write_all(&[b'\n'])?;
-    stream.write_all(password.as_bytes())?;
+    stream.write_all(message.as_bytes())?;
     stream.write_all(&[b'\n'])?;
     stream.write_all(message.as_bytes())?;
+    stream.write_all(b"\n\r   ")?;
     let mut buf = vec![0; 1];
-    stream.read_exact(&mut buf)?;
-    if buf[0] == 0x01 {
-        register_user(host, name, password)?;
-        send_message_auth(host, name, password, message)?
-    } else if buf[0] == 0x02 {
-        println!("Password is incorrect");
-        panic!()
+    if let Ok(_) = stream.read_exact(&mut buf) {
+        if buf[0] == 0x02 {
+            let message = format!("\x1f{message}");
+            register_user(host, &message, &message)?;
+            send_message_auth(host, &message)?;
+        }
     }
     Ok(())
 }
 
 pub fn register_user(host: &str, name: &str, password: &str) -> Result<(), Box<dyn Error>> {
     let mut stream = TcpStream::connect(host)?;
-    stream.write_all(&[0x00])?;
+    stream.write_all(&[0x03])?;
     stream.write_all(name.as_bytes())?;
     stream.write_all(&[b'\n'])?;
     stream.write_all(password.as_bytes())?;
-    // let mut buf = vec![0; 1];
-    // stream.read(&mut buf)?;
-    // if buf[0] == 0x01 {
-    //     // похуй
-    // }
     Ok(())
 }
 

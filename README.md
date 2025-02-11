@@ -13,7 +13,7 @@ better RAC client
 - plays sound when users receive your messages
 - coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc)
 - configurable message format 
-- RACv1.99.x compatible
+- RACv1.99.x and RACv2.0 compatible
 
 ![image](https://github.com/user-attachments/assets/a2858662-50f1-4554-949c-f55addf48fcc)
 
@@ -71,8 +71,9 @@ max_messages: 100                  # chat messages limit
 
 ## see also
 
-- [RAC protocol (v1.99.2)](https://gitea.bedohswe.eu.org/pixtaded/crab#rac-protocol)
+- [RAC protocol (v2.0)](https://gitea.bedohswe.eu.org/pixtaded/crab#rac-protocol)
 - [CRAB - client & server for RAC](https://gitea.bedohswe.eu.org/pixtaded/crab)
+- [Mefidroniy - client for RAC](https://github.com/OctoBanon-Main/mefedroniy-client)
 - [Colored usernames](https://github.com/MeexReay/bRAC/blob/main/docs/colored_usernames.md)
-- [AlmatyD - server for RAC](https://gitea.bedohswe.eu.org/bedohswe/almatyd)
+- [AlmatyD - server for RACv1.0](https://gitea.bedohswe.eu.org/bedohswe/almatyd)
 - [RAC protocol (v1.0)](https://bedohswe.eu.org/text/rac/protocol.md.html)
