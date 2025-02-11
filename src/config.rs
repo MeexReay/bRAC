@@ -201,13 +201,7 @@ impl Context {
             input: Arc::new(RwLock::new(String::new())),
             message_format: args.message_format.clone().unwrap_or(config.message_format.clone()), 
             host: args.host.clone().unwrap_or(config.host.clone()), 
-            name: match args.name.clone().or(config.name.clone()) {
-                Some(i) => i,
-                None => {
-                    let anon_name = format!("Anon#{:X}", random::<u16>());
-                    get_input(&format!("Name (default: {}) > ", anon_name)).unwrap_or(anon_name)
-                },
-            }, 
+            name: args.name.clone().or(config.name.clone()).unwrap_or_else(|| ask_string("Name", format!("Anon#{:X}", random::<u16>()))), 
             disable_formatting: args.disable_formatting, 
             disable_commands: args.disable_commands, 
             disable_hiding_ip: args.disable_ip_hiding,
