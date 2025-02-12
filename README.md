@@ -36,6 +36,9 @@ cargo run   # run (builds and runs bRAC itself)
 
 ## default config
 
+get config path - `bRAC --config-path` \
+reconfigure client - `bRAC --configure`
+
 ```yml
 host: meex.lol:11234               # server host
 name: null                         # user name (null - ask every time)
