@@ -34,17 +34,20 @@ cargo build --release # build release (target/release/bRAC)
 cargo run   # run (builds and runs bRAC itself)
 ```
 
-## config
+## default config
 
 ```yml
 host: meex.lol:11234               # server host
-name: null                         # user name
+name: null                         # user name (null - ask every time)
 message_format: 리㹰<{name}> {text} # message format
 update_time: 50                    # update chat interval
-max_messages: 100                  # chat messages limit
+max_messages: 200                  # chat messages limit
+enable_ip_viewing: false           # enable users' ip viewing
+disable_ip_hiding: false           # disable your ip hiding
+enable_auth: false                 # enable auth-mode
 ```
 
-## command args
+## command-line options
 
 ```
 -p, --config-path                      Print config path
@@ -58,23 +61,30 @@ max_messages: 100                  # chat messages limit
 -i, --disable-ip-hiding                Disable ip hiding
 -v, --enable-users-ip-viewing          Enable users IP viewing
 -C, --configure                        Configure client
--a, --disable-auth                     Disable authentication
+-a, --enable-auth                      Enable authentication
 -h, --help                             Print help
 -V, --version                          Print version
 ```
 
-## commands
+## cheat commands
 
-`/help` - show help message \
-`/clear` - clear chat \
-`/spam *args` - spam with text \
-`/ping` - get server ping (send + read)
+commands are any messages that start with a slash `/` \
+messages starting with a slash are sent to chat only if the `--disable-commands` option is specified
+
+- `/help` - show help message \
+- `/clear` - clear chat \
+- `/spam *args` - spam with text \
+- `/ping` - get server ping (send + read)
+
+## docs
+
+- [Message formats](https://github.com/MeexReay/bRAC/blob/main/docs/message_formats.md)
+- [Authenticated mode](https://github.com/MeexReay/bRAC/blob/main/docs/auth_mode.md)
 
 ## see also
 
 - [RAC protocol (v2.0)](https://gitea.bedohswe.eu.org/pixtaded/crab#rac-protocol)
 - [CRAB - client & server for RAC](https://gitea.bedohswe.eu.org/pixtaded/crab)
 - [Mefidroniy - client for RAC](https://github.com/OctoBanon-Main/mefedroniy-client)
-- [Colored usernames](https://github.com/MeexReay/bRAC/blob/main/docs/colored_usernames.md)
 - [AlmatyD - server for RACv1.0](https://gitea.bedohswe.eu.org/bedohswe/almatyd)
 - [RAC protocol (v1.0)](https://bedohswe.eu.org/text/rac/protocol.md.html)

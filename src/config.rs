@@ -39,7 +39,7 @@ fn default_host() -> String { "meex.lol:11234".to_string() }
 fn default_message_format() -> String { MESSAGE_FORMAT.to_string() }
 
 fn ask_usize(name: impl ToString, default: usize) -> usize {
-    get_input(format!("{} (default: {}) > ", name.to_string(), default).bright_yellow())
+    get_input(format!("{} (default: {}) {} ", name.to_string().bold(), default, ">".bold()).bright_yellow())
         .and_then(|o| o.parse().ok()).unwrap_or(default)
 }
 
@@ -49,11 +49,11 @@ fn ask_string(name: impl ToString, default: impl ToString + Clone) -> String {
 
 fn ask_string_option(name: impl ToString, default: impl ToString) -> Option<String> {
     let default = default.to_string();
-    get_input(format!("{} (default: {}) > ", name.to_string(), default).bright_yellow())
+    get_input(format!("{} (default: {}) {} ", name.to_string().bold(), default, ">".bold()).bright_yellow())
 }
 
 fn ask_bool(name: impl ToString, default: bool) -> bool {
-    get_input(format!("{} (Y/N, default: {}) > ", name.to_string(), if default { "Y" } else { "N" }).bright_yellow())
+    get_input(format!("{} (Y/N, default: {}) {} ", name.to_string().bold(), if default { "Y" } else { "N" }, ">".bold()).bright_yellow())
         .map(|o| o.to_lowercase() != "n")
         .unwrap_or(default)
 }
