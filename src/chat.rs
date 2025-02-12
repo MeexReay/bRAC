@@ -192,6 +192,8 @@ fn format_message(ctx: Arc<Context>, message: String) -> Option<String> {
         (None, message)
     };
 
+    let message = message.trim_start_matches("(UNREGISTERED)").trim_start();
+
     let prefix = if ctx.enable_ip_viewing {
         if let Some(ip) = ip {
             format!("{}{} [{}]", ip, " ".repeat(15-ip.len()), date)
