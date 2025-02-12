@@ -52,7 +52,8 @@ fn main() {
                 &mut stream, 
                 ctx.max_messages, 
                 0,
-                !ctx.enable_ssl
+                !ctx.enable_ssl,
+                false
             )
             .ok().flatten()
             .expect("Error reading messages").0.join("\n")

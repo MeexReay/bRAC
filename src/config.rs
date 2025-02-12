@@ -33,6 +33,8 @@ pub struct Config {
     pub enable_auth: bool,
     #[serde(default)]
     pub enable_ssl: bool,
+    #[serde(default)]
+    pub enable_chunked: bool,
 }
 
 fn default_max_messages() -> usize { 200 }
@@ -75,6 +77,7 @@ pub fn configure(path: PathBuf) -> Config {
     let disable_ip_hiding = ask_bool("Enable your IP viewing?", false);
     let enable_auth = ask_bool("Enable auth-mode?", false);
     let enable_ssl = ask_bool("Enable SSL?", false);
+    let enable_chunked = ask_bool("Enable chunked reading?", false);
 
     let config = Config {
         host,
@@ -85,7 +88,8 @@ pub fn configure(path: PathBuf) -> Config {
         enable_ip_viewing,
         disable_ip_hiding,
         enable_auth,
-        enable_ssl
+        enable_ssl,
+        enable_chunked
     };
 
     let config_text = serde_yml::to_string(&config).expect("Config save error");
@@ -188,6 +192,10 @@ pub struct Args {
     /// Enable SSL
     #[arg(short='S', long)]
     pub enable_ssl: bool,
+
+    /// Enable chunked reading
+    #[arg(short='u', long)]
+    pub enable_chunked: bool,
 }
 
 pub struct Context {
@@ -205,6 +213,7 @@ pub struct Context {
     pub scroll: Arc<AtomicUsize>,
     pub enable_auth: bool,
     pub enable_ssl: bool,
+    pub enable_chunked: bool,
 }
 
 impl Context {
@@ -223,7 +232,8 @@ impl Context {
             enable_ip_viewing: args.enable_users_ip_viewing || config.enable_ip_viewing,
             scroll: Arc::new(AtomicUsize::new(0)),
             enable_auth: args.enable_auth || config.enable_auth,
-            enable_ssl: args.enable_ssl || config.enable_ssl
+            enable_ssl: args.enable_ssl || config.enable_ssl,
+            enable_chunked: args.enable_chunked || config.enable_chunked,
         }
     }
 }

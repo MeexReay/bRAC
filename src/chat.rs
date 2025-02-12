@@ -34,6 +34,11 @@ impl ChatStorage {
         self.packet_size.store(packet_size, Ordering::SeqCst);
         *self.messages.write().unwrap() = messages;
     }
+
+    pub fn append(&self, messages: Vec<String>, packet_size: usize) {
+        self.packet_size.store(packet_size, Ordering::SeqCst);
+        self.messages.write().unwrap().append(&mut messages.clone());
+    }
 }
 
 
@@ -67,7 +72,13 @@ Press enter to close")?;
         let message = format!("Checking ping... {:X}", random::<u16>());
         send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, &message)?;
         loop {
-            let data = read_messages(&mut connect(&ctx.host, ctx.enable_ssl)?, ctx.max_messages, before, !ctx.enable_ssl).ok().flatten();
+            let data = read_messages(
+                &mut connect(&ctx.host, ctx.enable_ssl)?, 
+                ctx.max_messages, 
+                before, 
+                !ctx.enable_ssl,
+                ctx.enable_chunked
+            ).ok().flatten();
 
             if let Some((data, size)) = data {
                 if let Some(last) = data.iter().rev().find(|o| o.contains(&message)) {
@@ -95,6 +106,7 @@ pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> R
     let mut messages = messages
         .into_iter()
         .flat_map(|o| string_chunks(&o, width as usize - 1))
+        .map(|o| (o.0.white().blink().to_string(), o.1))
         .collect::<Vec<(String, usize)>>();
 
     let messages_size = if messages.len() >= height {
@@ -478,15 +490,27 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
-    match read_messages(&mut connect(&ctx.host, ctx.enable_ssl)?, ctx.max_messages, ctx.messages.packet_size(), !ctx.enable_ssl) {
+    match read_messages(
+        &mut connect(&ctx.host, ctx.enable_ssl)?, 
+        ctx.max_messages, 
+        ctx.messages.packet_size(), 
+        !ctx.enable_ssl,
+        ctx.enable_chunked
+    ) {
         Ok(Some((messages, size))) => {
             let messages: Vec<String> = if ctx.disable_formatting {
                 messages 
             } else {
                 messages.into_iter().flat_map(|o| format_message(ctx.clone(), o)).collect()
             };
-            ctx.messages.update(messages.clone(), size);
-            print_console(ctx.clone(), messages, &ctx.input.read().unwrap())?;
+
+            if ctx.enable_chunked {
+                ctx.messages.append(messages.clone(), size);
+                print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap())?;
+            } else {
+                ctx.messages.update(messages.clone(), size);
+                print_console(ctx.clone(), messages, &ctx.input.read().unwrap())?;
+            }
         }
         Err(e) => {
             println!("{:?}", e);

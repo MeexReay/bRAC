@@ -66,11 +66,17 @@ fn skip_null(stream: &mut impl Read) -> Result<Vec<u8>, Box<dyn Error>> {
     }
 }
 
-pub fn read_messages(stream: &mut (impl Read + Write), max_messages: usize, last_size: usize, skip_null_: bool) -> Result<Option<(Vec<String>, usize)>, Box<dyn Error>> {
+pub fn read_messages(
+    stream: &mut (impl Read + Write), 
+    max_messages: usize, 
+    last_size: usize, 
+    start_null: bool, 
+    chunked: bool
+) -> Result<Option<(Vec<String>, usize)>, Box<dyn Error>> {
     stream.write_all(&[0x00])?;
 
     let packet_size = {
-        let data = if skip_null_ {
+        let data = if start_null {
             let mut data = skip_null(stream)?;
             
             loop {
@@ -99,20 +105,25 @@ pub fn read_messages(stream: &mut (impl Read + Write), max_messages: usize, last
         return Ok(None);
     }
 
-    stream.write_all(&[0x01])?;
+    let to_read = if !chunked || last_size == 0 {
+        stream.write_all(&[0x01])?;
+        packet_size
+    } else {
+        stream.write_all(format!("\x02{}", last_size).as_bytes())?;
+        packet_size - last_size
+    };
 
     let packet_data = {
-        let data = if skip_null_ {
+        let data = if start_null {
             let mut data = skip_null(stream)?;
-            while data.len() < packet_size {
-                let mut buf = vec![0; packet_size - data.len()];
-                let read_bytes = stream.read(&mut buf)?;
-                buf.truncate(read_bytes);
+            while data.len() < to_read {
+                let mut buf = vec![0; to_read - data.len()];
+                stream.read_exact(&mut buf)?;
                 data.append(&mut buf);
             }
             data
         } else {
-            let mut data = vec![0; packet_size];
+            let mut data = vec![0; to_read];
             stream.read_exact(&mut data)?;
             data
         };
