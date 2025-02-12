@@ -13,7 +13,9 @@ lazy_static! {
     static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
     static ref IP_REGEX: Regex = Regex::new(r"\{(.*?)\} (.*)").unwrap();
     static ref COLORED_USERNAMES: Vec<(Regex, Color)> = vec![
+        (Regex::new(r"\u{B9AC}\u{3E70}<(.*?)> (.*)\s*>.*").unwrap(), Color::Green),       // bRAC with auth sanitized
         (Regex::new(r"\u{B9AC}\u{3E70}<(.*?)> (.*)").unwrap(), Color::Green),             // bRAC
+        // (Regex::new(r"\u{B9AC}\u{3E70}\r<(.*?)> (.*)>\r   ").unwrap(), Color::Green),     // bRAC with auth
         (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), Color::BrightRed), // CRAB
         (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(), Color::Magenta),           // Mefidroniy
         (Regex::new(r"<(.*?)> (.*)").unwrap(), Color::Cyan),                              // clRAC

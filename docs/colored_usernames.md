@@ -3,6 +3,7 @@
 ## bRAC
 
 regex - `\uB9AC\u3E70<(.*?)> (.*)` \
+regex with auth (after sanitizing) - `\uB9AC\u3E70<(.*?)> (.*)\s*>.*` \
 color - green \
 example - `리㹰<nick> text`
 
