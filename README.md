@@ -45,11 +45,11 @@ name: null                         # user name (null - ask every time)
 message_format: 리㹰<{name}> {text} # message format
 update_time: 50                    # update chat interval
 max_messages: 200                  # chat messages limit
-enable_ip_viewing: false           # enable users' ip viewing
+enable_ip_viewing: true            # enable users' ip viewing
 disable_ip_hiding: false           # disable your ip hiding
-enable_auth: false                 # enable auth-mode
+enable_auth: true                  # enable auth-mode
 enable_ssl: false                  # enable ssl connection
-enable_chunked: false              # enable chunked reading
+enable_chunked: true               # enable chunked reading
 ```
 
 ## command-line options

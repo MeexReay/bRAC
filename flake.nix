@@ -1,4 +1,6 @@
 {
+  description = "bRAC - better RAC client";
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
     rust-overlay.url = "github:oxalica/rust-overlay";
@@ -22,7 +24,7 @@
 
         packages.default = pkgs.rustPlatform.buildRustPackage {
           pname = "bRAC";
-          version = "0.1.2+2.0";
+          version = "0.1.1+2.0";
           src = pkgs.lib.cleanSource ./.;
 
           cargoLock = {
