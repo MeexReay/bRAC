@@ -45,6 +45,8 @@ max_messages: 200                  # chat messages limit
 enable_ip_viewing: false           # enable users' ip viewing
 disable_ip_hiding: false           # disable your ip hiding
 enable_auth: false                 # enable auth-mode
+enable_ssl: false                  # enable ssl connection
+enable_chunked: false              # enable chunked reading
 ```
 
 ## command-line options
@@ -62,6 +64,8 @@ enable_auth: false                 # enable auth-mode
 -v, --enable-users-ip-viewing          Enable users IP viewing
 -C, --configure                        Configure client
 -a, --enable-auth                      Enable authentication
+-S, --enable-ssl                       Enable SSL
+-u, --enable-chunked                   Enable chunked reading
 -h, --help                             Print help
 -V, --version                          Print version
 ```
