@@ -173,9 +173,9 @@ pub struct Args {
     #[arg(short='C', long)]
     pub configure: bool,
 
-    /// Authentication password
+    /// Disable authentication
     #[arg(short='a', long)]
-    pub auth: bool,
+    pub disable_auth: bool,
 }
 
 pub struct Context {
@@ -209,7 +209,7 @@ impl Context {
             max_messages: config.max_messages,
             enable_ip_viewing: args.enable_users_ip_viewing || config.enable_ip_viewing,
             scroll: Arc::new(AtomicUsize::new(0)),
-            auth: args.auth
+            auth: !args.disable_auth
         }
     }
 }

@@ -58,6 +58,7 @@ max_messages: 100                  # chat messages limit
 -i, --disable-ip-hiding                Disable ip hiding
 -v, --enable-users-ip-viewing          Enable users IP viewing
 -C, --configure                        Configure client
+-a, --disable-auth                     Disable authentication
 -h, --help                             Print help
 -V, --version                          Print version
 ```
