@@ -29,6 +29,8 @@ pub struct Config {
     pub enable_ip_viewing: bool,
     #[serde(default)]
     pub disable_ip_hiding: bool,
+    #[serde(default)]
+    pub enable_auth: bool,
 }
 
 fn default_max_messages() -> usize { 200 }
@@ -69,6 +71,7 @@ pub fn configure(path: PathBuf) -> Config {
     let message_format = ask_string("Message format", default_message_format());
     let enable_ip_viewing = ask_bool("Enable users IP viewing?", false);
     let disable_ip_hiding = ask_bool("Enable your IP viewing?", false);
+    let enable_auth = ask_bool("Enable auth-mode?", false);
 
     let config = Config {
         host,
@@ -77,7 +80,8 @@ pub fn configure(path: PathBuf) -> Config {
         update_time,
         max_messages,
         enable_ip_viewing,
-        disable_ip_hiding
+        disable_ip_hiding,
+        enable_auth
     };
 
     let config_text = serde_yml::to_string(&config).expect("Config save error");
@@ -173,9 +177,9 @@ pub struct Args {
     #[arg(short='C', long)]
     pub configure: bool,
 
-    /// Disable authentication
+    /// Enable authentication
     #[arg(short='a', long)]
-    pub disable_auth: bool,
+    pub enable_auth: bool,
 }
 
 pub struct Context {
@@ -209,7 +213,7 @@ impl Context {
             max_messages: config.max_messages,
             enable_ip_viewing: args.enable_users_ip_viewing || config.enable_ip_viewing,
             scroll: Arc::new(AtomicUsize::new(0)),
-            auth: !args.disable_auth
+            auth: args.enable_auth || config.enable_auth
         }
     }
 }

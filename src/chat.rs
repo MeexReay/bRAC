@@ -161,16 +161,26 @@ pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> R
 
 
 fn prepare_message(context: Arc<Context>, message: &str) -> String {
-    format!("{}{}{}\r",
+    format!("{}{}{}",
         if !context.disable_hiding_ip {
             "\r\x07"
         } else {
             ""
         },
         message,
-        if !context.disable_hiding_ip && message.chars().count() < 53 { 
-            " ".repeat(53-message.chars().count()) 
-        } else { 
+        if !context.disable_hiding_ip { 
+            let spaces = if context.auth {
+                39
+            } else {
+                54
+            };
+
+            if message.chars().count() < spaces { 
+                " ".repeat(spaces-message.chars().count()) 
+            } else { 
+                String::new()
+            }
+        } else {
             String::new()
         }
     )
@@ -192,7 +202,7 @@ fn format_message(ctx: Arc<Context>, message: String) -> Option<String> {
         (None, message)
     };
 
-    let message = message.trim_start_matches("(UNREGISTERED)").trim_start();
+    let message = message.trim_start_matches("(UNREGISTERED)").trim().to_string()+" ";
 
     let prefix = if ctx.enable_ip_viewing {
         if let Some(ip) = ip {
@@ -296,15 +306,19 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
 
                             cursor = 0;
 
-                            history_cursor = history.len()-1;
                             history.push(String::new());
+                            history_cursor = history.len()-1;
 
                             if message.starts_with("/") && !ctx.disable_commands {
                                 on_command(ctx.clone(), &message)?;
                             } else {
-                                let message = prepare_message(ctx.clone(), &ctx.message_format
+                                let message = prepare_message(
+                                ctx.clone(), 
+                                &ctx.message_format
                                     .replace("{name}", &ctx.name)
-                                    .replace("{text}", &message));
+                                    .replace("{text}", &message)
+                                );
+
                                 if ctx.auth {
                                     send_message_auth(&ctx.host, &message)?;
                                 } else {
