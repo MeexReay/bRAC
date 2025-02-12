@@ -3,7 +3,7 @@ use std::sync::Arc;
 use clap::Parser;
 use colored::Color;
 use config::{configure, get_config_path, load_config, Args, Context};
-use proto::{read_messages, send_message};
+use proto::{connect, read_messages, send_message};
 use regex::Regex;
 use lazy_static::lazy_static;
 use chat::run_main_loop;
@@ -47,11 +47,20 @@ fn main() {
     let ctx = Arc::new(Context::new(&config, &args));
 
     if args.read_messages {
-        print!("{}", read_messages(&ctx.host, ctx.max_messages, 0).ok().flatten().expect("Error reading messages").0.join("\n"));
+        let mut stream = connect(&ctx.host, ctx.enable_ssl).expect("Error reading message");
+        print!("{}", read_messages(
+                &mut stream, 
+                ctx.max_messages, 
+                0,
+                !ctx.enable_ssl
+            )
+            .ok().flatten()
+            .expect("Error reading messages").0.join("\n")
+        );
     }
 
     if let Some(message) = &args.send_message {
-        send_message(&ctx.host, message).expect("Error sending message");
+        send_message(&mut connect(&ctx.host, ctx.enable_ssl).expect("Error sending message"), message).expect("Error sending message");
     }
 
     if args.send_message.is_some() || args.read_messages {

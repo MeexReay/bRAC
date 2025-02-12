@@ -4,7 +4,7 @@ use colored::{Color, Colorize};
 use crossterm::{cursor::{MoveLeft, MoveRight}, event::{self, Event, KeyCode, KeyModifiers, MouseEventKind}, execute, terminal::{self, disable_raw_mode, enable_raw_mode}};
 use rand::random;
 
-use crate::{proto::send_message_auth, util::{char_index_to_byte_index, string_chunks}, IP_REGEX};
+use crate::{proto::{connect, send_message_auth}, util::{char_index_to_byte_index, string_chunks}, IP_REGEX};
 
 use super::{proto::read_messages, util::sanitize_text, COLORED_USERNAMES, DATE_REGEX, config::Context, proto::send_message};
 
@@ -43,12 +43,12 @@ fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>> {
     let args = args.split(" ").collect::<Vec<&str>>();
 
     if command == "clear" {
-        send_message(&ctx.host, 
+        send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, 
             &prepare_message(ctx.clone(), 
                 &format!("\r\x1B[1A{}", " ".repeat(64)).repeat(ctx.max_messages)
                 ))?;
     } else if command == "spam" {
-        send_message(&ctx.host, 
+        send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, 
             &prepare_message(ctx.clone(), 
                 &format!("\r\x1B[1A{}{}", args.join(" "), " ".repeat(10)).repeat(ctx.max_messages)
                 ))?;
@@ -65,9 +65,9 @@ Press enter to close")?;
         let mut before = ctx.messages.packet_size();
         let start = SystemTime::now();
         let message = format!("Checking ping... {:X}", random::<u16>());
-        send_message(&ctx.host, &message)?;
+        send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, &message)?;
         loop {
-            let data = read_messages(&ctx.host, ctx.max_messages, before).ok().flatten();
+            let data = read_messages(&mut connect(&ctx.host, ctx.enable_ssl)?, ctx.max_messages, before, !ctx.enable_ssl).ok().flatten();
 
             if let Some((data, size)) = data {
                 if let Some(last) = data.iter().rev().find(|o| o.contains(&message)) {
@@ -81,7 +81,7 @@ Press enter to close")?;
                 }
             }
         }
-        send_message(&ctx.host, &format!("Ping = {}ms", start.elapsed().unwrap().as_millis()))?;
+        send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, &format!("Ping = {}ms", start.elapsed().unwrap().as_millis()))?;
     }
 
     Ok(())
@@ -92,14 +92,22 @@ pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> R
     let (width, height) = terminal::size()?;
     let (width, height) = (width as usize, height as usize);
 
-    let messages = messages
+    let mut messages = messages
         .into_iter()
         .flat_map(|o| string_chunks(&o, width as usize - 1))
         .collect::<Vec<(String, usize)>>();
 
-    let scroll = min(ctx.scroll.load(Ordering::SeqCst), messages.len()-height);
-    let scroll_f = ((1f64 - scroll as f64 / (messages.len()-height+1) as f64) * (height-2) as f64).round() as usize+1;
+    let messages_size = if messages.len() >= height {
+        messages.len()-height
+    } else {
+        for _ in 0..height-messages.len() {
+            messages.insert(0, (String::new(), 0));
+        }
+        0
+    };
 
+    let scroll = min(ctx.scroll.load(Ordering::SeqCst), messages_size);
+    let scroll_f = ((1f64 - scroll as f64 / (messages_size+1) as f64) * (height-2) as f64).round() as usize+1;
 
     let messages = if height < messages.len() {
         if scroll < messages.len() - height {
@@ -169,7 +177,7 @@ fn prepare_message(context: Arc<Context>, message: &str) -> String {
         },
         message,
         if !context.disable_hiding_ip { 
-            let spaces = if context.auth {
+            let spaces = if context.enable_auth {
                 39
             } else {
                 54
@@ -202,11 +210,15 @@ fn format_message(ctx: Arc<Context>, message: String) -> Option<String> {
         (None, message)
     };
 
-    let message = message.trim_start_matches("(UNREGISTERED)").trim().to_string()+" ";
+    let message = message
+        .trim_start_matches("(UNREGISTERED)")
+        .trim_start_matches("(UNAUTHORIZED)")
+        .trim()
+        .to_string()+" ";
 
     let prefix = if ctx.enable_ip_viewing {
         if let Some(ip) = ip {
-            format!("{}{} [{}]", ip, " ".repeat(15-ip.len()), date)
+            format!("{}{} [{}]", ip, " ".repeat(if 15 >= ip.chars().count() {15-ip.chars().count()} else {0}), date)
         } else {
             format!("{} [{}]", " ".repeat(15), date)
         }
@@ -319,10 +331,10 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                                     .replace("{text}", &message)
                                 );
 
-                                if ctx.auth {
-                                    send_message_auth(&ctx.host, &message)?;
+                                if ctx.enable_auth {
+                                    send_message_auth(&mut connect(&ctx.host, ctx.enable_ssl)?, &message)?;
                                 } else {
-                                    send_message(&ctx.host, &message)?;
+                                    send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, &message)?;
                                 }
                             }
                         } else {
@@ -466,14 +478,20 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
-    if let Ok(Some((messages, size))) = read_messages(&ctx.host, ctx.max_messages, ctx.messages.packet_size()) {
-        let messages: Vec<String> = if ctx.disable_formatting {
-            messages 
-        } else {
-            messages.into_iter().flat_map(|o| format_message(ctx.clone(), o)).collect()
-        };
-        ctx.messages.update(messages.clone(), size);
-        print_console(ctx.clone(), messages, &ctx.input.read().unwrap())?;
+    match read_messages(&mut connect(&ctx.host, ctx.enable_ssl)?, ctx.max_messages, ctx.messages.packet_size(), !ctx.enable_ssl) {
+        Ok(Some((messages, size))) => {
+            let messages: Vec<String> = if ctx.disable_formatting {
+                messages 
+            } else {
+                messages.into_iter().flat_map(|o| format_message(ctx.clone(), o)).collect()
+            };
+            ctx.messages.update(messages.clone(), size);
+            print_console(ctx.clone(), messages, &ctx.input.read().unwrap())?;
+        }
+        Err(e) => {
+            println!("{:?}", e);
+        }
+        _ => {}
     }
     thread::sleep(Duration::from_millis(ctx.update_time as u64));
     Ok(())
