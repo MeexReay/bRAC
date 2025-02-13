@@ -22,20 +22,14 @@ pub fn connect(host: &str, ssl: bool) -> Result<Box<dyn RacStream>, Box<dyn Erro
 }
 
 pub fn send_message(stream: &mut (impl Read + Write), message: &str) -> Result<(), Box<dyn Error>> {
-    stream.write_all(&[0x01])?;
-    stream.write_all(message.as_bytes())?;
+    stream.write_all(format!("\x01{message}").as_bytes())?;
     Ok(())
 }
 
 pub fn send_message_auth(stream: &mut (impl Read + Write), message: &str) -> Result<(), Box<dyn Error>> {
     let Some((name, message)) = message.split_once("> ") else { return send_message(stream, message) };
 
-    stream.write_all(&[0x02])?;
-    stream.write_all(name.as_bytes())?;
-    stream.write_all(b"\n")?;
-    stream.write_all(name.as_bytes())?;
-    stream.write_all(b"\n")?;
-    stream.write_all(message.as_bytes())?;
+    stream.write_all(format!("\x02{name}\n{name}\n{message}").as_bytes())?;
 
     let mut buf = vec![0; 1];
     if let Ok(_) = stream.read_exact(&mut buf) {
@@ -49,10 +43,7 @@ pub fn send_message_auth(stream: &mut (impl Read + Write), message: &str) -> Res
 }
 
 pub fn register_user(stream: &mut (impl Read + Write), name: &str, password: &str) -> Result<(), Box<dyn Error>> {
-    stream.write_all(&[0x03])?;
-    stream.write_all(name.as_bytes())?;
-    stream.write_all(&[b'\n'])?;
-    stream.write_all(password.as_bytes())?;
+    stream.write_all(format!("\x03{name}\n{password}").as_bytes())?;
     Ok(())
 }
 

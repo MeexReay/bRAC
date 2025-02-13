@@ -225,6 +225,7 @@ fn format_message(ctx: Arc<Context>, message: String) -> Option<String> {
     let message = message
         .trim_start_matches("(UNREGISTERED)")
         .trim_start_matches("(UNAUTHORIZED)")
+        .trim_start_matches("(UNAUTHENTICATED)")
         .trim()
         .to_string()+" ";
 
