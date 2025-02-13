@@ -75,7 +75,7 @@ pub fn configure(path: PathBuf) -> Config {
     let message_format = ask_string("Message format", default_message_format());
     let enable_ip_viewing = ask_bool("Enable users IP viewing?", true);
     let disable_ip_hiding = ask_bool("Enable your IP viewing?", false);
-    let enable_auth = ask_bool("Enable auth-mode?", true);
+    let enable_auth = ask_bool("Enable auth-mode?", false);
     let enable_ssl = ask_bool("Enable SSL?", false);
     let enable_chunked = ask_bool("Enable chunked reading?", true);
 
