@@ -1,8 +1,7 @@
-use std::{cmp::{max, min}, error::Error, io::{stdout, Write}, sync::{atomic::{AtomicUsize, Ordering}, Arc, RwLock}, thread, time::{Duration, SystemTime}};
+use std::{cmp::{max, min}, error::Error, io::{stdout, Write}, sync::{atomic::{AtomicUsize, Ordering}, Arc, RwLock}, thread, time::{Duration, SystemTime, UNIX_EPOCH}};
 
 use colored::{Color, Colorize};
 use crossterm::{cursor::{MoveLeft, MoveRight}, event::{self, Event, KeyCode, KeyModifiers, MouseEventKind}, execute, terminal::{self, disable_raw_mode, enable_raw_mode}};
-use rand::random;
 
 use crate::{proto::{connect, send_message_auth}, util::{char_index_to_byte_index, string_chunks}, IP_REGEX};
 
@@ -42,57 +41,81 @@ impl ChatStorage {
 }
 
 
+const HELP_MESSAGE: &str = "Help message:\r
+/help - show help message\r
+/clear n - send empty message n times\r
+/spam n text - send message with text n times\r
+/ping - check server ping\r
+\r
+Press enter to close";
+
+
 fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>> {
     let command = command.trim_start_matches("/");
     let (command, args) = command.split_once(" ").unwrap_or((&command, ""));
     let args = args.split(" ").collect::<Vec<&str>>();
 
-    if command == "clear" {
-        send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, 
-            &prepare_message(ctx.clone(), 
-                &format!("\r\x1B[1A{}", " ".repeat(64)).repeat(ctx.max_messages)
-                ))?;
-    } else if command == "spam" {
-        send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, 
-            &prepare_message(ctx.clone(), 
-                &format!("\r\x1B[1A{}{}", args.join(" "), " ".repeat(10)).repeat(ctx.max_messages)
-                ))?;
-    } else if command == "help" {
-        write!(stdout(), "Help message:\r
-/help - show help message\r
-/clear - clear console\r
-/spam *args - spam console with text\r
-/ping - check server ping\r
-\r
-Press enter to close")?;
-        stdout().flush()?;
-    } else if command == "ping" {
-        let mut before = ctx.messages.packet_size();
-        let start = SystemTime::now();
-        let message = format!("Checking ping... {:X}", random::<u16>());
-        send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, &message)?;
-        loop {
-            let data = read_messages(
-                &mut connect(&ctx.host, ctx.enable_ssl)?, 
-                ctx.max_messages, 
-                before, 
-                !ctx.enable_ssl,
-                ctx.enable_chunked
-            ).ok().flatten();
+    let response = move || -> Option<String> { 
+        if command == "clear" {
+            let times = args.get(0)?.parse().ok()?;
+            for _ in 0..times {
+                send_message(&mut connect(&ctx.host, ctx.enable_ssl).ok()?, "\r").ok()?;
+            }
+            None
+        } else if command == "spam" {
+            let times = args.get(0)?.parse().ok()?;
+            let msg = args[1..].join(" ");
+            for _ in 0..times {
+                send_message(&mut connect(&ctx.host, ctx.enable_ssl).ok()?, &("\r".to_string()+&msg)).ok()?;
+            }
+            None
+            // send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, 
+            //     &prepare_message(ctx.clone(), 
+            //         &format!("\r\x1B[1A{}{}", args.join(" "), " ".repeat(10)).repeat(ctx.max_messages)
+            //         ))?;
+        } else if command == "help" {
+            Some(HELP_MESSAGE.to_string())
+        } else if command == "ping" {
+            let mut before = ctx.messages.packet_size();
+            let message = format!("Checking ping... {:X}", SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_millis());
 
-            if let Some((data, size)) = data {
-                if let Some(last) = data.iter().rev().find(|o| o.contains(&message)) {
-                    if last.contains(&message) {
-                        break;
+            send_message(&mut connect(&ctx.host, ctx.enable_ssl).ok()?, &message).ok()?;
+
+            let start = SystemTime::now();
+
+            loop {
+                let data = read_messages(
+                    &mut connect(&ctx.host, ctx.enable_ssl).ok()?, 
+                    ctx.max_messages, 
+                    before, 
+                    !ctx.enable_ssl,
+                    ctx.enable_chunked
+                ).ok().flatten();
+    
+                if let Some((data, size)) = data {
+                    if let Some(last) = data.iter().rev().find(|o| o.contains(&message)) {
+                        if last.contains(&message) {
+                            break;
+                        } else {
+                            before = size;
+                        }
                     } else {
                         before = size;
                     }
-                } else {
-                    before = size;
                 }
             }
+
+            send_message(&mut connect(&ctx.host, ctx.enable_ssl).ok()?, &format!("Ping = {}ms", start.elapsed().unwrap().as_millis())).ok()?;
+
+            None
+        } else {
+            None
         }
-        send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, &format!("Ping = {}ms", start.elapsed().unwrap().as_millis()))?;
+    }();
+
+    if let Some(response) = response {
+        write!(stdout(), "{}", response)?;
+        stdout().flush()?;
     }
 
     Ok(())
