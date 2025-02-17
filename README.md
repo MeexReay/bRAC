@@ -14,6 +14,8 @@ better RAC client
 - coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc)
 - configurable message format 
 - RACv1.99.x and RACv2.0 compatible
+- RACS compatible (--enable-ssl or in --configure enable SSL)
+- chunked reading messages
 
 ![image](https://github.com/user-attachments/assets/a2858662-50f1-4554-949c-f55addf48fcc)
 
