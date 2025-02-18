@@ -80,9 +80,9 @@ enable_chunked: true               # enable chunked reading
 commands are any messages that start with a slash `/` \
 messages starting with a slash are sent to chat only if the `--disable-commands` option is specified
 
-- `/help` - show help message \
-- `/clear` - clear chat \
-- `/spam *args` - spam with text \
+- `/help` - show help message
+- `/clear` - clear chat
+- `/spam *args` - spam with text
 - `/ping` - get server ping (send + read)
 
 ## docs
