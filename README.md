@@ -9,10 +9,10 @@ better RAC client
 
 - cheat commands (type /help)
 - no ip and date visible
-- uses TOR proxy server by default
+- uses TOR proxy server by default (meex.lol:11234)
 - plays sound when users receive your messages
 - coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc)
-- configurable message format 
+- configurable message format
 - RACv1.99.x and RACv2.0 compatible
 - RACS compatible (--enable-ssl or in --configure enable SSL)
 - chunked reading messages
