@@ -6,16 +6,22 @@ pub trait RacStream: Read + Write + Unpin + Send + Sync + Debug {}
 impl<T: Read + Write + Unpin + Send + Sync + Debug> RacStream for T {}
 
 pub fn connect(host: &str, ssl: bool) -> Result<Box<dyn RacStream>, Box<dyn Error>> {
+    let host = if host.contains(":") {
+        host.to_string()
+    } else {
+        format!("{host}:42666")
+    };
+
     Ok(if ssl {
         let ip: String = host.split_once(":")
-            .map(|o| o.0)
-            .unwrap_or(host).to_string();
+            .map(|o| o.0.to_string())
+            .unwrap_or(host.clone());
 
         Box::new(TlsConnector::builder()
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
             .build()?
-            .connect(&ip, connect(host, false)?)?)
+            .connect(&ip, connect(&host, false)?)?)
     } else {
         Box::new(TcpStream::connect(host)?)
     })
