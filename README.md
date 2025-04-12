@@ -1,7 +1,9 @@
 # bRAC
+<!--
 [<img src="https://github.com/user-attachments/assets/f2be5caa-6246-4a6a-9bee-2b53086f9afb" height="30">]()
 [<img src="https://github.com/user-attachments/assets/4d35191d-1dbc-4391-a761-6ae7f76ba7af" height="30">]()
 [<img src="https://img.shields.io/badge/Bitcoin-000?style=for-the-badge&logo=bitcoin&logoColor=white">](https://meex.lol/bitcoin)
+-->
 
 better RAC client
 
@@ -92,6 +94,7 @@ messages starting with a slash are sent to chat only if the `--disable-commands`
 
 ## see also
 
+- [RAC-Hub - all about RAC protocol](https://forbirdden.github.io/RAC-Hub/)
 - [RAC protocol (v2.0)](https://gitea.bedohswe.eu.org/pixtaded/crab#rac-protocol)
 - [CRAB - client & server for RAC](https://gitea.bedohswe.eu.org/pixtaded/crab)
 - [Mefidroniy - client for RAC](https://github.com/OctoBanon-Main/mefedroniy-client)
