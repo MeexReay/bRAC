@@ -12,14 +12,12 @@
       systems = [ "x86_64-linux" ];
       perSystem = { config, self', pkgs, lib, system, ... }:
         let
-          runtimeDeps = with pkgs; [ pkg-config openssl ];
-          buildDeps = with pkgs; [ pkg-config openssl ];
           devDeps = with pkgs; [ pkg-config openssl ];
 
           cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
           msrv = cargoToml.package.rust-version;
 
-          rustPackage = { version, features }:
+          rustPackage = { version, features, deps }:
             (pkgs.makeRustPlatform {
               cargo = pkgs.rust-bin.stable.latest.minimal;
               rustc = pkgs.rust-bin.stable.latest.minimal;
@@ -28,9 +26,10 @@
               src = ./.;
               cargoLock.lockFile = ./Cargo.lock;
               version = lib.concatStrings [ cargoToml.package.version version ];
+              buildNoDefaultFeatures = true;
               buildFeatures = features;
-              buildInputs = runtimeDeps;
-              nativeBuildInputs = buildDeps;
+              buildInputs = deps;
+              nativeBuildInputs = deps;
               patchPhase = ''
                 substituteInPlace Cargo.toml --replace \
                   'version = "${cargoToml.package.version}"' \
@@ -43,8 +42,8 @@
               shellHook = ''
                 export RUST_SRC_PATH=${pkgs.rustPlatform.rustLibSrc}
               '';
-              buildInputs = runtimeDeps;
-              nativeBuildInputs = buildDeps ++ devDeps ++ [ rustc ];
+              buildInputs = devDeps;
+              nativeBuildInputs = devDeps ++ [ rustc ];
             };
         in {
           _module.args.pkgs = import inputs.nixpkgs {
@@ -55,8 +54,16 @@
           packages.default = self'.packages.bRAC;
           devShells.default = self'.devShells.stable;
 
-          packages.bRAC = (rustPackage { version = ""; features = "default"; });
-          packages.bRAC-minimal = (rustPackage { version = "-minimal"; features = ""; });
+          packages.bRAC = (rustPackage { 
+            version = ""; 
+            features = "default"; 
+            deps = with pkgs; [ pkg-config openssl ];
+          });
+          packages.bRAC-minimal = (rustPackage { 
+            version = "-minimal"; 
+            features = ""; 
+            deps = [];
+          });
 
           devShells.nightly = (mkDevShell (pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)));
           devShells.stable = (mkDevShell pkgs.rust-bin.stable.latest.default);
