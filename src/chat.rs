@@ -47,18 +47,23 @@ impl ChatStorage {
         self.messages.read().unwrap().clone()
     }
 
-    pub fn update(&self, messages: Vec<String>, packet_size: usize) {
+    pub fn update(&self, max_length: usize, messages: Vec<String>, packet_size: usize) {
         self.packet_size.store(packet_size, Ordering::SeqCst);
+        let mut messages = messages;
+        messages.drain(max_length..);
         *self.messages.write().unwrap() = messages;
     }
 
-    pub fn append_and_store(&self, messages: Vec<String>, packet_size: usize) {
+    pub fn append_and_store(&self, max_length: usize, messages: Vec<String>, packet_size: usize) {
         self.packet_size.store(packet_size, Ordering::SeqCst);
-        self.messages.write().unwrap().append(&mut messages.clone());
+        self.append(max_length, messages);
     }
 
-    pub fn append(&self, messages: Vec<String>) {
+    pub fn append(&self, max_length: usize, messages: Vec<String>) {
         self.messages.write().unwrap().append(&mut messages.clone());
+        if self.messages.read().unwrap().len() > max_length {
+            self.messages.write().unwrap().drain(max_length..);
+        }
     }
 }
 

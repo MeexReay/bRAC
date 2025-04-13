@@ -169,7 +169,7 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
 
                             if let Err(e) = on_send_message(ctx.clone(), &message) {
                                 let msg = format!("Send message error: {}", e.to_string()).bright_red().to_string();
-                                ctx.messages.append(vec![msg]);
+                                ctx.messages.append(ctx.max_messages, vec![msg]);
                                 print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap())?;
                             }
                         } else {
@@ -328,16 +328,16 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
             };
 
             if ctx.enable_chunked {
-                ctx.messages.append_and_store(messages.clone(), size);
+                ctx.messages.append_and_store(ctx.max_messages, messages.clone(), size);
                 print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap())?;
             } else {
-                ctx.messages.update(messages.clone(), size);
+                ctx.messages.update(ctx.max_messages, messages.clone(), size);
                 print_console(ctx.clone(), messages, &ctx.input.read().unwrap())?;
             }
         }
         Err(e) => {
             let msg = format!("Read messages error: {}", e.to_string()).bright_red().to_string();
-            ctx.messages.append(vec![msg]);
+            ctx.messages.append(ctx.max_messages, vec![msg]);
             print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap())?;
         }
         _ => {}
@@ -362,8 +362,9 @@ pub fn run_main_loop(ctx: Arc<Context>) {
             loop { 
                 if let Err(e) = recv_tick(ctx.clone()) {
                     let msg = format!("Print messages error: {}", e.to_string()).bright_red().to_string();
-                    ctx.messages.append(vec![msg]);
+                    ctx.messages.append(ctx.max_messages, vec![msg]);
                     let _ = print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap());
+                    thread::sleep(Duration::from_secs(1));
                 }
             }
         }
@@ -371,7 +372,7 @@ pub fn run_main_loop(ctx: Arc<Context>) {
 
     if let Err(e) = poll_events(ctx.clone()) {
         let msg = format!("Poll events error: {}", e.to_string()).bright_red().to_string();
-        ctx.messages.append(vec![msg]);
+        ctx.messages.append(ctx.max_messages, vec![msg]);
         let _ = print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap());
     }
 }
