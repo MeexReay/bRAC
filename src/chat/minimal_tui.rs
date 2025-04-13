@@ -47,7 +47,7 @@ pub fn run_main_loop(ctx: Arc<Context>) {
             }
         }
 
-        println!(
+        print!(
             "{}\n{} ", 
             ctx.messages.messages()
                 .into_iter()
