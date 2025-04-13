@@ -62,8 +62,8 @@ nix run github:MeexReay/bRAC # run (builds and runs bRAC)
 Minimal version:
 
 ```bash
-nix build .#bRAC-minimal
-nix run .#bRAC-minimal
+nix build github:MeexReay/bRAC#bRAC-minimal
+nix run github:MeexReay/bRAC#bRAC-minimal
 ```
 
 ## default config
