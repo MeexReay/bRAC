@@ -27,7 +27,30 @@ better RAC client
 
 go to [releases](https://github.com/MeexReay/bRAC/releases/latest) and download file you need. its simple.
 
-### from flake
+### build from source
+
+1. Make sure [Rust](https://www.rust-lang.org/tools/install) is installed
+
+2. Clone repository
+```bash
+git clone https://github.com/MeexReay/bRAC.git
+cd bRAC
+```
+
+3. Build or run with Cargo
+```bash
+cargo build --release # build release (target/release/bRAC)
+cargo run --release # run (builds and runs bRAC itself)
+```
+
+Minimal version:
+
+```bash
+cargo build --release --no-default-features
+cargo run --release --no-default-features
+```
+
+### nix package
 
 If you have Nix package manager installed, you can use:
 
@@ -36,15 +59,11 @@ nix build github:MeexReay/bRAC # build binary (result/bin/bRAC)
 nix run github:MeexReay/bRAC # run (builds and runs bRAC)
 ```
 
-### build from source
-
-(you have to install [rust](https://www.rust-lang.org/tools/install) at first)
+Minimal version:
 
 ```bash
-git clone https://github.com/MeexReay/bRAC.git
-cd bRAC
-cargo build --release # build release (target/release/bRAC)
-cargo run --release # run (builds and runs bRAC itself)
+nix build .#bRAC-minimal
+nix run .#bRAC-minimal
 ```
 
 ## default config

@@ -19,17 +19,23 @@
           cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
           msrv = cargoToml.package.rust-version;
 
-          rustPackage = features:
+          rustPackage = { version, features }:
             (pkgs.makeRustPlatform {
               cargo = pkgs.rust-bin.stable.latest.minimal;
               rustc = pkgs.rust-bin.stable.latest.minimal;
             }).buildRustPackage {
-              inherit (cargoToml.package) name version;
+              inherit (cargoToml.package) name;
               src = ./.;
               cargoLock.lockFile = ./Cargo.lock;
+              version = lib.concatStrings [ cargoToml.package.version version ];
               buildFeatures = features;
               buildInputs = runtimeDeps;
               nativeBuildInputs = buildDeps;
+              patchPhase = ''
+                substituteInPlace Cargo.toml --replace \
+                  'version = "${cargoToml.package.version}"' \
+                  'version = "${lib.concatStrings [ cargoToml.package.version version ]}"'
+              '';
             };
 
           mkDevShell = rustc:
@@ -49,8 +55,8 @@
           packages.default = self'.packages.bRAC;
           devShells.default = self'.devShells.stable;
 
-          packages.bRAC = (rustPackage "default");
-          packages.bRAC-minimal = (rustPackage "");
+          packages.bRAC = (rustPackage { version = ""; features = "default"; });
+          packages.bRAC-minimal = (rustPackage { version = "-minimal"; features = ""; });
 
           devShells.nightly = (mkDevShell (pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)));
           devShells.stable = (mkDevShell pkgs.rust-bin.stable.latest.default);
