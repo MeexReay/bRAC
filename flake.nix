@@ -2,34 +2,59 @@
   description = "bRAC - better RAC client";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     rust-overlay.url = "github:oxalica/rust-overlay";
-    flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
-      in {
-        devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            rust-bin.stable.latest.default
-            pkg-config
-          ];
-        };
+  outputs = inputs:
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ "x86_64-linux" ];
+      perSystem = { config, self', pkgs, lib, system, ... }:
+        let
+          runtimeDeps = with pkgs; [ pkg-config openssl ];
+          buildDeps = with pkgs; [ pkg-config openssl ];
+          devDeps = with pkgs; [ pkg-config openssl ];
 
-        packages.default = pkgs.rustPlatform.buildRustPackage {
-          pname = "bRAC";
-          version = "0.1.1+2.0";
-          src = pkgs.lib.cleanSource ./.;
+          cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+          msrv = cargoToml.package.rust-version;
 
-          cargoLock = {
-            lockFile = ./Cargo.lock;
+          rustPackage = features:
+            (pkgs.makeRustPlatform {
+              cargo = pkgs.rust-bin.stable.latest.minimal;
+              rustc = pkgs.rust-bin.stable.latest.minimal;
+            }).buildRustPackage {
+              inherit (cargoToml.package) name version;
+              src = ./.;
+              cargoLock.lockFile = ./Cargo.lock;
+              buildFeatures = features;
+              buildInputs = runtimeDeps;
+              nativeBuildInputs = buildDeps;
+            };
+
+          mkDevShell = rustc:
+            pkgs.mkShell {
+              shellHook = ''
+                export RUST_SRC_PATH=${pkgs.rustPlatform.rustLibSrc}
+              '';
+              buildInputs = runtimeDeps;
+              nativeBuildInputs = buildDeps ++ devDeps ++ [ rustc ];
+            };
+        in {
+          _module.args.pkgs = import inputs.nixpkgs {
+            inherit system;
+            overlays = [ (import inputs.rust-overlay) ];
           };
+
+          packages.default = self'.packages.bRAC;
+          devShells.default = self'.devShells.stable;
+
+          packages.bRAC = (rustPackage "default");
+          packages.bRAC-minimal = (rustPackage "");
+
+          devShells.nightly = (mkDevShell (pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)));
+          devShells.stable = (mkDevShell pkgs.rust-bin.stable.latest.default);
+          devShells.msrv = (mkDevShell pkgs.rust-bin.stable.${msrv}.default);
         };
-      });
+    };
 }

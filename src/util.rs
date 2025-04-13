@@ -65,9 +65,12 @@ pub fn sanitize_text(input: &str) -> String {
 }
 
 pub fn get_input(prompt: impl ToString) -> Option<String> {
-    let mut out = stdout().lock();
-    out.write_all(prompt.to_string().as_bytes()).ok()?;
-    out.flush().ok()?;
+    let prompt = prompt.to_string();
+    if !prompt.is_empty() {
+        let mut out = stdout().lock();
+        out.write_all(prompt.as_bytes()).ok()?;
+        out.flush().ok()?;
+    }
     let input = stdin().lock().lines().next()
         .map(|o| o.ok())
         .flatten()?;

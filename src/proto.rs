@@ -1,10 +1,12 @@
 use std::{error::Error, fmt::Debug, io::{Read, Write}, net::TcpStream};
 
-use native_tls::TlsConnector;
-
 pub trait RacStream: Read + Write + Unpin + Send + Sync + Debug {}
 impl<T: Read + Write + Unpin + Send + Sync + Debug> RacStream for T {}
 
+/// Create RAC connection (also you can just TcpStream::connect)
+///
+/// host - host string, example: "example.com:12345", "example.com" (default port is 42666)
+/// ssl - wrap with ssl client, write false if you dont know what it is
 pub fn connect(host: &str, ssl: bool) -> Result<Box<dyn RacStream>, Box<dyn Error>> {
     let host = if host.contains(":") {
         host.to_string()
@@ -12,27 +14,59 @@ pub fn connect(host: &str, ssl: bool) -> Result<Box<dyn RacStream>, Box<dyn Erro
         format!("{host}:42666")
     };
 
-    Ok(if ssl {
-        let ip: String = host.split_once(":")
-            .map(|o| o.0.to_string())
-            .unwrap_or(host.clone());
+    #[cfg(feature = "ssl")]
+    {
+        use native_tls::TlsConnector;
 
-        Box::new(TlsConnector::builder()
-            .danger_accept_invalid_certs(true)
-            .danger_accept_invalid_hostnames(true)
-            .build()?
-            .connect(&ip, connect(&host, false)?)?)
-    } else {
-        Box::new(TcpStream::connect(host)?)
-    })
+        if ssl {
+            let ip: String = host.split_once(":")
+                .map(|o| o.0.to_string())
+                .unwrap_or(host.clone());
+
+            return Ok(Box::new(TlsConnector::builder()
+                .danger_accept_invalid_certs(true)
+                .danger_accept_invalid_hostnames(true)
+                .build()?
+                .connect(&ip, connect(&host, false)?)?))
+        }
+    }
+
+    Ok(Box::new(TcpStream::connect(host)?))
 }
 
-pub fn send_message(stream: &mut (impl Read + Write), message: &str) -> Result<(), Box<dyn Error>> {
+/// Send message
+///
+/// stream - any stream that can be written to
+/// message - message text
+pub fn send_message(stream: &mut impl Write, message: &str) -> Result<(), Box<dyn Error>> {
     stream.write_all(format!("\x01{message}").as_bytes())?;
     Ok(())
 }
 
-pub fn send_message_auth(stream: &mut (impl Read + Write), message: &str) -> Result<(), Box<dyn Error>> {
+/// Register user
+///
+/// stream - any stream that can be written to
+/// name - user name
+/// password - user password
+pub fn register_user(stream: &mut impl Write, name: &str, password: &str) -> Result<(), Box<dyn Error>> {
+    stream.write_all(format!("\x03{name}\n{password}").as_bytes())?;
+    Ok(())
+}
+
+/// Send message with auth
+///
+/// stream - any stream that can be written to
+/// message - message text
+/// name - user name
+/// password - user password
+pub fn send_message_auth(stream: &mut impl Write, name: &str, password: &str, message: &str) -> Result<(), Box<dyn Error>> {
+    Ok(stream.write_all(format!("\x02{name}\n{password}\n{message}").as_bytes())?)
+}
+
+/// Send message with fake auth
+///
+/// im rly bored to explain all of this so if you want to know just check sources
+pub fn send_message_spoof_auth(stream: &mut (impl Write + Read), message: &str) -> Result<(), Box<dyn Error>> {
     let Some((name, message)) = message.split_once("> ") else { return send_message(stream, message) };
 
     stream.write_all(format!("\x02{name}\n{name}\n{message}").as_bytes())?;
@@ -42,18 +76,14 @@ pub fn send_message_auth(stream: &mut (impl Read + Write), message: &str) -> Res
         let name = format!("\x1f{name}");
         register_user(stream, &name, &name)?;
         let message = format!("{name}> {message}");
-        send_message_auth(stream, &message)
+        send_message_spoof_auth(stream, &message)
     } else {
         Ok(())
     }
 }
 
-pub fn register_user(stream: &mut (impl Read + Write), name: &str, password: &str) -> Result<(), Box<dyn Error>> {
-    stream.write_all(format!("\x03{name}\n{password}").as_bytes())?;
-    Ok(())
-}
-
-fn skip_null(stream: &mut impl Read) -> Result<Vec<u8>, Box<dyn Error>> {
+/// Skip null bytes and return first non-null byte
+pub fn skip_null(stream: &mut impl Read) -> Result<Vec<u8>, Box<dyn Error>> {
     loop {
         let mut buf = vec![0; 1];
         stream.read_exact(&mut buf)?;
@@ -63,6 +93,14 @@ fn skip_null(stream: &mut impl Read) -> Result<Vec<u8>, Box<dyn Error>> {
     }
 }
 
+/// Read messages
+///
+/// max_messages - max messages in list
+/// last_size - last returned packet size
+/// start_null - start with skipping null bytes
+/// chunked - is chunked reading enabled
+///
+/// returns (messages, packet size)
 pub fn read_messages(
     stream: &mut (impl Read + Write), 
     max_messages: usize, 

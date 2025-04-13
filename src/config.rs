@@ -1,8 +1,7 @@
-use std::sync::{atomic::AtomicUsize, Arc, RwLock};
+use std::{str::FromStr, sync::{atomic::AtomicUsize, Arc, RwLock}};
 #[allow(unused_imports)]
 use std::{env, fs, path::{Path, PathBuf}, thread, time::Duration};
 use colored::Colorize;
-use homedir::my_home;
 use rand::random;
 use serde_yml;
 use clap::Parser;
@@ -114,18 +113,26 @@ pub fn load_config(path: PathBuf) -> Config {
 }
 
 pub fn get_config_path() -> PathBuf {
+    let home_dir = PathBuf::from_str(".").ok();
+
+    #[cfg(feature = "homedir")]
+    let home_dir = {
+        use homedir::my_home;
+        my_home().ok().flatten()
+    };
+
     #[allow(unused_variables)]
     let config_path = Path::new("config.yml").to_path_buf();
 
     #[cfg(target_os = "linux")]
     let config_path = {
-        let home_dir = my_home().ok().flatten().expect("Config find path error");
+        let home_dir = home_dir.expect("Config find path error");
         home_dir.join(".config").join("bRAC").join("config.yml")
     };
 
     #[cfg(target_os = "macos")]
     let config_path = {
-        let home_dir = my_home().ok().flatten().expect("Config find path error");
+        let home_dir = home_dir.expect("Config find path error");
         home_dir.join(".config").join("bRAC").join("config.yml")
     };
 
