@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
-mod proto;
-
-pub use proto::*;
+pub mod config;
+pub mod chat;
+pub mod util;
+pub mod proto;

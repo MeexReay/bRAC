@@ -8,12 +8,23 @@ use colored::{Color, Colorize};
 
 use super::{
     proto::{connect, read_messages, send_message, send_message_spoof_auth}, 
-    IP_REGEX, 
     util::sanitize_text, 
-    COLORED_USERNAMES, 
-    DATE_REGEX, 
     config::Context
 };
+
+use lazy_static::lazy_static;
+use regex::Regex;
+
+lazy_static! {
+  pub static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
+  pub static ref IP_REGEX: Regex = Regex::new(r"\{(.*?)\} (.*)").unwrap();
+  pub static ref COLORED_USERNAMES: Vec<(Regex, Color)> = vec![
+      (Regex::new(r"\u{B9AC}\u{3E70}<(.*?)> (.*)").unwrap(), Color::Green),             // bRAC
+      (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), Color::BrightRed), // CRAB
+      (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(), Color::Magenta),           // Mefidroniy
+      (Regex::new(r"<(.*?)> (.*)").unwrap(), Color::Cyan),                              // clRAC
+  ];
+}
 
 #[cfg(not(feature = "pretty"))]
 pub mod minimal_tui;
@@ -249,7 +260,7 @@ pub fn format_message(ctx: Arc<Context>, message: String) -> Option<String> {
     })
 }
 
-fn find_username_color(message: &str) -> Option<(String, String, Color)> {
+pub fn find_username_color(message: &str) -> Option<(String, String, Color)> {
     for (re, color) in COLORED_USERNAMES.iter() {
         if let Some(captures) = re.captures(message) {
             return Some((captures[1].to_string(), captures[2].to_string(), color.clone()))

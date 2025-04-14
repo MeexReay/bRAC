@@ -1,30 +1,9 @@
 use std::sync::Arc;
 
 use clap::Parser;
-use colored::Color;
-use config::{configure, get_config_path, load_config, Args, Context};
-use proto::{connect, read_messages, send_message};
-use regex::Regex;
-use lazy_static::lazy_static;
-use chat::run_main_loop;
-
-
-lazy_static! {
-    static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
-    static ref IP_REGEX: Regex = Regex::new(r"\{(.*?)\} (.*)").unwrap();
-    static ref COLORED_USERNAMES: Vec<(Regex, Color)> = vec![
-        (Regex::new(r"\u{B9AC}\u{3E70}<(.*?)> (.*)").unwrap(), Color::Green),             // bRAC
-        (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), Color::BrightRed), // CRAB
-        (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(), Color::Magenta),           // Mefidroniy
-        (Regex::new(r"<(.*?)> (.*)").unwrap(), Color::Cyan),                              // clRAC
-    ];
-}
-
-
-mod config;
-mod chat;
-mod proto;
-mod util;
+use bRAC::config::{configure, get_config_path, load_config, Args, Context};
+use bRAC::proto::{connect, read_messages, send_message};
+use bRAC::chat::run_main_loop;
 
 
 fn main() {

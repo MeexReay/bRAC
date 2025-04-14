@@ -17,7 +17,9 @@ use std::{
 
 use super::{
   super::{
-    config::Context, proto::{connect, read_messages}, util::{char_index_to_byte_index, string_chunks}
+    config::Context, 
+    proto::{connect, read_messages}, 
+    util::{char_index_to_byte_index, string_chunks}
   }, format_message, on_send_message
 };
 
