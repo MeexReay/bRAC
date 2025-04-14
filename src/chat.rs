@@ -50,7 +50,9 @@ impl ChatStorage {
     pub fn update(&self, max_length: usize, messages: Vec<String>, packet_size: usize) {
         self.packet_size.store(packet_size, Ordering::SeqCst);
         let mut messages = messages;
-        messages.drain(max_length..);
+        if messages.len() > max_length {
+            messages.drain(max_length..);
+        }
         *self.messages.write().unwrap() = messages;
     }
 

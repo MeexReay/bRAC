@@ -120,6 +120,13 @@ pub fn skip_null(stream: &mut impl Read) -> Result<Vec<u8>, Box<dyn Error>> {
     }
 }
 
+pub fn remove_trailing_null(vec: &mut Vec<u8>) -> Result<(), Box<dyn Error>> {
+    while vec.ends_with(&[0]) {
+        vec.remove(vec.len()-1);
+    }
+    Ok(())
+}
+
 /// Read messages
 ///
 /// max_messages - max messages in list
@@ -141,15 +148,13 @@ pub fn read_messages(
         let data = if start_null {
             let mut data = skip_null(stream)?;
             
-            loop {
-                let mut buf = vec![0; 1];
-                stream.read_exact(&mut buf)?;
-                let ch = buf[0];
-                if ch == 0 {
-                    break
-                }
-                data.push(ch);
-            }
+            let mut buf = vec![0; 10];
+            let len = stream.read(&mut buf)?;
+            buf.truncate(len);
+
+            remove_trailing_null(&mut buf);
+            data.append(&mut buf);
+
             data
         } else {
             let mut data = vec![0; 10];
@@ -180,7 +185,8 @@ pub fn read_messages(
             let mut data = skip_null(stream)?;
             while data.len() < to_read {
                 let mut buf = vec![0; to_read - data.len()];
-                stream.read_exact(&mut buf)?;
+                let len = stream.read(&mut buf)?;
+                buf.truncate(len);
                 data.append(&mut buf);
             }
             data
