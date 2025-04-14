@@ -208,7 +208,7 @@ pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn E
     Ok(())
 } 
 
-pub fn format_message(ctx: Arc<Context>, message: String) -> Option<String> {
+pub fn format_message(enable_ip_viewing: bool, message: String) -> Option<String> {
     let message = sanitize_text(&message);
 
     let date = DATE_REGEX.captures(&message)?;
@@ -230,7 +230,7 @@ pub fn format_message(ctx: Arc<Context>, message: String) -> Option<String> {
         .trim()
         .to_string()+" ";
 
-    let prefix = if ctx.enable_ip_viewing {
+    let prefix = if enable_ip_viewing {
         if let Some(ip) = ip {
             format!("{}{} [{}]", ip, " ".repeat(if 15 >= ip.chars().count() {15-ip.chars().count()} else {0}), date)
         } else {

@@ -326,7 +326,7 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
             let messages: Vec<String> = if ctx.disable_formatting {
                 messages 
             } else {
-                messages.into_iter().flat_map(|o| format_message(ctx.clone(), o)).collect()
+                messages.into_iter().flat_map(|o| format_message(ctx.enable_ip_viewing, o)).collect()
             };
 
             if ctx.enable_chunked {
