@@ -334,7 +334,7 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                 ctx.messages.update(ctx.max_messages, messages.clone(), size);
                 print_console(ctx.clone(), messages, &ctx.input.read().unwrap())?;
             }
-        }
+        },
         Err(e) => {
             let msg = format!("Read messages error: {}", e.to_string()).bright_red().to_string();
             ctx.messages.append(ctx.max_messages, vec![msg]);
@@ -354,6 +354,12 @@ pub fn on_close() {
 pub fn run_main_loop(ctx: Arc<Context>) {
     enable_raw_mode().unwrap();
     execute!(stdout(), event::EnableMouseCapture).unwrap();
+
+    if let Err(e) = print_console(ctx.clone(), Vec::new(), &ctx.input.read().unwrap()) {
+        let msg = format!("Print messages error: {}", e.to_string()).bright_red().to_string();
+        ctx.messages.append(ctx.max_messages, vec![msg]);
+        let _ = print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap());
+    }
 
     thread::spawn({
         let ctx = ctx.clone();

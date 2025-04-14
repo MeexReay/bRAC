@@ -145,23 +145,9 @@ pub fn read_messages(
     stream.write_all(&[0x00])?;
 
     let packet_size = {
-        let data = if start_null {
-            let mut data = skip_null(stream)?;
-            
-            let mut buf = vec![0; 10];
-            let len = stream.read(&mut buf)?;
-            buf.truncate(len);
-
-            remove_trailing_null(&mut buf);
-            data.append(&mut buf);
-
-            data
-        } else {
-            let mut data = vec![0; 10];
-            let len = stream.read(&mut data)?;
-            data.truncate(len);
-            data
-        };
+        let mut data = vec![0; 10];
+        let len = stream.read(&mut data)?;
+        data.truncate(len);
 
         String::from_utf8(data)?
             .trim_matches(char::from(0))
@@ -181,20 +167,8 @@ pub fn read_messages(
     };
 
     let packet_data = {
-        let data = if start_null {
-            let mut data = skip_null(stream)?;
-            while data.len() < to_read {
-                let mut buf = vec![0; to_read - data.len()];
-                let len = stream.read(&mut buf)?;
-                buf.truncate(len);
-                data.append(&mut buf);
-            }
-            data
-        } else {
-            let mut data = vec![0; to_read];
-            stream.read_exact(&mut data)?;
-            data
-        };
+        let mut data = vec![0; to_read];
+        stream.read_exact(&mut data)?;
 
         String::from_utf8_lossy(&data).to_string()
     };
