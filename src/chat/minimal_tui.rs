@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::io::stdout;
 use std::io::Write;
+use std::error::Error;
 
 use colored::Colorize;
 
@@ -11,6 +12,26 @@ use super::{
         util::get_input
     }, format_message, on_send_message
 };
+
+pub fn update_console(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
+    let messages = ctx.messages.messages();
+
+    let mut out = stdout().lock();
+    write!(
+        out,
+        "{}\n{}\n{} ",
+        "\n".repeat(ctx.max_messages - messages.len()),
+        messages
+            .into_iter()
+            .map(|o| o.white().blink().to_string())
+            .collect::<Vec<String>>()
+            .join("\n"),
+        ">".bright_yellow()
+    );
+    out.flush();
+
+    Ok(())
+}
 
 pub fn run_main_loop(ctx: Arc<Context>) {
     loop {
@@ -49,21 +70,7 @@ pub fn run_main_loop(ctx: Arc<Context>) {
             }
         }
 
-        let messages = ctx.messages.messages();
-
-        let mut out = stdout().lock();
-        write!(
-            out,
-            "{}\n{}\n{} ",
-            "\n".repeat(ctx.max_messages - messages.len()),
-            messages
-                .into_iter()
-                .map(|o| o.white().blink().to_string())
-                .collect::<Vec<String>>()
-                .join("\n"),
-            ">".bright_yellow()
-        );
-        out.flush();
+        let _ = update_console(ctx.clone());
 
         if let Some(message) = get_input("") {
             if let Err(e) = on_send_message(ctx.clone(), &message) {

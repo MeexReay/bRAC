@@ -353,6 +353,10 @@ pub fn on_close() {
     execute!(stdout(), event::DisableMouseCapture).unwrap();
 }
 
+pub fn update_console(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
+    print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap())
+}
+
 pub fn run_main_loop(ctx: Arc<Context>) {
     enable_raw_mode().unwrap();
     execute!(stdout(), event::EnableMouseCapture).unwrap();
