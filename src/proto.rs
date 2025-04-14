@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::{error::Error, fmt::Debug, io::{Read, Write}, net::TcpStream};
 
 pub trait RacStream: Read + Write + Unpin + Send + Sync + Debug {}
