@@ -1,4 +1,4 @@
-#[warn(non_snake_case)]
+#![allow(non_snake_case)]
 
 mod proto;
 
