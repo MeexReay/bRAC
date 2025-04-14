@@ -113,36 +113,39 @@ pub fn load_config(path: PathBuf) -> Config {
 }
 
 pub fn get_config_path() -> PathBuf {
-    let home_dir = PathBuf::from_str(".").ok();
+    let mut config_dir = PathBuf::from_str(".").unwrap();
 
     #[cfg(feature = "homedir")]
-    let home_dir = {
-        use homedir::my_home;
-        my_home().ok().flatten()
-    };
+    if let Some(dir) = {
+        let home_dir = {
+            use homedir::my_home;
+            my_home().ok().flatten()
+        };
 
-    #[allow(unused_variables)]
-    let config_path = Path::new("config.yml").to_path_buf();
+        #[cfg(target_os = "linux")]
+        let config_dir = {
+            let home_dir = home_dir.map(|o| o.join("bRAC"));
+            home_dir.map(|o| o.join(".config"))
+        };
 
-    #[cfg(target_os = "linux")]
-    let config_path = {
-        let home_dir = home_dir.expect("Config find path error");
-        home_dir.join(".config").join("bRAC").join("config.yml")
-    };
+        #[cfg(target_os = "macos")]
+        let config_dir = {
+            let home_dir = home_dir.map(|o| o.join("bRAC"));
+            home_dir.map(|o| o.join(".config"))
+        };
 
-    #[cfg(target_os = "macos")]
-    let config_path = {
-        let home_dir = home_dir.expect("Config find path error");
-        home_dir.join(".config").join("bRAC").join("config.yml")
-    };
+        #[cfg(target_os = "windows")]
+        let config_dir = {
+            let appdata = env::var("APPDATA").map(|o| o.join("bRAC"));
+            Path::new(&appdata)
+        };
 
-    #[cfg(target_os = "windows")]
-    let config_path = {
-        let appdata = env::var("APPDATA").expect("Config find path error");
-        Path::new(&appdata).join("bRAC").join("config.yml")
-    };
+        config_dir
+    } {
+        config_dir = dir;
+    }
 
-    config_path
+    config_dir.join("config.yml")
 }
 
 #[derive(Parser, Debug)]
