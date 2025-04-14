@@ -48,9 +48,16 @@ pub fn send_message(stream: &mut impl Write, message: &str) -> Result<(), Box<dy
 /// stream - any stream that can be written to
 /// name - user name
 /// password - user password
-pub fn register_user(stream: &mut impl Write, name: &str, password: &str) -> Result<(), Box<dyn Error>> {
+///
+/// returns whether the user was registered
+pub fn register_user(stream: &mut (impl Write + Read), name: &str, password: &str) -> Result<bool, Box<dyn Error>> {
     stream.write_all(format!("\x03{name}\n{password}").as_bytes())?;
-    Ok(())
+    let mut buf = vec![0];
+    if let Ok(1) = stream.read(&mut buf) {
+        Ok(buf[0] == 0)
+    } else {
+        Ok(true)
+    }
 }
 
 /// Send message with auth
@@ -59,13 +66,31 @@ pub fn register_user(stream: &mut impl Write, name: &str, password: &str) -> Res
 /// message - message text
 /// name - user name
 /// password - user password
-pub fn send_message_auth(stream: &mut impl Write, name: &str, password: &str, message: &str) -> Result<(), Box<dyn Error>> {
-    Ok(stream.write_all(format!("\x02{name}\n{password}\n{message}").as_bytes())?)
+///
+/// returns 0 if the message was sent successfully
+/// returns 1 if the user does not exist
+/// returns 2 if the password is incorrect
+pub fn send_message_auth(stream: &mut (impl Write + Read), name: &str, password: &str, message: &str) -> Result<u8, Box<dyn Error>> {
+    stream.write_all(format!("\x02{name}\n{password}\n{message}").as_bytes())?;
+
+    let mut buf = vec![0];
+    if let Ok(1) = stream.read(&mut buf) {
+        Ok(buf[0])
+    } else {
+        Ok(0)
+    }
 }
 
 /// Send message with fake auth
 ///
-/// im rly bored to explain all of this so if you want to know just check sources
+/// Explaination:
+///
+/// let (name, message) = message.split("> ") else { return send_message(stream, message) }
+/// if send_message_auth(name, name, message) != 0 {
+///     let name = "\x1f" + "name"
+///     register_user(stream, name, name)
+///     send_message_spoof_auth(stream, name + "> " + message)
+/// }
 pub fn send_message_spoof_auth(stream: &mut (impl Write + Read), message: &str) -> Result<(), Box<dyn Error>> {
     let Some((name, message)) = message.split_once("> ") else { return send_message(stream, message) };
 
