@@ -209,55 +209,70 @@ pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn E
 } 
 
 pub fn format_message(enable_ip_viewing: bool, message: String) -> Option<String> {
-    let message = sanitize_text(&message);
-
-    let date = DATE_REGEX.captures(&message)?;
-    let (date, message) = (
-        date.get(1)?.as_str().to_string(), 
-        date.get(2)?.as_str().to_string(), 
-    );
-
-    let (ip, message) = if let Some(message) = IP_REGEX.captures(&message) {
-        (Some(message.get(1)?.as_str().to_string()), message.get(2)?.as_str().to_string())
+    if message.is_empty() {
+        None
     } else {
-        (None, message)
-    };
+        Some(
+        {
+            let message = message.clone();
+            move || -> Option<String> {
+                let message = sanitize_text(&message);
 
-    let message = message
-        .trim_start_matches("(UNREGISTERED)")
-        .trim_start_matches("(UNAUTHORIZED)")
-        .trim_start_matches("(UNAUTHENTICATED)")
-        .trim()
-        .to_string()+" ";
+                let date = DATE_REGEX.captures(&message)?;
+                let (date, message) = (
+                    date.get(1)?.as_str().to_string(), 
+                    date.get(2)?.as_str().to_string(), 
+                );
 
-    let prefix = if enable_ip_viewing {
-        if let Some(ip) = ip {
-            format!("{}{} [{}]", ip, " ".repeat(if 15 >= ip.chars().count() {15-ip.chars().count()} else {0}), date)
-        } else {
-            format!("{} [{}]", " ".repeat(15), date)
-        }
-    } else {
-        format!("[{}]", date)
-    };
+                let (ip, message) = if let Some(message) = IP_REGEX.captures(&message) {
+                    (Some(message.get(1)?.as_str().to_string()), message.get(2)?.as_str().to_string())
+                } else {
+                    (None, message)
+                };
 
-    Some(if let Some(captures) = find_username_color(&message) {
-        let nick = captures.0;
-        let content = captures.1;
-        let color = captures.2;
+                let message = message
+                    .trim_start_matches("(UNREGISTERED)")
+                    .trim_start_matches("(UNAUTHORIZED)")
+                    .trim_start_matches("(UNAUTHENTICATED)")
+                    .trim()
+                    .to_string()+" ";
 
+                let prefix = if enable_ip_viewing {
+                    if let Some(ip) = ip {
+                        format!("{}{} [{}]", ip, " ".repeat(if 15 >= ip.chars().count() {15-ip.chars().count()} else {0}), date)
+                    } else {
+                        format!("{} [{}]", " ".repeat(15), date)
+                    }
+                } else {
+                    format!("[{}]", date)
+                };
+
+                Some(if let Some(captures) = find_username_color(&message) {
+                    let nick = captures.0;
+                    let content = captures.1;
+                    let color = captures.2;
+
+                        format!(
+                        "{} {} {}",
+                        prefix.white().dimmed(),
+                        format!("<{}>", nick).color(color).bold(),
+                        content.white().blink()
+                    )
+                } else {
+                    format!(
+                        "{} {}",
+                        prefix.white().dimmed(),
+                        message.white().blink()
+                    )
+                })
+            }()
+        }.unwrap_or_else(|| {
             format!(
-            "{} {} {}",
-            prefix.white().dimmed(),
-            format!("<{}>", nick).color(color).bold(),
-            content.white().blink()
-        )
-    } else {
-        format!(
-            "{} {}",
-            prefix.white().dimmed(),
-            message.white().blink()
-        )
-    })
+                "{}",
+                message.white().blink()
+            )
+        }))
+    }
 }
 
 pub fn find_username_color(message: &str) -> Option<(String, String, Color)> {
