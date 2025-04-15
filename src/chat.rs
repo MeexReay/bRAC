@@ -16,6 +16,7 @@ use super::{
 
 use lazy_static::lazy_static;
 use regex::Regex;
+use cfg_if::cfg_if;
 
 lazy_static! {
   pub static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
@@ -29,15 +30,19 @@ lazy_static! {
   ];
 }
 
-#[cfg(not(feature = "pretty"))]
-pub mod minimal_tui;
-#[cfg(not(feature = "pretty"))]
-pub use minimal_tui::{run_main_loop, update_console};
 
-#[cfg(feature = "pretty")]
-pub mod pretty_tui;
-#[cfg(feature = "pretty")]
-pub use pretty_tui::{run_main_loop, update_console};
+cfg_if! {
+    if #[cfg(feature = "gtk_gui")] {
+        mod gtk_gui;
+        pub use gtk_gui::*;
+    } else if #[cfg(feature = "pretty_tui")] {
+        mod pretty_tui;
+        pub use pretty_tui::*;
+    } else {
+        mod minimal_tui;
+        pub use minimal_tui::*;
+    }
+}
 
 
 pub struct ChatStorage {
@@ -94,11 +99,11 @@ const HELP_MESSAGE: &str = "Help message:
 
 
 pub fn add_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn Error>> {
-    ctx.messages.append(
-        ctx.max_messages, 
-        message.split("\n").map(|o| o.to_string()).collect::<Vec<String>>()
-    );
-    update_console(ctx)
+    for i in message.split("\n")
+        .map(|o| o.to_string()) {
+        print_message(ctx.clone(), i)?;
+    }
+    Ok(())
 }
 
 pub fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>> {
@@ -130,7 +135,7 @@ pub fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>
         match register_user(&mut connect(&ctx.host, ctx.enable_ssl)?, &ctx.name, pass) {
             Ok(true) => {
                 add_message(ctx.clone(), "you was registered successfully bro")?;
-                *ctx.registered.write().unwrap() = Some(pass.to_string());
+                *ctx.chat().registered.write().unwrap() = Some(pass.to_string());
             },
             Ok(false) => add_message(ctx.clone(), "user with this account already exists bruh")?,
             Err(e) => add_message(ctx.clone(), &format!("ERROR while registrationing: {}", e))?
@@ -142,9 +147,9 @@ pub fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>
         };
 
         add_message(ctx.clone(), "ye bro you was logged in")?;
-        *ctx.registered.write().unwrap() = Some(pass.to_string());
+        *ctx.chat().registered.write().unwrap() = Some(pass.to_string());
     } else if command == "ping" {
-        let mut before = ctx.messages.packet_size();
+        let mut before = ctx.chat().messages.packet_size();
         let message = format!("Checking ping... {:X}", SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis());
 
         send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, &message)?;
@@ -218,7 +223,7 @@ pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn E
             .replace("{text}", &message)
         );
 
-        if let Some(password) = ctx.registered.read().unwrap().clone() {
+        if let Some(password) = ctx.chat().registered.read().unwrap().clone() {
             send_message_auth(&mut connect(&ctx.host, ctx.enable_ssl)?, &ctx.name, &password, &message)?;
         } else if ctx.enable_auth {
             send_message_spoof_auth(&mut connect(&ctx.host, ctx.enable_ssl)?, &message)?;
@@ -230,73 +235,70 @@ pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn E
     Ok(())
 } 
 
-pub fn format_message(enable_ip_viewing: bool, message: String) -> Option<String> {
+/// message -> (date, ip, text)
+pub fn parse_message(message: String) -> Option<(String, Option<String>, String, Option<(String, Color)>)> {
+    let message = sanitize_text(&message);
+
+    let message = message
+        .trim_start_matches("(UNREGISTERED)")
+        .trim_start_matches("(UNAUTHORIZED)")
+        .trim_start_matches("(UNAUTHENTICATED)")
+        .trim()
+        .to_string()+" ";
+
     if message.is_empty() {
-        None
+        return None
+    }
+    
+    let date = DATE_REGEX.captures(&message)?;
+    let (date, message) = (
+        date.get(1)?.as_str().to_string(), 
+        date.get(2)?.as_str().to_string(), 
+    );
+
+    let (ip, message) = if let Some(message) = IP_REGEX.captures(&message) {
+        (Some(message.get(1)?.as_str().to_string()), message.get(2)?.as_str().to_string())
     } else {
-        Some(
-        {
-            let message = message.clone();
-            move || -> Option<String> {
-                let message = sanitize_text(&message);
+        (None, message)
+    };
+    
+    let (message, nick) = match find_username_color(&message) {
+        Some((name, content, color)) => (content, Some((name, color))),
+        None => (message, None),
+    };
 
-                let date = DATE_REGEX.captures(&message)?;
-                let (date, message) = (
-                    date.get(1)?.as_str().to_string(), 
-                    date.get(2)?.as_str().to_string(), 
-                );
+    Some((date, ip, message, nick))
+}
 
-                let (ip, message) = if let Some(message) = IP_REGEX.captures(&message) {
-                    (Some(message.get(1)?.as_str().to_string()), message.get(2)?.as_str().to_string())
+pub fn format_message(enable_ip_viewing: bool, message: String) -> Option<String> {
+    if let Some((date, ip, content, nick)) = parse_message(message.clone()) {
+        Some(format!(
+            "{} {}{}",
+            if enable_ip_viewing {
+                if let Some(ip) = ip {
+                    format!("{}{} [{}]", ip, " ".repeat(if 15 >= ip.chars().count() {15-ip.chars().count()} else {0}), date)
                 } else {
-                    (None, message)
-                };
-
-                let message = message
-                    .trim_start_matches("(UNREGISTERED)")
-                    .trim_start_matches("(UNAUTHORIZED)")
-                    .trim_start_matches("(UNAUTHENTICATED)")
-                    .trim()
-                    .to_string()+" ";
-
-                let prefix = if enable_ip_viewing {
-                    if let Some(ip) = ip {
-                        format!("{}{} [{}]", ip, " ".repeat(if 15 >= ip.chars().count() {15-ip.chars().count()} else {0}), date)
-                    } else {
-                        format!("{} [{}]", " ".repeat(15), date)
-                    }
-                } else {
-                    format!("[{}]", date)
-                };
-
-                Some(if let Some(captures) = find_username_color(&message) {
-                    let nick = captures.0;
-                    let content = captures.1;
-                    let color = captures.2;
-
-                        format!(
-                        "{} {} {}",
-                        prefix.white().dimmed(),
-                        format!("<{}>", nick).color(color).bold(),
-                        content.white().blink()
-                    )
-                } else {
-                    format!(
-                        "{} {}",
-                        prefix.white().dimmed(),
-                        message.white().blink()
-                    )
-                })
-            }()
-        }.unwrap_or_else(|| {
-            format!(
-                "{}",
-                message.bright_white()
-            )
-        }))
+                    format!("{} [{}]", " ".repeat(15), date)
+                }
+            } else {
+                format!("[{}]", date)
+            }.white().dimmed(),
+            nick.map(|(name, color)| 
+                format!("<{}> ", name)
+                    .color(color)
+                    .bold()
+                    .to_string()
+            ).unwrap_or_default(),
+            content.white().blink()
+        ))
+    } else if !message.is_empty() {
+        Some(message.bright_white().to_string()) 
+    } else {
+        None
     }
 }
 
+// message -> (nick, content, color)
 pub fn find_username_color(message: &str) -> Option<(String, String, Color)> {
     for (re, color) in COLORED_USERNAMES.iter() {
         if let Some(captures) = re.captures(message) {
@@ -304,4 +306,8 @@ pub fn find_username_color(message: &str) -> Option<(String, String, Color)> {
         }
     }
     None
+}
+
+pub fn set_chat(ctx: Arc<Context>, chat: ChatContext) {
+    *ctx.chat.write().unwrap() = Some(Arc::new(chat));
 }

@@ -10,7 +10,7 @@ use colored::Colorize;
 use std::{
     cmp::{max, min},
     error::Error, io::{stdout, Write}, 
-    sync::{atomic::Ordering, Arc}, 
+    sync::{atomic::{AtomicUsize, Ordering}, Arc, RwLock}, 
     thread, 
     time::Duration
 };
@@ -20,11 +20,11 @@ use super::{
     config::Context, 
     proto::{connect, read_messages}, 
     util::{char_index_to_byte_index, string_chunks}
-  }, format_message, on_send_message
+  }, format_message, on_send_message, set_chat, ChatStorage
 };
 
 
-pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> Result<(), Box<dyn Error>> {
+fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> Result<(), Box<dyn Error>> {
     let (width, height) = terminal::size()?;
     let (width, height) = (width as usize, height as usize);
 
@@ -43,7 +43,7 @@ pub fn print_console(ctx: Arc<Context>, messages: Vec<String>, input: &str) -> R
         0
     };
 
-    let scroll = min(ctx.scroll.load(Ordering::SeqCst), messages_size);
+    let scroll = min(ctx.chat().scroll.load(Ordering::SeqCst), messages_size);
     let scroll_f = ((1f64 - scroll as f64 / (messages_size+1) as f64) * (height-2) as f64).round() as usize+1;
 
     let messages = if height < messages.len() {
@@ -143,8 +143,8 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     let mut history_cursor: usize = 0;
     let mut cursor: usize = 0;
 
-    let input = ctx.input.clone();
-    let messages = ctx.messages.clone();
+    let input = ctx.chat().input.clone();
+    let messages = ctx.chat().messages.clone();
 
     loop {
         if !event::poll(Duration::from_millis(50)).unwrap_or(false) { continue }
@@ -171,8 +171,8 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
 
                             if let Err(e) = on_send_message(ctx.clone(), &message) {
                                 let msg = format!("Send message error: {}", e.to_string()).bright_red().to_string();
-                                ctx.messages.append(ctx.max_messages, vec![msg]);
-                                print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap())?;
+                                ctx.chat().messages.append(ctx.max_messages, vec![msg]);
+                                print_console(ctx.clone(), ctx.chat().messages.messages(), &ctx.chat().input.read().unwrap())?;
                             }
                         } else {
                             print_console(
@@ -220,7 +220,11 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                     }
                     KeyCode::PageUp => {
                         let height = terminal::size().unwrap().1 as usize;
-                        ctx.scroll.store(min(ctx.scroll.load(Ordering::SeqCst)+height, ctx.messages.messages().len()), Ordering::SeqCst);
+                        ctx.chat().scroll.store(min(
+                            ctx.chat().scroll.load(Ordering::SeqCst)+height, 
+                            ctx.chat().messages.messages().len()
+                        ), 
+                        Ordering::SeqCst);
                         print_console(
                             ctx.clone(),
                             messages.messages(), 
@@ -229,7 +233,11 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                     }
                     KeyCode::PageDown => {
                         let height = terminal::size().unwrap().1 as usize;
-                        ctx.scroll.store(max(ctx.scroll.load(Ordering::SeqCst), height)-height, Ordering::SeqCst);
+                        ctx.chat().scroll.store(max(
+                            ctx.chat().scroll.load(Ordering::SeqCst), 
+                            height
+                        )-height, 
+                        Ordering::SeqCst);
                         print_console(
                             ctx.clone(),
                             messages.messages(), 
@@ -289,7 +297,10 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
             Event::Mouse(data) => {
                 match data.kind {
                     MouseEventKind::ScrollUp => {
-                        ctx.scroll.store(min(ctx.scroll.load(Ordering::SeqCst)+3, ctx.messages.messages().len()), Ordering::SeqCst);
+                        ctx.chat().scroll.store(min(
+                            ctx.chat().scroll.load(Ordering::SeqCst)+3, 
+                            ctx.chat().messages.messages().len()
+                        ), Ordering::SeqCst);
                         print_console(
                             ctx.clone(),
                             messages.messages(), 
@@ -297,7 +308,7 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                         )?;
                     },
                     MouseEventKind::ScrollDown => {
-                        ctx.scroll.store(max(ctx.scroll.load(Ordering::SeqCst), 3)-3, Ordering::SeqCst);
+                        ctx.chat().scroll.store(max(ctx.chat().scroll.load(Ordering::SeqCst), 3)-3, Ordering::SeqCst);
                         print_console(
                             ctx.clone(),
                             messages.messages(), 
@@ -314,11 +325,11 @@ fn poll_events(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
+fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     match read_messages(
         &mut connect(&ctx.host, ctx.enable_ssl)?, 
         ctx.max_messages, 
-        ctx.messages.packet_size(), 
+        ctx.chat().messages.packet_size(), 
         !ctx.enable_ssl,
         ctx.enable_chunked
     ) {
@@ -330,17 +341,17 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
             };
 
             if ctx.enable_chunked {
-                ctx.messages.append_and_store(ctx.max_messages, messages.clone(), size);
-                print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap())?;
+                ctx.chat().messages.append_and_store(ctx.max_messages, messages.clone(), size);
+                print_console(ctx.clone(), ctx.chat().messages.messages(), &ctx.chat().input.read().unwrap())?;
             } else {
-                ctx.messages.update(ctx.max_messages, messages.clone(), size);
-                print_console(ctx.clone(), messages, &ctx.input.read().unwrap())?;
+                ctx.chat().messages.update(ctx.max_messages, messages.clone(), size);
+                print_console(ctx.clone(), messages, &ctx.chat().input.read().unwrap())?;
             }
         },
         Err(e) => {
             let msg = format!("Read messages error: {}", e.to_string()).bright_red().to_string();
-            ctx.messages.append(ctx.max_messages, vec![msg]);
-            print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap())?;
+            ctx.chat().messages.append(ctx.max_messages, vec![msg]);
+            print_console(ctx.clone(), ctx.chat().messages.messages(), &ctx.chat().input.read().unwrap())?;
         }
         _ => {}
     }
@@ -348,23 +359,39 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn on_close() {
+fn on_close() {
     disable_raw_mode().unwrap();
     execute!(stdout(), event::DisableMouseCapture).unwrap();
 }
 
-pub fn update_console(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
-    print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap())
+
+pub struct ChatContext {
+    pub messages: Arc<ChatStorage>, 
+    pub input: Arc<RwLock<String>>,
+    pub registered: Arc<RwLock<Option<String>>>,
+    pub scroll: Arc<AtomicUsize>,
+}
+
+pub fn print_message(ctx: Arc<Context>, message: String) -> Result<(), Box<dyn Error>> {
+    ctx.chat().messages.append(ctx.max_messages, vec![message]);
+    print_console(ctx.clone(), ctx.chat().messages.messages(), &ctx.chat().input.read().unwrap())
 }
 
 pub fn run_main_loop(ctx: Arc<Context>) {
+    set_chat(ctx.clone(), ChatContext {
+        messages: Arc::new(ChatStorage::new()), 
+        input: Arc::new(RwLock::new(String::new())),
+        registered: Arc::new(RwLock::new(None)),
+        scroll: Arc::new(AtomicUsize::new(0)),
+    });
+
     enable_raw_mode().unwrap();
     execute!(stdout(), event::EnableMouseCapture).unwrap();
 
-    if let Err(e) = print_console(ctx.clone(), Vec::new(), &ctx.input.read().unwrap()) {
+    if let Err(e) = print_console(ctx.clone(), Vec::new(), &ctx.chat().input.read().unwrap()) {
         let msg = format!("Print messages error: {}", e.to_string()).bright_red().to_string();
-        ctx.messages.append(ctx.max_messages, vec![msg]);
-        let _ = print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap());
+        ctx.chat().messages.append(ctx.max_messages, vec![msg]);
+        let _ = print_console(ctx.clone(), ctx.chat().messages.messages(), &ctx.chat().input.read().unwrap());
     }
 
     thread::spawn({
@@ -374,8 +401,8 @@ pub fn run_main_loop(ctx: Arc<Context>) {
             loop { 
                 if let Err(e) = recv_tick(ctx.clone()) {
                     let msg = format!("Print messages error: {}", e.to_string()).bright_red().to_string();
-                    ctx.messages.append(ctx.max_messages, vec![msg]);
-                    let _ = print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap());
+                    ctx.chat().messages.append(ctx.max_messages, vec![msg]);
+                    let _ = print_console(ctx.clone(), ctx.chat().messages.messages(), &ctx.chat().input.read().unwrap());
                     thread::sleep(Duration::from_secs(1));
                 }
             }
@@ -384,7 +411,7 @@ pub fn run_main_loop(ctx: Arc<Context>) {
 
     if let Err(e) = poll_events(ctx.clone()) {
         let msg = format!("Poll events error: {}", e.to_string()).bright_red().to_string();
-        ctx.messages.append(ctx.max_messages, vec![msg]);
-        let _ = print_console(ctx.clone(), ctx.messages.messages(), &ctx.input.read().unwrap());
+        ctx.chat().messages.append(ctx.max_messages, vec![msg]);
+        let _ = print_console(ctx.clone(), ctx.chat().messages.messages(), &ctx.chat().input.read().unwrap());
     }
 }

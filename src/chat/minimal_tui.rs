@@ -13,7 +13,12 @@ use super::{
     }, format_message, on_send_message
 };
 
-pub fn update_console(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
+pub struct ChatContext {
+    pub messages: Arc<ChatStorage>, 
+    pub registered: Arc<RwLock<Option<String>>>
+}
+
+fn update_console(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     let messages = ctx.messages.messages();
 
     let mut out = stdout().lock();
@@ -33,7 +38,17 @@ pub fn update_console(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+pub fn print_message(ctx: Arc<Context>, message: String) -> Result<(), Box<dyn Error>> {
+    ctx.chat().messages.append(ctx.max_messages, vec![message]);
+    update_console(ctx.clone())
+}
+
 pub fn run_main_loop(ctx: Arc<Context>) {
+    set_chat(ctx.clone(), ChatContext {
+        messages: Arc::new(ChatStorage::new()), 
+        registered: Arc::new(RwLock::new(None)),
+    });
+
     loop {
         match connect(&ctx.host, ctx.enable_ssl) { 
             Ok(mut stream) => {
