@@ -16,11 +16,10 @@ homedir = { version = "0.3.4", optional = true }
 native-tls = { version = "0.2.14", optional = true }
 gtk4 = { version = "0.9.6", optional = true }
 cfg-if = "1.0.0"
-tokio = { version = "1.44.2", optional = true, features = [ "full" ] }
 
 [features]
 default = ["ssl", "homedir", "gtk_gui"]
 ssl = ["dep:native-tls"]
 pretty_tui = ["dep:crossterm"]
 gtk_gui = ["dep:gtk4"]
-homedir = ["dep:homedir", "dep:tokio"]
+homedir = ["dep:homedir"]
