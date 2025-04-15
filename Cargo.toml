@@ -18,7 +18,7 @@ gtk4 = { version = "0.9.6", optional = true }
 cfg-if = "1.0.0"
 
 [features]
-default = ["ssl", "homedir", "gtk_gui"]
+default = ["ssl", "homedir", "pretty_tui"]
 ssl = ["dep:native-tls"]
 pretty_tui = ["dep:crossterm"]
 gtk_gui = ["dep:gtk4"]

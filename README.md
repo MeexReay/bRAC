@@ -49,6 +49,12 @@ Minimal version:
 cargo build --release --no-default-features
 cargo run --release --no-default-features
 ```
+GTK version:
+
+```bash
+cargo build --release --features gtk_gui
+cargo run --release --features gtk_gui
+```
 
 ### nix package
 
@@ -64,6 +70,13 @@ Minimal version:
 ```bash
 nix build github:MeexReay/bRAC#bRAC-minimal
 nix run github:MeexReay/bRAC#bRAC-minimal
+```
+
+GTK version:
+
+```bash
+nix build github:MeexReay/bRAC#bRAC-gtk
+nix run github:MeexReay/bRAC#bRAC-gtk
 ```
 
 ## default config

@@ -32,11 +32,12 @@ struct UiModel {
     chat_scrolled: ScrolledWindow
 }
 
+thread_local!(
+    static GLOBAL: RefCell<Option<(UiModel, Receiver<String>)>> = RefCell::new(None);
+);
+
 pub fn add_chat_message(ctx: Arc<Context>, message: String) {
     let _ = ctx.chat().sender.send(message);
-    // MainContext::default().invoke_local(move || {
-    //     ctx.chat().chat_box.upgrade().unwrap().append(&Label::new(Some(message.as_str())));
-    // });
 }
 
 pub fn print_message(ctx: Arc<Context>, message: String) -> Result<(), Box<dyn Error>> {
@@ -461,7 +462,3 @@ pub fn run_main_loop(ctx: Arc<Context>) {
 
     application.run();
 }
-
-thread_local!(
-    static GLOBAL: RefCell<Option<(UiModel, Receiver<String>)>> = RefCell::new(None);
-);
