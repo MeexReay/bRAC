@@ -61,7 +61,7 @@
           });
           packages.bRAC-gtk = (rustPackage { 
             version = "-gtk"; 
-            features = "default gtk_gui"; 
+            features = "ssl homedir gtk_gui"; 
             deps = with pkgs; [ pkg-config openssl gtk4 pango ];
           });
           packages.bRAC-minimal = (rustPackage { 
