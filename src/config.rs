@@ -152,7 +152,7 @@ pub fn get_config_path() -> PathBuf {
 }
 
 
-// TODO: make args exactly match to config except --config-path and --configure, example: change from `disable_formatting: bool` to `formatting: Option<bool>``
+// TODO: make args exactly match to config except --config-path and --configure, example: change from `disable_formatting: bool` to `formatting: Option<bool>`
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
