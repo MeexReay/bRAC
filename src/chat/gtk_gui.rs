@@ -9,25 +9,13 @@ use colored::{Color, Colorize};
 use rand::Rng;
 
 use gtk4::{
-    self as gtk,
-    Align, Box as GtkBox, Label, ScrolledWindow, 
-    AboutDialog, AlertDialog, Calendar, CssProvider, 
-    Entry, Fixed, Orientation, Overlay, Picture,
-    Application, ApplicationWindow, Button, 
-    Justification, ListBox, pango::WrapMode,
-    prelude::*,
-    gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader},
-    gdk::{Cursor, Display, Texture},
-    gio::{
+    self as gtk, gdk::{Cursor, Display, Texture}, gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader}, gio::{
         self, ActionEntry, ApplicationFlags, 
         MemoryInputStream, Menu
-    },
-    glib::{
-        self, timeout_add_local, clone, 
-        idle_add_local, idle_add_local_once, 
-        clone::Downgrade, ControlFlow, 
-        source::timeout_add_local_once
-    }
+    }, glib::{
+        self, clone, clone::Downgrade, idle_add_local, idle_add_local_once, source::timeout_add_local_once, timeout_add_local, ControlFlow
+    }, pango::WrapMode, prelude::*, AboutDialog, AlertDialog, Align, Application, ApplicationWindow, Box as GtkBox, 
+    Button, Calendar, CssProvider, Entry, Fixed, Justification, Label, ListBox, Orientation, Overlay, Picture, ScrolledWindow, Settings
 };
 
 use crate::config::Context;
@@ -203,6 +191,8 @@ fn build_menu(_: Arc<Context>, app: &Application) {
 fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     let main_box = GtkBox::new(Orientation::Vertical, 5);
 
+    main_box.set_css_classes(&["main-box"]);
+
     let widget_box_overlay = Overlay::new();
 
     let widget_box = GtkBox::new(Orientation::Horizontal, 5);
@@ -286,6 +276,8 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     main_box.append(&widget_box_overlay);
 
     let chat_box = GtkBox::new(Orientation::Vertical, 2);
+
+    chat_box.set_css_classes(&["chat-box"]);
 
     let chat_scrolled = ScrolledWindow::builder()
         .child(&chat_box)
@@ -456,7 +448,22 @@ fn setup(ctx: Arc<Context>, ui: UiModel) {
 
 fn load_css() {
     let provider = CssProvider::new();
-    provider.load_from_data("
+    provider.load_from_data(&format!(
+        "{}\n{}", 
+        if let Some(settings) = Settings::default() {
+            if settings.is_gtk_application_prefer_dark_theme() {
+                ".message-content { color:rgb(255, 255, 255); }
+        .message-date { color:rgb(146, 146, 146); }
+        .message-ip { color:rgb(73, 73, 73); }"
+            } else {
+                ".message-content { color:rgb(0, 0, 0); }
+        .message-date { color:rgb(41, 41, 41); }
+        .message-ip { color:rgb(88, 88, 88); }"
+            }
+        } else {
+            ""
+        },
+        "
         .send-button, .send-text { border-radius: 0; }
         .calendar { 
             transform: scale(0.6); 
@@ -465,6 +472,7 @@ fn load_css() {
         .widget_box {
             box-shadow: 0 10px 10px rgba(0, 0, 0, 0.20);
             border-bottom: 2px solid rgba(0, 0, 0, 0.20);
+            min-height: 121px;
         }
         .time {
             font-size: 20px;
@@ -472,9 +480,6 @@ fn load_css() {
             font-weight: bold;
         }
 
-        .message-content { color:rgb(255, 255, 255); }
-        .message-date { color:rgb(146, 146, 146); }
-        .message-ip { color:rgb(73, 73, 73); }
         .message-name { font-weight: bold; }
 
         .message-name-black { color: #2E2E2E; }
@@ -493,17 +498,13 @@ fn load_css() {
         .message-name-bright-cyan { color: #00FFFF; }
         .message-name-white { color: #A9A9A9; }
         .message-name-bright-white { color: #FFFFFF; }
-    ");
+    "));
 
     gtk::style_context_add_provider_for_display(
         &Display::default().expect("Could not connect to a display."),
         &provider,
         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
-
-    if let Some(settings) = gtk::Settings::default() {
-        settings.set_gtk_application_prefer_dark_theme(false);
-    }
 }
 
 fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
@@ -608,7 +609,7 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
 pub fn run_main_loop(ctx: Arc<Context>) {
     let application = Application::builder()
         .application_id("ru.themixray.bRAC")
-        .flags(ApplicationFlags::empty())
+        .flags(ApplicationFlags::FLAGS_NONE)
         .build();
 
     application.connect_activate({
