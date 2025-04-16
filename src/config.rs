@@ -140,7 +140,7 @@ pub fn get_config_path() -> PathBuf {
     }
 
     #[cfg(target_os = "windows")]
-    if let Ok(dir) = {
+    if let Some(dir) = {
         env::var("APPDATA")
             .ok()
             .and_then(|o| Some(PathBuf::from_str(&o)?.join("bRAC")))
