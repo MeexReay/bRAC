@@ -1,32 +1,39 @@
-use std::rc::Rc;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, mpsc::{channel, Sender, Receiver}};
+use std::cell::RefCell;
 use std::time::{Duration, SystemTime};
+use std::error::Error;
+use std::thread;
 
 use chrono::Local;
 use colored::{Color, Colorize};
-use gtk4::gdk::{Cursor, Display, Texture};
-use gtk4::gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader};
-use gtk4::gio::{ActionEntry, ApplicationFlags, MemoryInputStream, Menu, MenuItem, MenuModel};
-use gtk4::glib::clone::Downgrade;
-use gtk4::{gio, Image, Justification, ListBox, pango::WrapMode};
-use gtk4::glib::timeout_add_local;
-use gtk4::glib::{idle_add_local, idle_add_local_once, ControlFlow, source::timeout_add_local_once};
-use gtk4::{glib, glib::clone, Align, Box as GtkBox, Label, ScrolledWindow};
-use gtk4::{AboutDialog, AlertDialog, ButtonsType, Calendar, CssProvider, Entry, Fixed, License, MessageDialog, MessageType, Orientation, Overlay, Picture, PopoverMenuBar, SelectionMode, Window};
-use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Button};
 use rand::Rng;
-use std::sync::mpsc::{channel, Sender, Receiver};
-use std::error::Error;
-use std::thread;
-use std::cell::RefCell;
-use std::io::Bytes;
+
+use gtk4::{
+    self as gtk,
+    Align, Box as GtkBox, Label, ScrolledWindow, 
+    AboutDialog, AlertDialog, Calendar, CssProvider, 
+    Entry, Fixed, Orientation, Overlay, Picture,
+    Application, ApplicationWindow, Button, 
+    Justification, ListBox, pango::WrapMode,
+    prelude::*,
+    gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader},
+    gdk::{Cursor, Display, Texture},
+    gio::{
+        self, ActionEntry, ApplicationFlags, 
+        MemoryInputStream, Menu
+    },
+    glib::{
+        self, timeout_add_local, clone, 
+        idle_add_local, idle_add_local_once, 
+        clone::Downgrade, ControlFlow, 
+        source::timeout_add_local_once
+    }
+};
 
 use crate::config::Context;
 use crate::proto::{connect, read_messages};
 
 use super::{format_message, on_send_message, parse_message, set_chat, ChatStorage};
-
 
 pub struct ChatContext {
     pub messages: Arc<ChatStorage>, 
@@ -98,7 +105,7 @@ fn load_pixbuf(data: &[u8]) -> Pixbuf {
     loader.pixbuf().unwrap()
 }
 
-fn build_menu(ctx: Arc<Context>, app: &Application) {
+fn build_menu(_: Arc<Context>, app: &Application) {
     let menu = Menu::new();
 
     let file_menu = Menu::new();
@@ -115,21 +122,6 @@ fn build_menu(ctx: Arc<Context>, app: &Application) {
     menu.append_submenu(Some("Edit"), &edit_menu);
 
     app.set_menubar(Some((&menu).into()));
-
-    // GtkAlertDialog::builder()
-    //     .title("Successful editioning")
-    //     .text("your file was edited")
-    //     .buttons(ButtonsType::Ok)
-    //     .application(&app)
-    //     .message_type(MessageType::Info)
-    //     .build()
-    //     .present();
-    // AlertDialog::builder()
-    //     .message("Successful editioning")
-    //     .detail("your file was edited")
-    //     .buttons(["okey"])
-    //     .build()
-    //     .present(None);
 
     app.add_action_entries([
         ActionEntry::builder("file_new")
@@ -382,14 +374,6 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         }
     });
 
-    // let logo = Picture::for_pixbuf(&load_pixbuf(include_bytes!("../../brac_logo.png")));
-    // logo.set_size_request(500, 189);
-    // logo.set_can_target(false);
-    // logo.set_can_focus(false);
-    // logo.set_halign(Align::End);
-    // logo.set_valign(Align::Start);
-    // overlay.add_overlay(&logo);
-
     let window = ApplicationWindow::builder()
         .application(app)
         .title(format!("bRAC - Connected to {} as {}", &ctx.host, &ctx.name))
@@ -511,13 +495,13 @@ fn load_css() {
         .message-name-bright-white { color: #FFFFFF; }
     ");
 
-    gtk4::style_context_add_provider_for_display(
+    gtk::style_context_add_provider_for_display(
         &Display::default().expect("Could not connect to a display."),
         &provider,
-        gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
 
-    if let Some(settings) = gtk4::Settings::default() {
+    if let Some(settings) = gtk::Settings::default() {
         settings.set_gtk_application_prefer_dark_theme(false);
     }
 }
@@ -618,7 +602,6 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
                 o.vadjustment().set_value(o.vadjustment().upper() - o.vadjustment().page_size());
             }
         });
-        println!("12s3");
     });
 }
 
