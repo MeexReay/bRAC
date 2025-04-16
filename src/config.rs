@@ -115,7 +115,7 @@ pub fn load_config(path: PathBuf) -> Config {
 pub fn get_config_path() -> PathBuf {
     let mut config_dir = PathBuf::from_str(".").unwrap();
 
-    #[cfg(feature = "homedir")]
+    #[cfg(all(feature = "homedir", not(target_os = "windows")))]
     if let Some(dir) = {
         let home_dir = {
             use homedir::my_home;
@@ -134,13 +134,16 @@ pub fn get_config_path() -> PathBuf {
             home_dir.map(|o| o.join(".config"))
         };
 
-        #[cfg(target_os = "windows")]
-        let config_dir = {
-            let appdata = env::var("APPDATA").map(|o| o.join("bRAC"));
-            Path::new(&appdata)
-        };
-
         config_dir
+    } {
+        config_dir = dir;
+    }
+
+    #[cfg(target_os = "windows")]
+    if let Ok(dir) = {
+        env::var("APPDATA")
+            .ok()
+            .and_then(|o| Some(PathBuf::from_str(&o)?.join("bRAC")))
     } {
         config_dir = dir;
     }
