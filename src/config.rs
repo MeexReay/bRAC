@@ -143,7 +143,7 @@ pub fn get_config_path() -> PathBuf {
     if let Some(dir) = {
         env::var("APPDATA")
             .ok()
-            .and_then(|o| Some(PathBuf::from_str(&o)?.join("bRAC")))
+            .and_then(|o| Some(PathBuf::from_str(&o).ok()?.join("bRAC")))
     } {
         config_dir = dir;
     }
