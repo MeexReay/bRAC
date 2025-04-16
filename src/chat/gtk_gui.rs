@@ -5,7 +5,7 @@ use colored::{Color, Colorize};
 use gtk4::gdk::Display;
 use gtk4::gdk_pixbuf::PixbufLoader;
 use gtk4::glib::clone::Downgrade;
-use gtk4::glib::{idle_add_local, idle_add_local_once, ControlFlow, source::timeout_add_once};
+use gtk4::glib::{idle_add_local, idle_add_local_once, ControlFlow, source::timeout_add_local_once};
 use gtk4::{glib, glib::clone, Align, Box as GtkBox, Label, ScrolledWindow};
 use gtk4::{CssProvider, Entry, Orientation, Overlay, Picture};
 use gtk4::prelude::*;
@@ -364,9 +364,9 @@ fn load_css() {
 }
 
 fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
-    if let Some((date, ip, content, nick)) = parse_message(message.clone()) {
-        let hbox = GtkBox::new(Orientation::Horizontal, 2);
+    let hbox = GtkBox::new(Orientation::Horizontal, 2);
 
+    if let Some((date, ip, content, nick)) = parse_message(message.clone()) {
         if let Some(ip) = ip {
             if ctx.enable_ip_viewing {
                 let ip = Label::builder()
@@ -425,8 +425,6 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
             .build();
 
         hbox.append(&content);
-
-        ui.chat_box.append(&hbox);
     } else {
         let content = Label::builder()
             .label(message)
@@ -434,10 +432,12 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
             .css_classes(["message-content"])
             .build();
 
-        ui.chat_box.append(&content);
+        hbox.append(&content);
     }
 
-    timeout_add_once(Duration::from_millis(10), move || {
+    ui.chat_box.append(&hbox);
+
+    timeout_add_local_once(Duration::from_millis(100), move || {
         GLOBAL.with(|global| {
             if let Some((ui, _)) = &*global.borrow() {
                 let o = &ui.chat_scrolled;

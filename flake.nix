@@ -12,7 +12,7 @@
       systems = [ "x86_64-linux" ];
       perSystem = { config, self', pkgs, lib, system, ... }:
         let
-          devDeps = with pkgs; [ pkg-config openssl ];
+          devDeps = with pkgs; [ pkg-config openssl gtk4 pango ];
 
           cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
           msrv = cargoToml.package.rust-version;
