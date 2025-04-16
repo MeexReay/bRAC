@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::io::stdout;
 use std::io::Write;
 use std::error::Error;
@@ -10,7 +10,7 @@ use super::{
         config::Context, 
         proto::{connect, read_messages},
         util::get_input
-    }, format_message, on_send_message
+    }, format_message, on_send_message, ChatStorage, set_chat
 };
 
 pub struct ChatContext {
@@ -19,7 +19,7 @@ pub struct ChatContext {
 }
 
 fn update_console(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
-    let messages = ctx.messages.messages();
+    let messages = ctx.chat().messages.messages();
 
     let mut out = stdout().lock();
     write!(
@@ -55,7 +55,7 @@ pub fn run_main_loop(ctx: Arc<Context>) {
                 match read_messages(
                     &mut stream, 
                     ctx.max_messages, 
-                    ctx.messages.packet_size(), 
+                    ctx.chat().messages.packet_size(), 
                     !ctx.enable_ssl,
                     ctx.enable_chunked
                 ) {
@@ -67,21 +67,21 @@ pub fn run_main_loop(ctx: Arc<Context>) {
                         };
 
                         if ctx.enable_chunked {
-                            ctx.messages.append_and_store(ctx.max_messages, messages.clone(), size);
+                            ctx.chat().messages.append_and_store(ctx.max_messages, messages.clone(), size);
                         } else {
-                            ctx.messages.update(ctx.max_messages, messages.clone(), size);
+                            ctx.chat().messages.update(ctx.max_messages, messages.clone(), size);
                         }
                     }
                     Err(e) => {
                         let msg = format!("Read messages error: {}", e.to_string()).bright_red().to_string();
-                        ctx.messages.append(ctx.max_messages, vec![msg]);
+                        ctx.chat().messages.append(ctx.max_messages, vec![msg]);
                     }
                     _ => {}
                 }
             },
             Err(e) => {
                 let msg = format!("Connect error: {}", e.to_string()).bright_red().to_string();
-                ctx.messages.append(ctx.max_messages, vec![msg]);
+                ctx.chat().messages.append(ctx.max_messages, vec![msg]);
             }
         }
 
@@ -90,7 +90,7 @@ pub fn run_main_loop(ctx: Arc<Context>) {
         if let Some(message) = get_input("") {
             if let Err(e) = on_send_message(ctx.clone(), &message) {
                 let msg = format!("Send message error: {}", e.to_string()).bright_red().to_string();
-                ctx.messages.append(ctx.max_messages, vec![msg]);
+                ctx.chat().messages.append(ctx.max_messages, vec![msg]);
             }
         }
     }
