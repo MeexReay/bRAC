@@ -4,10 +4,11 @@ use std::time::Duration;
 use colored::{Color, Colorize};
 use gtk4::gdk::Display;
 use gtk4::gdk_pixbuf::PixbufLoader;
+use gtk4::gio::MenuModel;
 use gtk4::glib::clone::Downgrade;
 use gtk4::glib::{idle_add_local, idle_add_local_once, ControlFlow, source::timeout_add_local_once};
 use gtk4::{glib, glib::clone, Align, Box as GtkBox, Label, ScrolledWindow};
-use gtk4::{CssProvider, Entry, Orientation, Overlay, Picture};
+use gtk4::{CssProvider, Entry, Orientation, Overlay, Picture, PopoverMenuBar};
 use gtk4::prelude::*;
 use gtk4::{Application, ApplicationWindow, Button};
 use std::sync::mpsc::{channel, Sender, Receiver};
@@ -86,11 +87,6 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
 
 fn build_ui(ctx: Arc<Context>, app: &Application) {
     let main_box = GtkBox::new(Orientation::Vertical, 5);
-
-    main_box.set_margin_bottom(5);
-    main_box.set_margin_end(5);
-    main_box.set_margin_start(5);
-    main_box.set_margin_top(5);
 
     let chat_box = GtkBox::new(Orientation::Vertical, 2);
 
@@ -195,6 +191,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) {
         .default_height(500)
         .resizable(false)
         .decorated(true)
+        .show_menubar(true)
         .child(&overlay)
         .build();
 
