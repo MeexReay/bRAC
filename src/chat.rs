@@ -32,12 +32,12 @@ lazy_static! {
 
 
 cfg_if! {
-    if #[cfg(feature = "gtk_gui")] {
-        mod gtk_gui;
-        pub use gtk_gui::*;
-    } else if #[cfg(feature = "pretty_tui")] {
+    if #[cfg(feature = "pretty_tui")] {
         mod pretty_tui;
         pub use pretty_tui::*;
+    } else if #[cfg(feature = "gtk_gui")] {
+        mod gtk_gui;
+        pub use gtk_gui::*;
     } else {
         mod minimal_tui;
         pub use minimal_tui::*;

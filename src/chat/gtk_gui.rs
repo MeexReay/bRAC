@@ -1,20 +1,26 @@
+use std::rc::Rc;
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
+use chrono::Local;
 use colored::{Color, Colorize};
-use gtk4::gdk::{Cursor, Display};
-use gtk4::gdk_pixbuf::PixbufLoader;
-use gtk4::gio::MenuModel;
+use gtk4::gdk::{Cursor, Display, Texture};
+use gtk4::gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader};
+use gtk4::gio::{ActionEntry, ApplicationFlags, MemoryInputStream, Menu, MenuItem, MenuModel};
 use gtk4::glib::clone::Downgrade;
+use gtk4::{gio, Image, Justification, ListBox, pango::WrapMode};
+use gtk4::glib::timeout_add_local;
 use gtk4::glib::{idle_add_local, idle_add_local_once, ControlFlow, source::timeout_add_local_once};
 use gtk4::{glib, glib::clone, Align, Box as GtkBox, Label, ScrolledWindow};
-use gtk4::{CssProvider, Entry, Orientation, Overlay, Picture, PopoverMenuBar};
+use gtk4::{AboutDialog, AlertDialog, ButtonsType, Calendar, CssProvider, Entry, Fixed, License, MessageDialog, MessageType, Orientation, Overlay, Picture, PopoverMenuBar, SelectionMode, Window};
 use gtk4::prelude::*;
 use gtk4::{Application, ApplicationWindow, Button};
+use rand::Rng;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::error::Error;
 use std::thread;
 use std::cell::RefCell;
+use std::io::Bytes;
 
 use crate::config::Context;
 use crate::proto::{connect, read_messages};
@@ -85,8 +91,207 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn build_ui(ctx: Arc<Context>, app: &Application) {
+fn load_pixbuf(data: &[u8]) -> Pixbuf {
+    let loader = PixbufLoader::new();
+    loader.write(data).unwrap();
+    loader.close().unwrap();
+    loader.pixbuf().unwrap()
+}
+
+fn build_menu(ctx: Arc<Context>, app: &Application) {
+    let menu = Menu::new();
+
+    let file_menu = Menu::new();
+    file_menu.append(Some("New File"), Some("app.file_new"));
+    file_menu.append(Some("Make a bottleflip"), Some("app.make_bottleflip"));
+    file_menu.append(Some("Export brain to jpeg"), Some("unavailable"));
+    file_menu.append(Some("About"), Some("app.about"));
+
+    let edit_menu = Menu::new();
+    edit_menu.append(Some("Edit File"), Some("app.file_edit"));
+    edit_menu.append(Some("Create a new parallel reality"), Some("app.parallel_reality_create"));
+
+    menu.append_submenu(Some("File"), &file_menu);
+    menu.append_submenu(Some("Edit"), &edit_menu);
+
+    app.set_menubar(Some((&menu).into()));
+
+    // GtkAlertDialog::builder()
+    //     .title("Successful editioning")
+    //     .text("your file was edited")
+    //     .buttons(ButtonsType::Ok)
+    //     .application(&app)
+    //     .message_type(MessageType::Info)
+    //     .build()
+    //     .present();
+    // AlertDialog::builder()
+    //     .message("Successful editioning")
+    //     .detail("your file was edited")
+    //     .buttons(["okey"])
+    //     .build()
+    //     .present(None);
+
+    app.add_action_entries([
+        ActionEntry::builder("file_new")
+            .activate(move |a: &Application, _, _| {
+                    AlertDialog::builder()
+                        .message("Successful creatin")
+                        .detail("your file was created")
+                        .buttons(["ok", "cancel", "confirm", "click"])
+                        .build()
+                        .show(Some(&a.windows()[0]));
+                }
+            )
+            .build(),
+        ActionEntry::builder("make_bottleflip")
+            .activate(move |a: &Application, _, _| {
+                    AlertDialog::builder()
+                        .message("Sorry")
+                        .detail("bottleflip gone wrong :(")
+                        .buttons(["yes", "no"])
+                        .build()
+                        .show(Some(&a.windows()[0]));
+                }
+            )
+            .build(),
+        ActionEntry::builder("parallel_reality_create")
+            .activate(move |a: &Application, _, _| {
+                    AlertDialog::builder()
+                        .message("Your new parallel reality has been created")
+                        .detail(format!("Your parallel reality code: {}", rand::rng().random_range(1..100)))
+                        .buttons(["chocolate"])
+                        .build()
+                        .show(Some(&a.windows()[0]));
+                }
+            )
+            .build(),
+        ActionEntry::builder("file_edit")
+            .activate(move |a: &Application, _, _| {
+                    AlertDialog::builder()
+                        .message("Successful editioning")
+                        .detail("your file was edited")
+                        .buttons(["okey"])
+                        .build()
+                        .show(Some(&a.windows()[0]));
+                }
+            )
+            .build(),
+        ActionEntry::builder("about")
+            .activate(clone!(
+                #[weak] app,
+                move |_, _, _| {
+                    AboutDialog::builder()
+                        .application(&app)
+                        .authors(["TheMixRay", "MeexReay"])
+                        .license("        DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
+                    Version 2, December 2004 
+
+ Copyright (C) 2004 Sam Hocevar <sam@hocevar.net> 
+
+ Everyone is permitted to copy and distribute verbatim or modified 
+ copies of this license document, and changing it is allowed as long 
+ as the name is changed. 
+
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION 
+
+  0. You just DO WHAT THE FUCK YOU WANT TO.")
+                        .comments("better RAC client")
+                        .website("https://github.com/MeexReay/bRAC")
+                        .website_label("source code")
+                        .logo(&Texture::for_pixbuf(&load_pixbuf(include_bytes!("../../icon.png"))))
+                        .build()
+                        .present();
+                }
+            ))
+            .build()
+    ]);
+}
+
+fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     let main_box = GtkBox::new(Orientation::Vertical, 5);
+
+    let widget_box_overlay = Overlay::new();
+
+    let widget_box = GtkBox::new(Orientation::Horizontal, 5);
+
+    widget_box.set_css_classes(&["widget_box"]);
+
+    widget_box.append(&Calendar::builder()
+        .css_classes(["calendar"])
+        .show_heading(false)
+        .can_target(false)
+        .build());
+
+    let server_list_vbox = GtkBox::new(Orientation::Vertical, 5);
+
+    let server_list = ListBox::new();
+
+    server_list.append(&Label::builder().label("meex.lol:42666").halign(Align::Start).selectable(true).build());
+    server_list.append(&Label::builder().label("meex.lol:11234").halign(Align::Start).selectable(true).build());
+    server_list.append(&Label::builder().label("91.192.22.20:42666").halign(Align::Start).selectable(true).build());
+
+    server_list_vbox.append(&Label::builder().label("Server List:").build());
+
+    server_list_vbox.append(&server_list);
+
+    widget_box.append(&server_list_vbox);
+
+    let fixed = Fixed::new();
+    fixed.set_can_target(false);
+
+    let konata = Picture::for_pixbuf(&load_pixbuf(include_bytes!("../../konata.png")));
+    konata.set_size_request(174, 127);
+    
+    fixed.put(&konata, 325.0, 4.0);
+
+    let logo = Picture::for_pixbuf(&load_pixbuf(include_bytes!("../../logo.gif")));
+    logo.set_size_request(152, 64);
+
+    let logo_anim = PixbufAnimation::from_stream(
+        &MemoryInputStream::from_bytes(
+            &glib::Bytes::from(include_bytes!("../../logo.gif"))
+        ),
+        None::<&gio::Cancellable>
+    ).unwrap().iter(Some(SystemTime::now()));
+
+    timeout_add_local(Duration::from_millis(30), {
+        let logo = logo.clone();
+        let logo_anim = logo_anim.clone();
+
+        move || {
+            logo.set_pixbuf(Some(&logo_anim.pixbuf()));
+            logo_anim.advance(SystemTime::now());
+
+            ControlFlow::Continue
+        }
+    });
+    
+    fixed.put(&logo, 262.0, 4.0);
+
+    let time = Label::builder()
+        .label(&Local::now().format("%H:%M").to_string())
+        .justify(Justification::Right)
+        .css_classes(["time"])
+        .build();
+
+    timeout_add_local(Duration::from_secs(1), {
+        let time = time.clone();
+
+        move || {
+            time.set_label(&Local::now().format("%H:%M").to_string());
+
+            ControlFlow::Continue
+        }
+    });
+
+    fixed.put(&time, 432.0, 4.0);
+
+    widget_box_overlay.add_overlay(&fixed);
+
+    widget_box_overlay.set_child(Some(&widget_box));
+
+    main_box.append(&widget_box_overlay);
 
     let chat_box = GtkBox::new(Orientation::Vertical, 2);
 
@@ -94,6 +299,9 @@ fn build_ui(ctx: Arc<Context>, app: &Application) {
         .child(&chat_box)
         .vexpand(true)
         .hexpand(true)
+        .margin_bottom(5)
+        .margin_end(5)
+        .margin_start(5)
         .propagate_natural_height(true)
         .build();
 
@@ -101,8 +309,13 @@ fn build_ui(ctx: Arc<Context>, app: &Application) {
 
     let send_box = GtkBox::new(Orientation::Horizontal, 5);
 
+    send_box.set_margin_bottom(5);
+    send_box.set_margin_end(5);
+    send_box.set_margin_start(5);
+
     let text_entry = Entry::builder()
         .placeholder_text("Message")
+        .css_classes(["send-button"])
         .hexpand(true)
         .build();
 
@@ -110,6 +323,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) {
 
     let send_btn = Button::builder()
         .label("Send")
+        .css_classes(["send-text"])
         .cursor(&Cursor::from_name("pointer", None).unwrap())
         .build();
 
@@ -168,25 +382,14 @@ fn build_ui(ctx: Arc<Context>, app: &Application) {
         }
     });
 
-    let overlay = Overlay::new();
+    // let logo = Picture::for_pixbuf(&load_pixbuf(include_bytes!("../../brac_logo.png")));
+    // logo.set_size_request(500, 189);
+    // logo.set_can_target(false);
+    // logo.set_can_focus(false);
+    // logo.set_halign(Align::End);
+    // logo.set_valign(Align::Start);
+    // overlay.add_overlay(&logo);
 
-    overlay.set_child(Some(&main_box));
-
-    let bytes = include_bytes!("../../brac_logo.png");
-    let loader = PixbufLoader::new();
-    loader.write(bytes).unwrap();
-    loader.close().unwrap();
-    let pixbuf = loader.pixbuf().unwrap();
-
-    let logo = Picture::for_pixbuf(&pixbuf);
-    logo.set_size_request(500, 189);
-    logo.set_can_target(false);
-    logo.set_can_focus(false);
-    logo.set_halign(Align::End);
-    logo.set_valign(Align::Start);
-
-    overlay.add_overlay(&logo);
-    
     let window = ApplicationWindow::builder()
         .application(app)
         .title(format!("bRAC - Connected to {} as {}", &ctx.host, &ctx.name))
@@ -195,7 +398,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) {
         .resizable(false)
         .decorated(true)
         .show_menubar(true)
-        .child(&overlay)
+        .child(&main_box)
         .build();
 
     window.connect_default_width_notify({
@@ -212,15 +415,12 @@ fn build_ui(ctx: Arc<Context>, app: &Application) {
         }
     });
 
-    window.show();
+    window.present();
 
-    let ui = UiModel {
+    UiModel {
         chat_scrolled,
         chat_box
-    };
-
-    setup(ctx.clone(), ui);
-    load_css();
+    }
 }
 
 fn setup(ctx: Arc<Context>, ui: UiModel) {
@@ -273,91 +473,42 @@ fn setup(ctx: Arc<Context>, ui: UiModel) {
 fn load_css() {
     let provider = CssProvider::new();
     provider.load_from_data("
-
-        * {
-            border-radius: 0;
+        .send-button, .send-text { border-radius: 0; }
+        .calendar { 
+            transform: scale(0.6); 
+            margin: -35px;
         }
-
-        .message-content {
-            color: #000000;
+        .widget_box {
+            box-shadow: 0 10px 10px rgba(0, 0, 0, 0.20);
+            border-bottom: 2px solid rgba(0, 0, 0, 0.20);
         }
-
-        .message-date {
-            color: #555555;
-        }
-
-        .message-ip {
-            color: #777777;
-        }
-
-        .message-name {
+        .time {
+            font-size: 20px;
+            font-family: monospace;
             font-weight: bold;
         }
 
-        .message-name-black {
-            color: #2E2E2E; /* Темный черный */
-        }
+        .message-content { color:rgb(255, 255, 255); }
+        .message-date { color:rgb(146, 146, 146); }
+        .message-ip { color:rgb(73, 73, 73); }
+        .message-name { font-weight: bold; }
 
-        .message-name-red {
-            color: #8B0000; /* Темный красный */
-        }
-
-        .message-name-green {
-            color: #006400; /* Темный зеленый */
-        }
-
-        .message-name-yellow {
-            color: #8B8B00; /* Темный желтый */
-        }
-
-        .message-name-blue {
-            color: #00008B; /* Темный синий */
-        }
-
-        .message-name-magenta {
-            color: #8B008B; /* Темный пурпурный */
-        }
-
-        .message-name-cyan {
-            color: #008B8B; /* Темный бирюзовый */
-        }
-
-        .message-name-white {
-            color: #A9A9A9; /* Темный белый */
-        }
-
-        .message-name-bright-black {
-            color: #555555; /* Яркий черный */
-        }
-
-        .message-name-bright-red {
-            color: #FF0000; /* Яркий красный */
-        }
-
-        .message-name-bright-green {
-            color: #00FF00; /* Яркий зеленый */
-        }
-
-        .message-name-bright-yellow {
-            color: #FFFF00; /* Яркий желтый */
-        }
-
-        .message-name-bright-blue {
-            color: #0000FF; /* Яркий синий */
-        }
-
-        .message-name-bright-magenta {
-            color: #FF00FF; /* Яркий пурпурный */
-        }
-
-        .message-name-bright-cyan {
-            color: #00FFFF; /* Яркий бирюзовый */
-        }
-
-        .message-name-bright-white {
-            color: #FFFFFF; /* Яркий белый */
-        }
-
+        .message-name-black { color: #2E2E2E; }
+        .message-name-bright-black { color: #555555; }
+        .message-name-red { color: #8B0000; }
+        .message-name-bright-red { color: #FF0000; }
+        .message-name-green { color: #006400; }
+        .message-name-bright-green { color: #00FF00; }
+        .message-name-yellow { color: #8B8B00; }
+        .message-name-bright-yellow { color: #FFFF00; }
+        .message-name-blue { color: #00008B; }
+        .message-name-bright-blue { color: #0000FF; }
+        .message-name-bright-magenta { color: #FF00FF; }
+        .message-name-magenta { color: #8B008B; }
+        .message-name-cyan { color: #008B8B; }
+        .message-name-bright-cyan { color: #00FFFF; }
+        .message-name-white { color: #A9A9A9; }
+        .message-name-bright-white { color: #FFFFFF; }
     ");
 
     gtk4::style_context_add_provider_for_display(
@@ -382,6 +533,9 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
                     .margin_end(10)
                     .halign(Align::Start)
                     .css_classes(["message-ip"])
+                    .selectable(true)
+                    .wrap(true)
+                    .wrap_mode(WrapMode::Char)
                     .build();
 
                 hbox.append(&ip);
@@ -392,6 +546,9 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
             .label(format!("[{date}]"))
             .halign(Align::Start)
             .css_classes(["message-date"])
+            .selectable(true)
+            .wrap(true)
+            .wrap_mode(WrapMode::Char)
             .build();
 
         hbox.append(&date);
@@ -421,6 +578,9 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
                 .label(format!("<{name}>"))
                 .halign(Align::Start)
                 .css_classes(["message-name", &format!("message-name-{}", color)])
+                .selectable(true)
+                .wrap(true)
+                .wrap_mode(WrapMode::Char)
                 .build();
 
             hbox.append(&name);
@@ -430,6 +590,9 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
             .label(content)
             .halign(Align::Start)
             .css_classes(["message-content"])
+            .selectable(true)
+            .wrap(true)
+            .wrap_mode(WrapMode::Char)
             .build();
 
         hbox.append(&content);
@@ -438,6 +601,9 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
             .label(message)
             .halign(Align::Start)
             .css_classes(["message-content"])
+            .selectable(true)
+            .wrap(true)
+            .wrap_mode(WrapMode::Char)
             .build();
 
         hbox.append(&content);
@@ -445,28 +611,40 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
 
     ui.chat_box.append(&hbox);
 
-    timeout_add_local_once(Duration::from_millis(100), move || {
+    timeout_add_local_once(Duration::from_millis(1000), move || {
         GLOBAL.with(|global| {
             if let Some((ui, _)) = &*global.borrow() {
                 let o = &ui.chat_scrolled;
                 o.vadjustment().set_value(o.vadjustment().upper() - o.vadjustment().page_size());
             }
         });
+        println!("12s3");
     });
 }
 
 pub fn run_main_loop(ctx: Arc<Context>) {
     let application = Application::builder()
         .application_id("ru.themixray.bRAC")
+        .flags(ApplicationFlags::empty())
         .build();
 
     application.connect_activate({
         let ctx = ctx.clone();
 
         move |app| {
-            build_ui(ctx.clone(), app);
+            let ui = build_ui(ctx.clone(), app);
+            setup(ctx.clone(), ui);
+            load_css();
         }
     });
 
-    application.run();
+    application.connect_startup({
+        let ctx = ctx.clone();
+
+        move |app| {
+            build_menu(ctx.clone(), app);
+        }
+    });
+
+    application.run_with_args::<&str>(&[]);
 }

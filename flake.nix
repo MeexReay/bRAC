@@ -55,14 +55,19 @@
           devShells.default = self'.devShells.stable;
 
           packages.bRAC = (rustPackage { 
+            version = "-gtk"; 
+            features = "ssl homedir gtk_gui"; 
+            deps = with pkgs; [ 
+              pkg-config 
+              openssl 
+              gtk4 
+              pango 
+            ];
+          });
+          packages.bRAC-tui = (rustPackage { 
             version = ""; 
             features = "default"; 
             deps = with pkgs; [ pkg-config openssl ];
-          });
-          packages.bRAC-gtk = (rustPackage { 
-            version = "-gtk"; 
-            features = "ssl homedir gtk_gui"; 
-            deps = with pkgs; [ pkg-config openssl gtk4 pango ];
           });
           packages.bRAC-minimal = (rustPackage { 
             version = "-minimal"; 

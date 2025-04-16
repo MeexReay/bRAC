@@ -9,6 +9,7 @@ better RAC client
 
 ## features
 
+- gtk4 GUI
 - cheat commands (type /help)
 - no ip and date visible
 - uses TOR proxy server by default (meex.lol:11234)
@@ -19,7 +20,7 @@ better RAC client
 - RACS compatible (--enable-ssl or in --configure enable SSL)
 - chunked reading messages
 
-![image](https://github.com/user-attachments/assets/a2858662-50f1-4554-949c-f55addf48fcc)
+![screenshot](image.png)
 
 ## how to run
 
@@ -43,17 +44,18 @@ cargo build -r # build release (target/release/bRAC)
 cargo run -r # run (builds and runs bRAC itself)
 ```
 
+TUI version:
+
+```bash
+cargo build -r --no-default-features -F tui
+cargo run -r --no-default-features -F tui
+```
+
 Minimal version:
 
 ```bash
 cargo build -r --no-default-features
 cargo run -r --no-default-features
-```
-GTK version:
-
-```bash
-cargo build -rF gtk_gui
-cargo run -rF gtk_gui
 ```
 
 ### nix package
@@ -72,11 +74,11 @@ nix build github:MeexReay/bRAC#bRAC-minimal
 nix run github:MeexReay/bRAC#bRAC-minimal
 ```
 
-GTK version:
+TUI version:
 
 ```bash
-nix build github:MeexReay/bRAC#bRAC-gtk
-nix run github:MeexReay/bRAC#bRAC-gtk
+nix build github:MeexReay/bRAC#bRAC-tui
+nix run github:MeexReay/bRAC#bRAC-tui
 ```
 
 ## default config
