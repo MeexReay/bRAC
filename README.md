@@ -39,21 +39,21 @@ cd bRAC
 
 3. Build or run with Cargo
 ```bash
-cargo build --release # build release (target/release/bRAC)
-cargo run --release # run (builds and runs bRAC itself)
+cargo build -r # build release (target/release/bRAC)
+cargo run -r # run (builds and runs bRAC itself)
 ```
 
 Minimal version:
 
 ```bash
-cargo build --release --no-default-features
-cargo run --release --no-default-features
+cargo build -r --no-default-features
+cargo run -r --no-default-features
 ```
 GTK version:
 
 ```bash
-cargo build --release --features gtk_gui
-cargo run --release --features gtk_gui
+cargo build -rF gtk_gui
+cargo run -rF gtk_gui
 ```
 
 ### nix package

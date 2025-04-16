@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use colored::{Color, Colorize};
-use gtk4::gdk::Display;
+use gtk4::gdk::{Cursor, Display};
 use gtk4::gdk_pixbuf::PixbufLoader;
 use gtk4::glib::clone::Downgrade;
 use gtk4::glib::{idle_add_local, idle_add_local_once, ControlFlow, source::timeout_add_local_once};
@@ -114,12 +114,14 @@ fn build_ui(ctx: Arc<Context>, app: &Application) {
 
     let send_btn = Button::builder()
         .label("Send")
+        .cursor(&Cursor::from_name("pointer", None).unwrap())
         .build();
 
     send_btn.connect_clicked(clone!(
         #[weak] text_entry,
         #[weak] ctx,
         move |_| {
+            if text_entry.text().is_empty() { return; }
             idle_add_local_once(clone!(
                 #[weak] text_entry,
                 move || {
@@ -138,6 +140,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) {
         #[weak] text_entry,
         #[weak] ctx,
         move |_| {
+            if text_entry.text().is_empty() { return; }
             idle_add_local_once(clone!(
                 #[weak] text_entry,
                 move || {
@@ -274,16 +277,20 @@ fn load_css() {
     let provider = CssProvider::new();
     provider.load_from_data("
 
+        * {
+            border-radius: 0;
+        }
+
         .message-content {
-            color: #FFFFFF;
+            color: #000000;
         }
 
         .message-date {
-            color: #AAAAAA;
+            color: #555555;
         }
 
         .message-ip {
-            color: #AAAAAA;
+            color: #777777;
         }
 
         .message-name {
@@ -361,6 +368,10 @@ fn load_css() {
         &provider,
         gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
+
+    if let Some(settings) = gtk4::Settings::default() {
+        settings.set_gtk_application_prefer_dark_theme(false);
+    }
 }
 
 fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
