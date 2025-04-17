@@ -17,26 +17,6 @@
           cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
           msrv = cargoToml.package.rust-version;
 
-          rustPackage = { version, features, deps }:
-            (pkgs.makeRustPlatform {
-              cargo = pkgs.rust-bin.stable.latest.minimal;
-              rustc = pkgs.rust-bin.stable.latest.minimal;
-            }).buildRustPackage {
-              inherit (cargoToml.package) name;
-              src = ./.;
-              cargoLock.lockFile = ./Cargo.lock;
-              version = lib.concatStrings [ cargoToml.package.version version ];
-              buildNoDefaultFeatures = true;
-              buildFeatures = features;
-              buildInputs = deps;
-              nativeBuildInputs = deps;
-              patchPhase = ''
-                substituteInPlace Cargo.toml --replace \
-                  'version = "${cargoToml.package.version}"' \
-                  'version = "${lib.concatStrings [ cargoToml.package.version version ]}"'
-              '';
-            };
-
           mkDevShell = rustc:
             pkgs.mkShell {
               shellHook = ''
@@ -54,26 +34,29 @@
           packages.default = self'.packages.bRAC;
           devShells.default = self'.devShells.stable;
 
-          packages.bRAC = (rustPackage { 
-            version = "-gtk"; 
-            features = "ssl homedir gtk_gui"; 
-            deps = with pkgs; [ 
-              pkg-config 
-              openssl 
-              gtk4 
-              pango 
-            ];
-          });
-          packages.bRAC-tui = (rustPackage { 
-            version = ""; 
-            features = "default"; 
-            deps = with pkgs; [ pkg-config openssl ];
-          });
-          packages.bRAC-minimal = (rustPackage { 
-            version = "-minimal"; 
-            features = ""; 
-            deps = [];
-          });
+          packages.bRAC = let 
+              deps = [
+                pkg-config
+                openssl
+                gtk4
+                pango
+              ];
+            in (pkgs.makeRustPlatform {
+              cargo = pkgs.rust-bin.stable.latest.minimal;
+              rustc = pkgs.rust-bin.stable.latest.minimal;
+            }).buildRustPackage {
+              inherit (cargoToml.package) name;
+              src = ./.;
+              cargoLock.lockFile = ./Cargo.lock;
+              version = lib.concatStrings [ cargoToml.package.version version ];
+              buildInputs = deps;
+              nativeBuildInputs = deps;
+              patchPhase = ''
+                substituteInPlace Cargo.toml --replace \
+                  'version = "${cargoToml.package.version}"' \
+                  'version = "${lib.concatStrings [ cargoToml.package.version version ]}"'
+              '';
+            };
 
           devShells.nightly = (mkDevShell (pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)));
           devShells.stable = (mkDevShell pkgs.rust-bin.stable.latest.default);

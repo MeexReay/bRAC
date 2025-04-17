@@ -4,8 +4,6 @@ use std::{
     time::{SystemTime, UNIX_EPOCH}
 };
 
-use colored::{Color, Colorize};
-
 use crate::proto::{register_user, send_message_auth};
 
 use super::{
@@ -29,11 +27,11 @@ lazy_static! {
   pub static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
   pub static ref IP_REGEX: Regex = Regex::new(r"\{(.*?)\} (.*)").unwrap();
 
-  pub static ref COLORED_USERNAMES: Vec<(Regex, Color)> = vec![
-      (Regex::new(r"\u{B9AC}\u{3E70}<(.*?)> (.*)").unwrap(),            Color::Green),     // bRAC
-      (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(),    Color::BrightRed), // CRAB
-      (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(),            Color::Magenta),   // Mefidroniy
-      (Regex::new(r"<(.*?)> (.*)").unwrap(),                            Color::Cyan),      // clRAC
+  pub static ref COLORED_USERNAMES: Vec<(Regex, String)> = vec![
+      (Regex::new(r"\u{B9AC}\u{3E70}<(.*?)> (.*)").unwrap(),         "green".to_string()),     // bRAC
+      (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), "red".to_string()), // CRAB
+      (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(),         "magenta".to_string()),   // Mefidroniy
+      (Regex::new(r"<(.*?)> (.*)").unwrap(),                         "cyan".to_string()),      // clRAC
   ];
 }
 
@@ -233,8 +231,8 @@ pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn E
     Ok(())
 } 
 
-/// message -> (date, ip, text)
-pub fn parse_message(message: String) -> Option<(String, Option<String>, String, Option<(String, Color)>)> {
+/// message -> (date, ip, text, (name, color))
+pub fn parse_message(message: String) -> Option<(String, Option<String>, String, Option<(String, String)>)> {
     let message = sanitize_text(&message);
 
     let message = message
@@ -268,36 +266,8 @@ pub fn parse_message(message: String) -> Option<(String, Option<String>, String,
     Some((date, ip, message, nick))
 }
 
-pub fn format_message(enable_ip_viewing: bool, message: String) -> Option<String> {
-    if let Some((date, ip, content, nick)) = parse_message(message.clone()) {
-        Some(format!(
-            "{} {}{}",
-            if enable_ip_viewing {
-                if let Some(ip) = ip {
-                    format!("{}{} [{}]", ip, " ".repeat(if 15 >= ip.chars().count() {15-ip.chars().count()} else {0}), date)
-                } else {
-                    format!("{} [{}]", " ".repeat(15), date)
-                }
-            } else {
-                format!("[{}]", date)
-            }.white().dimmed(),
-            nick.map(|(name, color)| 
-                format!("<{}> ", name)
-                    .color(color)
-                    .bold()
-                    .to_string()
-            ).unwrap_or_default(),
-            content.white().blink()
-        ))
-    } else if !message.is_empty() {
-        Some(message.bright_white().to_string()) 
-    } else {
-        None
-    }
-}
-
 // message -> (nick, content, color)
-pub fn find_username_color(message: &str) -> Option<(String, String, Color)> {
+pub fn find_username_color(message: &str) -> Option<(String, String, String)> {
     for (re, color) in COLORED_USERNAMES.iter() {
         if let Some(captures) = re.captures(message) {
             return Some((captures[1].to_string(), captures[2].to_string(), color.clone()))

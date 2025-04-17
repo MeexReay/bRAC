@@ -5,7 +5,6 @@ use std::error::Error;
 use std::thread;
 
 use chrono::Local;
-use colored::{Color, Colorize};
 use rand::Rng;
 
 use gtk4::{
@@ -20,7 +19,7 @@ use gtk4::{
 
 use crate::proto::{connect, read_messages};
 
-use super::{format_message, on_send_message, parse_message, set_chat, ChatStorage, ctx::Context};
+use super::{on_send_message, parse_message, set_chat, ChatStorage, ctx::Context};
 
 pub struct ChatContext {
     pub messages: Arc<ChatStorage>, 
@@ -56,12 +55,6 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
         ctx.enable_chunked
     ) {
         Ok(Some((messages, size))) => {
-            let messages: Vec<String> = if ctx.disable_formatting {
-                messages
-            } else {
-                messages.into_iter().flat_map(|o| format_message(ctx.enable_ip_viewing, o)).collect()
-            };
-
             if ctx.enable_chunked {
                 ctx.chat().messages.append_and_store(ctx.max_messages, messages.clone(), size);
                 for msg in messages {
@@ -75,7 +68,7 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
             }
         },
         Err(e) => {
-            let msg = format!("Read messages error: {}", e.to_string()).bright_red().to_string();
+            let msg = format!("Read messages error: {}", e.to_string()).to_string();
             ctx.chat().messages.append(ctx.max_messages, vec![msg.clone()]);
             add_chat_message(ctx.clone(), msg.clone());
         }
@@ -347,7 +340,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
             ));
 
             if let Err(e) = on_send_message(ctx.clone(), &text_entry.text()) {
-                let msg = format!("Send message error: {}", e.to_string()).bright_red().to_string();
+                let msg = format!("Send message error: {}", e.to_string()).to_string();
                 add_chat_message(ctx.clone(), msg);
             }
         }
@@ -366,7 +359,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
             ));
 
             if let Err(e) = on_send_message(ctx.clone(), &text_entry.text()) {
-                let msg = format!("Send message error: {}", e.to_string()).bright_red().to_string();
+                let msg = format!("Send message error: {}", e.to_string()).to_string();
                 add_chat_message(ctx.clone(), msg);
             }
         }
@@ -437,7 +430,7 @@ fn setup(ctx: Arc<Context>, ui: UiModel) {
         move || {
             loop { 
                 if let Err(e) = recv_tick(ctx.clone()) {
-                    let _ = print_message(ctx.clone(), format!("Print messages error: {}", e.to_string()).bright_red().to_string());
+                    let _ = print_message(ctx.clone(), format!("Print messages error: {}", e.to_string()).to_string());
                     thread::sleep(Duration::from_secs(1));
                 }
             }
@@ -528,26 +521,6 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
         hbox.append(&date);
 
         if let Some((name, color)) = nick {
-            let color = match color {
-                Color::Black => "black",
-                Color::Red => "red",
-                Color::Green => "green",
-                Color::Yellow => "yellow",
-                Color::Blue => "blue",
-                Color::Magenta => "magenta",
-                Color::Cyan => "cyan",
-                Color::White => "white",
-                Color::BrightBlack => "bright-black",
-                Color::BrightRed => "bright-red",
-                Color::BrightGreen => "bright-green",
-                Color::BrightYellow => "bright-yellow",
-                Color::BrightBlue => "bright-blue",
-                Color::BrightMagenta => "bright-magenta",
-                Color::BrightCyan => "bright-cyan",
-                Color::BrightWhite => "bright-white",
-                _ => "unknown"
-            };
-
             let name = Label::builder()
                 .label(format!("<{name}>"))
                 .halign(Align::Start)

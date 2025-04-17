@@ -88,7 +88,7 @@ pub fn load_config(path: PathBuf) -> Config {
 pub fn get_config_path() -> PathBuf {
     let mut config_dir = PathBuf::from_str(".").unwrap();
 
-    #[cfg(all(feature = "homedir", not(target_os = "windows")))]
+    #[cfg(not(target_os = "windows"))]
     if let Some(dir) = {
         let home_dir = {
             use homedir::my_home;

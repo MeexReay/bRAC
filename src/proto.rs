@@ -1,6 +1,7 @@
 #![allow(unused)]
 
 use std::{error::Error, fmt::Debug, io::{Read, Write}, net::TcpStream};
+use native_tls::TlsConnector;
 
 pub trait RacStream: Read + Write + Unpin + Send + Sync + Debug {}
 impl<T: Read + Write + Unpin + Send + Sync + Debug> RacStream for T {}
@@ -16,21 +17,16 @@ pub fn connect(host: &str, ssl: bool) -> Result<Box<dyn RacStream>, Box<dyn Erro
         format!("{host}:42666")
     };
 
-    #[cfg(feature = "ssl")]
-    {
-        use native_tls::TlsConnector;
+    if ssl {
+        let ip: String = host.split_once(":")
+            .map(|o| o.0.to_string())
+            .unwrap_or(host.clone());
 
-        if ssl {
-            let ip: String = host.split_once(":")
-                .map(|o| o.0.to_string())
-                .unwrap_or(host.clone());
-
-            return Ok(Box::new(TlsConnector::builder()
-                .danger_accept_invalid_certs(true)
-                .danger_accept_invalid_hostnames(true)
-                .build()?
-                .connect(&ip, connect(&host, false)?)?))
-        }
+        return Ok(Box::new(TlsConnector::builder()
+            .danger_accept_invalid_certs(true)
+            .danger_accept_invalid_hostnames(true)
+            .build()?
+            .connect(&ip, connect(&host, false)?)?))
     }
 
     Ok(Box::new(TcpStream::connect(host)?))
