@@ -1,0 +1,36 @@
+
+
+.send-button, .send-text { border-radius: 0; }
+.calendar { 
+    transform: scale(0.6); 
+    margin: -35px;
+}
+.widget_box {
+    box-shadow: 0 10px 10px rgba(0, 0, 0, 0.20);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.20);
+    min-height: 121px;
+}
+.time {
+    font-size: 20px;
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.message-name { font-weight: bold; }
+
+.message-name-black { color: #2E2E2E; }
+.message-name-bright-black { color: #555555; }
+.message-name-red { color: #8B0000; }
+.message-name-bright-red { color: #FF0000; }
+.message-name-green { color: #006400; }
+.message-name-bright-green { color: #00FF00; }
+.message-name-yellow { color: #8B8B00; }
+.message-name-bright-yellow { color: #FFFF00; }
+.message-name-blue { color: #00008B; }
+.message-name-bright-blue { color: #0000FF; }
+.message-name-bright-magenta { color: #FF00FF; }
+.message-name-magenta { color: #8B008B; }
+.message-name-cyan { color: #008B8B; }
+.message-name-bright-cyan { color: #00FFFF; }
+.message-name-white { color: #A9A9A9; }
+.message-name-bright-white { color: #FFFFFF; }

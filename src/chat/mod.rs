@@ -10,13 +10,20 @@ use crate::proto::{register_user, send_message_auth};
 
 use super::{
     proto::{connect, read_messages, send_message, send_message_spoof_auth}, 
-    util::sanitize_text, 
-    config::Context
+    util::sanitize_text
 };
 
 use lazy_static::lazy_static;
 use regex::Regex;
-use cfg_if::cfg_if;
+
+use ctx::Context;
+
+pub use gui::{
+    ChatContext,
+    print_message,
+    run_main_loop
+};
+
 
 lazy_static! {
   pub static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
@@ -31,18 +38,9 @@ lazy_static! {
 }
 
 
-cfg_if! {
-    if #[cfg(feature = "pretty_tui")] {
-        mod pretty_tui;
-        pub use pretty_tui::*;
-    } else if #[cfg(feature = "gtk_gui")] {
-        mod gtk_gui;
-        pub use gtk_gui::*;
-    } else {
-        mod minimal_tui;
-        pub use minimal_tui::*;
-    }
-}
+pub mod gui;
+pub mod config;
+pub mod ctx;
 
 
 pub struct ChatStorage {

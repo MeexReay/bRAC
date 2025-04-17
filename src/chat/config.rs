@@ -1,14 +1,9 @@
-use std::{str::FromStr, sync::{Arc, RwLock}};
-#[allow(unused_imports)]
-use std::{env, fs, path::{Path, PathBuf}, thread, time::Duration};
-use colored::Colorize;
-use rand::random;
+use std::str::FromStr;
+use std::{fs, path::PathBuf, thread, time::Duration};
 use serde_yml;
 use clap::Parser;
 
-use crate::chat::ChatContext;
-
-use super::util::get_input;
+use super::gui::{ask_bool, ask_string, ask_string_option, ask_usize, show_message};
 
 const MESSAGE_FORMAT: &str = "\u{B9AC}\u{3E70}<{name}> {text}";
 
@@ -41,31 +36,10 @@ fn default_update_time() -> usize { 50 }
 fn default_host() -> String { "meex.lol:11234".to_string() }
 fn default_message_format() -> String { MESSAGE_FORMAT.to_string() }
 
-fn ask_usize(name: impl ToString, default: usize) -> usize {
-    get_input(format!("{} (default: {}) {} ", name.to_string().bold(), default, ">".bold()).bright_yellow())
-        .and_then(|o| o.parse().ok()).unwrap_or(default)
-}
-
-fn ask_string(name: impl ToString, default: impl ToString + Clone) -> String {
-    ask_string_option(name, default.clone()).unwrap_or(default.to_string())
-}
-
-fn ask_string_option(name: impl ToString, default: impl ToString) -> Option<String> {
-    let default = default.to_string();
-    get_input(format!("{} (default: {}) {} ", name.to_string().bold(), default, ">".bold()).bright_yellow())
-}
-
-fn ask_bool(name: impl ToString, default: bool) -> bool {
-    get_input(format!("{} (Y/N, default: {}) {} ", name.to_string().bold(), if default { "Y" } else { "N" }, ">".bold()).bright_yellow())
-        .map(|o| o.to_lowercase() != "n")
-        .unwrap_or(default)
-}
-
 pub fn configure(path: PathBuf) -> Config {
-    println!("{}", "To configure the client, please answer a few questions. It won't take long.".yellow());
-    println!("{}", "You can reconfigure client in any moment via `bRAC --configure`".yellow());
-    println!("{}", format!("Config stores in path `{}`", path.to_string_lossy()).yellow());
-    println!();
+    show_message("Client setup", format!("To configure the client, please answer a few questions. It won't take long.
+You can reconfigure client in any moment via `bRAC --configure`
+Config stores in path `{}`", path.to_string_lossy()));
 
     let host = ask_string("Host", default_host());
     let name = ask_string_option("Name", "ask every time");
@@ -95,8 +69,7 @@ pub fn configure(path: PathBuf) -> Config {
     fs::create_dir_all(&path.parent().expect("Config save error")).expect("Config save error");
     fs::write(&path, config_text).expect("Config save error");
 
-    println!();
-    println!("{}", "Config saved! You can reconfigure it in any moment via `bRAC --configure`".yellow());
+    show_message("Config saved!", "You can reconfigure it in any moment via `bRAC --configure`");
 
     config
 }
@@ -209,44 +182,4 @@ pub struct Args {
     /// Enable chunked reading
     #[arg(short='u', long)]
     pub enable_chunked: bool,
-}
-
-pub struct Context {
-    pub chat: Arc<RwLock<Option<Arc<ChatContext>>>>,
-    pub host: String, 
-    pub name: String, 
-    pub disable_formatting: bool, 
-    pub disable_commands: bool, 
-    pub disable_hiding_ip: bool,
-    pub message_format: String,
-    pub update_time: usize,
-    pub max_messages: usize,
-    pub enable_ip_viewing: bool,
-    pub enable_auth: bool,
-    pub enable_ssl: bool,
-    pub enable_chunked: bool,
-}
-
-impl Context {
-    pub fn new(config: &Config, args: &Args) -> Context {
-        Context {
-            chat: Arc::new(RwLock::new(None)),
-            message_format: args.message_format.clone().unwrap_or(config.message_format.clone()), 
-            host: args.host.clone().unwrap_or(config.host.clone()), 
-            name: args.name.clone().or(config.name.clone()).unwrap_or_else(|| ask_string("Name", format!("Anon#{:X}", random::<u16>()))), 
-            disable_formatting: args.disable_formatting, 
-            disable_commands: args.disable_commands, 
-            disable_hiding_ip: args.disable_ip_hiding,
-            update_time: config.update_time,
-            max_messages: config.max_messages,
-            enable_ip_viewing: args.enable_users_ip_viewing || config.enable_ip_viewing,
-            enable_auth: args.enable_auth || config.enable_auth,
-            enable_ssl: args.enable_ssl || config.enable_ssl,
-            enable_chunked: args.enable_chunked || config.enable_chunked,
-        }
-    }
-
-    pub fn chat(&self) -> Arc<ChatContext> {
-        self.chat.read().unwrap().clone().unwrap()
-    }
 }

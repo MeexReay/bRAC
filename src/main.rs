@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use clap::Parser;
-use bRAC::config::{configure, get_config_path, load_config, Args, Context};
 use bRAC::proto::{connect, read_messages, send_message};
-use bRAC::chat::run_main_loop;
+use bRAC::chat::{config::{configure, get_config_path, load_config, Args}, ctx::Context, run_main_loop};
+use clap::Parser;
 
 
 fn main() {

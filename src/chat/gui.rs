@@ -18,10 +18,9 @@ use gtk4::{
     Button, Calendar, CssProvider, Entry, Fixed, Justification, Label, ListBox, Orientation, Overlay, Picture, ScrolledWindow, Settings
 };
 
-use crate::config::Context;
 use crate::proto::{connect, read_messages};
 
-use super::{format_message, on_send_message, parse_message, set_chat, ChatStorage};
+use super::{format_message, on_send_message, parse_message, set_chat, ChatStorage, ctx::Context};
 
 pub struct ChatContext {
     pub messages: Arc<ChatStorage>, 
@@ -84,6 +83,28 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     }
     thread::sleep(Duration::from_millis(ctx.update_time as u64));
     Ok(())
+}
+
+pub fn ask_usize(name: impl ToString, default: usize) -> usize {
+    todo!()
+}
+
+pub fn ask_string(name: impl ToString, default: impl ToString + Clone) -> String {
+    todo!()
+}
+
+pub fn ask_string_option(name: impl ToString, default: impl ToString) -> Option<String> {
+    let default = default.to_string();
+
+    todo!()
+}
+
+pub fn ask_bool(name: impl ToString, default: bool) -> bool {
+    todo!()
+}
+
+pub fn show_message(title: impl ToString, message: impl ToString) {
+    todo!()
 }
 
 fn load_pixbuf(data: &[u8]) -> Pixbuf {
@@ -179,7 +200,7 @@ fn build_menu(_: Arc<Context>, app: &Application) {
                         .comments("better RAC client")
                         .website("https://github.com/MeexReay/bRAC")
                         .website_label("source code")
-                        .logo(&Texture::for_pixbuf(&load_pixbuf(include_bytes!("../../assets/icon.png"))))
+                        .logo(&Texture::for_pixbuf(&load_pixbuf(include_bytes!("images/icon.png"))))
                         .build()
                         .present();
                 }
@@ -222,17 +243,19 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     let fixed = Fixed::new();
     fixed.set_can_target(false);
 
-    let konata = Picture::for_pixbuf(&load_pixbuf(include_bytes!("../../assets/konata.png")));
+    let konata = Picture::for_pixbuf(&load_pixbuf(include_bytes!("images/konata.png")));
     konata.set_size_request(174, 127);
     
     fixed.put(&konata, 325.0, 4.0);
 
-    let logo = Picture::for_pixbuf(&load_pixbuf(include_bytes!("../../assets/logo.gif")));
+    let logo_gif = include_bytes!("images/logo.gif");
+
+    let logo = Picture::for_pixbuf(&load_pixbuf(logo_gif));
     logo.set_size_request(152, 64);
 
     let logo_anim = PixbufAnimation::from_stream(
         &MemoryInputStream::from_bytes(
-            &glib::Bytes::from(include_bytes!("../../assets/logo.gif"))
+            &glib::Bytes::from(logo_gif)
         ),
         None::<&gio::Cancellable>
     ).unwrap().iter(Some(SystemTime::now()));
@@ -447,58 +470,24 @@ fn setup(ctx: Arc<Context>, ui: UiModel) {
 }
 
 fn load_css() {
+    let is_dark_theme = if let Some(settings) = Settings::default() {
+        settings.is_gtk_application_prefer_dark_theme() || settings.gtk_theme_name()
+            .map(|o| o.to_lowercase().contains("dark"))
+            .unwrap_or_default()
+    } else {
+        false
+    };
+
     let provider = CssProvider::new();
     provider.load_from_data(&format!(
         "{}\n{}", 
-        if let Some(settings) = Settings::default() {
-            if settings.is_gtk_application_prefer_dark_theme() {
-                ".message-content { color:rgb(255, 255, 255); }
-        .message-date { color:rgb(146, 146, 146); }
-        .message-ip { color:rgb(73, 73, 73); }"
-            } else {
-                ".message-content { color:rgb(0, 0, 0); }
-        .message-date { color:rgb(41, 41, 41); }
-        .message-ip { color:rgb(88, 88, 88); }"
-            }
+        if is_dark_theme {
+            include_str!("styles/dark.css")
         } else {
-            ""
+            include_str!("styles/light.css")
         },
-        "
-        .send-button, .send-text { border-radius: 0; }
-        .calendar { 
-            transform: scale(0.6); 
-            margin: -35px;
-        }
-        .widget_box {
-            box-shadow: 0 10px 10px rgba(0, 0, 0, 0.20);
-            border-bottom: 2px solid rgba(0, 0, 0, 0.20);
-            min-height: 121px;
-        }
-        .time {
-            font-size: 20px;
-            font-family: monospace;
-            font-weight: bold;
-        }
-
-        .message-name { font-weight: bold; }
-
-        .message-name-black { color: #2E2E2E; }
-        .message-name-bright-black { color: #555555; }
-        .message-name-red { color: #8B0000; }
-        .message-name-bright-red { color: #FF0000; }
-        .message-name-green { color: #006400; }
-        .message-name-bright-green { color: #00FF00; }
-        .message-name-yellow { color: #8B8B00; }
-        .message-name-bright-yellow { color: #FFFF00; }
-        .message-name-blue { color: #00008B; }
-        .message-name-bright-blue { color: #0000FF; }
-        .message-name-bright-magenta { color: #FF00FF; }
-        .message-name-magenta { color: #8B008B; }
-        .message-name-cyan { color: #008B8B; }
-        .message-name-bright-cyan { color: #00FFFF; }
-        .message-name-white { color: #A9A9A9; }
-        .message-name-bright-white { color: #FFFFFF; }
-    "));
+        include_str!("styles/style.css")
+    ));
 
     gtk::style_context_add_provider_for_display(
         &Display::default().expect("Could not connect to a display."),
