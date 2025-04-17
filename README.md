@@ -40,11 +40,8 @@ cd bRAC
 
 3. Run with Cargo
 ```bash
-cargo run -r                              # run GUI version
-cargo run -r --no-default-features -F tui # run TUI version
-cargo run -r --no-default-features        # run minimal version
-
-# change "cargo run" to "cargo build" to just build (target/release/bRAC)
+cargo build -r # build release (target/release/bRAC) 
+cargo run -r # build and run
 ```
 
 ### nix package
@@ -52,11 +49,8 @@ cargo run -r --no-default-features        # run minimal version
 If you have Nix package manager installed, you can use:
 
 ```bash
-nix run github:MeexReay/bRAC                # run GUI version
-nix run github:MeexReay/bRAC#bRAC-tui       # run TUI version
-nix run github:MeexReay/bRAC#bRAC-minimal   # run minimal version
-
-# change "nix run" to "nix build" to just build (result/bin/bRAC)
+nix build github:MeexReay/bRAC # build release (result/bin/bRAC))
+nix run github:MeexReay/bRAC # build and run
 ```
 
 ## chat commands
