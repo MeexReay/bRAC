@@ -20,7 +20,7 @@ better RAC client
 - RACS compatible (--enable-ssl or in --configure enable SSL)
 - chunked reading messages
 
-![screenshot](image.png)
+![screenshot](assets/image.png)
 
 ## how to run
 

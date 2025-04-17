@@ -58,7 +58,7 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     ) {
         Ok(Some((messages, size))) => {
             let messages: Vec<String> = if ctx.disable_formatting {
-                messages 
+                messages
             } else {
                 messages.into_iter().flat_map(|o| format_message(ctx.enable_ip_viewing, o)).collect()
             };
@@ -179,7 +179,7 @@ fn build_menu(_: Arc<Context>, app: &Application) {
                         .comments("better RAC client")
                         .website("https://github.com/MeexReay/bRAC")
                         .website_label("source code")
-                        .logo(&Texture::for_pixbuf(&load_pixbuf(include_bytes!("../../icon.png"))))
+                        .logo(&Texture::for_pixbuf(&load_pixbuf(include_bytes!("../../assets/icon.png"))))
                         .build()
                         .present();
                 }
@@ -222,17 +222,17 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     let fixed = Fixed::new();
     fixed.set_can_target(false);
 
-    let konata = Picture::for_pixbuf(&load_pixbuf(include_bytes!("../../konata.png")));
+    let konata = Picture::for_pixbuf(&load_pixbuf(include_bytes!("../../assets/konata.png")));
     konata.set_size_request(174, 127);
     
     fixed.put(&konata, 325.0, 4.0);
 
-    let logo = Picture::for_pixbuf(&load_pixbuf(include_bytes!("../../logo.gif")));
+    let logo = Picture::for_pixbuf(&load_pixbuf(include_bytes!("../../assets/logo.gif")));
     logo.set_size_request(152, 64);
 
     let logo_anim = PixbufAnimation::from_stream(
         &MemoryInputStream::from_bytes(
-            &glib::Bytes::from(include_bytes!("../../logo.gif"))
+            &glib::Bytes::from(include_bytes!("../../assets/logo.gif"))
         ),
         None::<&gio::Cancellable>
     ).unwrap().iter(Some(SystemTime::now()));
