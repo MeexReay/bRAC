@@ -1,4 +1,4 @@
-# bRAC
+# ![logo](https://raw.githubusercontent.com/MeexReay/bRAC/refs/heads/main/logo.gif)
 <!--
 [<img src="https://github.com/user-attachments/assets/f2be5caa-6246-4a6a-9bee-2b53086f9afb" height="30">]()
 [<img src="https://github.com/user-attachments/assets/4d35191d-1dbc-4391-a761-6ae7f76ba7af" height="30">]()
@@ -10,13 +10,14 @@ better RAC client
 ## features
 
 - gtk4 GUI
-- cheat commands (type /help)
-- no ip and date visible
-- uses TOR proxy server by default (meex.lol:11234)
-- plays sound when users receive your messages
-- coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc)
-- configurable message format
+- fancy TUI version
 - RACv1.99.x and RACv2.0 compatible
+- chat commands (type /help)
+- no ip and date visible for anyone
+- uses TOR proxy server by default (meex.lol:11234)
+- coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc)
+- many command-line options (--help)
+- rich configuration (--config-path to get file path and --configure to edit)
 - RACS compatible (--enable-ssl or in --configure enable SSL)
 - chunked reading messages
 
@@ -38,24 +39,13 @@ git clone https://github.com/MeexReay/bRAC.git
 cd bRAC
 ```
 
-3. Build or run with Cargo
+3. Run with Cargo
 ```bash
-cargo build -r # build release (target/release/bRAC)
-cargo run -r # run (builds and runs bRAC itself)
-```
+cargo run -r                              # run GUI version
+cargo run -r --no-default-features -F tui # run TUI version
+cargo run -r --no-default-features        # run minimal version
 
-TUI version:
-
-```bash
-cargo build -r --no-default-features -F tui
-cargo run -r --no-default-features -F tui
-```
-
-Minimal version:
-
-```bash
-cargo build -r --no-default-features
-cargo run -r --no-default-features
+# change "cargo run" to "cargo build" to just build (target/release/bRAC)
 ```
 
 ### nix package
@@ -63,69 +53,21 @@ cargo run -r --no-default-features
 If you have Nix package manager installed, you can use:
 
 ```bash
-nix build github:MeexReay/bRAC # build binary (result/bin/bRAC)
-nix run github:MeexReay/bRAC # run (builds and runs bRAC)
+nix run github:MeexReay/bRAC                # run GUI version
+nix run github:MeexReay/bRAC#bRAC-tui       # run TUI version
+nix run github:MeexReay/bRAC#bRAC-minimal   # run minimal version
+
+# change "nix run" to "nix build" to just build (result/bin/bRAC)
 ```
 
-Minimal version:
-
-```bash
-nix build github:MeexReay/bRAC#bRAC-minimal
-nix run github:MeexReay/bRAC#bRAC-minimal
-```
-
-TUI version:
-
-```bash
-nix build github:MeexReay/bRAC#bRAC-tui
-nix run github:MeexReay/bRAC#bRAC-tui
-```
-
-## default config
-
-get config path - `bRAC --config-path` \
-reconfigure client - `bRAC --configure`
-
-```yml
-host: meex.lol:11234               # server host
-name: null                         # user name (null - ask every time)
-message_format: 리㹰<{name}> {text} # message format
-update_time: 50                    # update chat interval
-max_messages: 200                  # chat messages limit
-enable_ip_viewing: true            # enable users' ip viewing
-disable_ip_hiding: false           # disable your ip hiding
-enable_auth: true                  # enable auth-mode
-enable_ssl: false                  # enable ssl connection
-enable_chunked: true               # enable chunked reading
-```
-
-## command-line options
-
-```
--p, --config-path                      Print config path
--H, --host <HOST>                      Use specified host
--n, --name <NAME>                      Use specified name
--F, --message-format <MESSAGE_FORMAT>  Use specified message format
--r, --read-messages                    Print unformatted messages from chat and exit
--s, --send-message <MESSAGE>           Send unformatted message to chat and exit
--f, --disable-formatting               Disable message formatting and sanitizing
--c, --disable-commands                 Disable slash commands
--i, --disable-ip-hiding                Disable ip hiding
--v, --enable-users-ip-viewing          Enable users IP viewing
--C, --configure                        Configure client
--a, --enable-auth                      Enable authentication
--S, --enable-ssl                       Enable SSL
--u, --enable-chunked                   Enable chunked reading
--h, --help                             Print help
--V, --version                          Print version
-```
-
-## cheat commands
+## chat commands
 
 commands are any messages that start with a slash `/` \
 messages starting with a slash are sent to chat only if the `--disable-commands` option is specified
 
 - `/help` - show help message
+- `/register password` - try to register account
+- `/login password` - login to account
 - `/clear` - clear chat
 - `/spam *args` - spam with text
 - `/ping` - get server ping (send + read)
