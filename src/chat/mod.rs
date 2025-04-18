@@ -1,7 +1,5 @@
 use std::{
-    error::Error,
-    sync::Arc, 
-    time::{SystemTime, UNIX_EPOCH}
+    error::Error, sync::Arc, thread, time::{Duration, SystemTime, UNIX_EPOCH}
 };
 
 use crate::{connect_rac, proto::{register_user, send_message_auth}};
@@ -11,15 +9,13 @@ use super::{
     util::sanitize_text
 };
 
+use gui::add_chat_message;
 use lazy_static::lazy_static;
 use regex::Regex;
 
 use ctx::Context;
 
-pub use gui::{
-    print_message,
-    run_main_loop
-};
+pub use gui::run_main_loop;
 
 
 lazy_static! {
@@ -161,6 +157,44 @@ pub fn prepare_message(ctx: Arc<Context>, message: &str) -> String {
             String::new()
         }
     )
+}
+
+pub fn print_message(ctx: Arc<Context>, message: String) -> Result<(), Box<dyn Error>> {
+    ctx.add_message(ctx.config(|o| o.max_messages), vec![message.clone()]);
+    add_chat_message(ctx.clone(), message);
+    Ok(())
+}
+
+pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
+    match read_messages(
+        connect_rac!(ctx), 
+        ctx.config(|o| o.max_messages), 
+        ctx.packet_size(), 
+        !ctx.config(|o| o.ssl_enabled),
+        ctx.config(|o| o.chunked_enabled)
+    ) {
+        Ok(Some((messages, size))) => {
+            if ctx.config(|o| o.chunked_enabled) {
+                ctx.add_messages_packet(ctx.config(|o| o.max_messages), messages.clone(), size);
+                for msg in messages {
+                    add_chat_message(ctx.clone(), msg.clone());
+                }
+            } else {
+                ctx.put_messages_packet(ctx.config(|o| o.max_messages), messages.clone(), size);
+                for msg in messages {
+                    add_chat_message(ctx.clone(), msg.clone());
+                }
+            }
+        },
+        Err(e) => {
+            let msg = format!("Read messages error: {}", e.to_string()).to_string();
+            ctx.add_message(ctx.config(|o| o.max_messages), vec![msg.clone()]);
+            add_chat_message(ctx.clone(), msg.clone());
+        }
+        _ => {}
+    }
+    thread::sleep(Duration::from_millis(ctx.config(|o| o.update_time) as u64));
+    Ok(())
 }
 
 pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn Error>> {

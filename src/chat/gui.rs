@@ -1,7 +1,6 @@
 use std::sync::{Arc, mpsc::{channel, Receiver}};
 use std::cell::RefCell;
 use std::time::{Duration, SystemTime};
-use std::error::Error;
 use std::thread;
 
 use chrono::Local;
@@ -17,9 +16,8 @@ use gtk4::{
     Overlay, Picture, ScrolledWindow, Settings, Window
 };
 
-use crate::{connect_rac, proto::{connect, read_messages}};
-
-use super::{config::{default_max_messages, default_update_time, get_config_path, save_config, Config}, ctx::Context, on_send_message, parse_message};
+use super::{config::{default_max_messages, default_update_time, get_config_path, save_config, Config}, 
+ctx::Context, on_send_message, parse_message, print_message, recv_tick};
 
 struct UiModel {
     chat_box: GtkBox,
@@ -32,44 +30,6 @@ thread_local!(
 
 pub fn add_chat_message(ctx: Arc<Context>, message: String) {
     let _ = ctx.sender.read().unwrap().clone().unwrap().send(message);
-}
-
-pub fn print_message(ctx: Arc<Context>, message: String) -> Result<(), Box<dyn Error>> {
-    ctx.add_message(ctx.config(|o| o.max_messages), vec![message.clone()]);
-    add_chat_message(ctx.clone(), message);
-    Ok(())
-}
-
-pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
-    match read_messages(
-        connect_rac!(ctx), 
-        ctx.config(|o| o.max_messages), 
-        ctx.packet_size(), 
-        !ctx.config(|o| o.ssl_enabled),
-        ctx.config(|o| o.chunked_enabled)
-    ) {
-        Ok(Some((messages, size))) => {
-            if ctx.config(|o| o.chunked_enabled) {
-                ctx.add_messages_packet(ctx.config(|o| o.max_messages), messages.clone(), size);
-                for msg in messages {
-                    add_chat_message(ctx.clone(), msg.clone());
-                }
-            } else {
-                ctx.put_messages_packet(ctx.config(|o| o.max_messages), messages.clone(), size);
-                for msg in messages {
-                    add_chat_message(ctx.clone(), msg.clone());
-                }
-            }
-        },
-        Err(e) => {
-            let msg = format!("Read messages error: {}", e.to_string()).to_string();
-            ctx.add_message(ctx.config(|o| o.max_messages), vec![msg.clone()]);
-            add_chat_message(ctx.clone(), msg.clone());
-        }
-        _ => {}
-    }
-    thread::sleep(Duration::from_millis(ctx.config(|o| o.update_time) as u64));
-    Ok(())
 }
 
 fn load_pixbuf(data: &[u8]) -> Pixbuf {
@@ -615,23 +575,23 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     }
 }
 
+fn run_recv_loop(ctx: Arc<Context>) {
+    thread::spawn(move || {
+        loop { 
+            if let Err(e) = recv_tick(ctx.clone()) {
+                let _ = print_message(ctx.clone(), format!("Print messages error: {}", e.to_string()).to_string());
+                thread::sleep(Duration::from_secs(1));
+            }
+        }
+    });
+}
+
 fn setup(ctx: Arc<Context>, ui: UiModel) {
     let (sender, receiver) = channel();
 
     *ctx.sender.write().unwrap() = Some(Arc::new(sender));
 
-    thread::spawn({
-        let ctx = ctx.clone();
-
-        move || {
-            loop { 
-                if let Err(e) = recv_tick(ctx.clone()) {
-                    let _ = print_message(ctx.clone(), format!("Print messages error: {}", e.to_string()).to_string());
-                    thread::sleep(Duration::from_secs(1));
-                }
-            }
-        }
-    });
+    run_recv_loop(ctx.clone());
 
     let (tx, rx) = channel();
 
