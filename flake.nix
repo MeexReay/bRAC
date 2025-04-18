@@ -35,7 +35,7 @@
           devShells.default = self'.devShells.stable;
 
           packages.bRAC = let 
-              deps = [
+              deps = with pkgs; [
                 pkg-config
                 openssl
                 gtk4
@@ -45,17 +45,11 @@
               cargo = pkgs.rust-bin.stable.latest.minimal;
               rustc = pkgs.rust-bin.stable.latest.minimal;
             }).buildRustPackage {
-              inherit (cargoToml.package) name;
+              inherit (cargoToml.package) name version;
               src = ./.;
               cargoLock.lockFile = ./Cargo.lock;
-              version = lib.concatStrings [ cargoToml.package.version version ];
               buildInputs = deps;
               nativeBuildInputs = deps;
-              patchPhase = ''
-                substituteInPlace Cargo.toml --replace \
-                  'version = "${cargoToml.package.version}"' \
-                  'version = "${lib.concatStrings [ cargoToml.package.version version ]}"'
-              '';
             };
 
           devShells.nightly = (mkDevShell (pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)));

@@ -49,7 +49,7 @@ cargo run -r # build and run
 If you have Nix package manager installed, you can use:
 
 ```bash
-nix build github:MeexReay/bRAC # build release (result/bin/bRAC))
+nix build github:MeexReay/bRAC # build release (result/bin/bRAC)
 nix run github:MeexReay/bRAC # build and run
 ```
 

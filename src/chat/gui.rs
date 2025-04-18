@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock, mpsc::{channel, Sender, Receiver}};
+use std::sync::{Arc, mpsc::{channel, Receiver}};
 use std::cell::RefCell;
 use std::time::{Duration, SystemTime};
 use std::error::Error;
@@ -17,15 +17,9 @@ use gtk4::{
     Button, Calendar, CssProvider, Entry, Fixed, Justification, Label, ListBox, Orientation, Overlay, Picture, ScrolledWindow, Settings
 };
 
-use crate::proto::{connect, read_messages};
+use crate::{connect_rac, proto::{connect, read_messages}};
 
-use super::{on_send_message, parse_message, set_chat, ChatStorage, ctx::Context};
-
-pub struct ChatContext {
-    pub messages: Arc<ChatStorage>, 
-    pub registered: Arc<RwLock<Option<String>>>,
-    pub sender: Sender<String>
-}
+use super::{on_send_message, parse_message, ctx::Context};
 
 struct UiModel {
     chat_box: GtkBox,
@@ -37,31 +31,31 @@ thread_local!(
 );
 
 pub fn add_chat_message(ctx: Arc<Context>, message: String) {
-    let _ = ctx.chat().sender.send(message);
+    let _ = ctx.sender.read().unwrap().clone().unwrap().send(message);
 }
 
 pub fn print_message(ctx: Arc<Context>, message: String) -> Result<(), Box<dyn Error>> {
-    ctx.chat().messages.append(ctx.max_messages, vec![message.clone()]);
+    ctx.append(ctx.config(|o| o.max_messages), vec![message.clone()]);
     add_chat_message(ctx.clone(), message);
     Ok(())
 }
 
 pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     match read_messages(
-        &mut connect(&ctx.host, ctx.enable_ssl)?, 
-        ctx.max_messages, 
-        ctx.chat().messages.packet_size(), 
-        !ctx.enable_ssl,
-        ctx.enable_chunked
+        connect_rac!(ctx), 
+        ctx.config(|o| o.max_messages), 
+        ctx.packet_size(), 
+        !ctx.config(|o| o.ssl_enabled),
+        ctx.config(|o| o.chunked_enabled)
     ) {
         Ok(Some((messages, size))) => {
-            if ctx.enable_chunked {
-                ctx.chat().messages.append_and_store(ctx.max_messages, messages.clone(), size);
+            if ctx.config(|o| o.chunked_enabled) {
+                ctx.append_and_store(ctx.config(|o| o.max_messages), messages.clone(), size);
                 for msg in messages {
                     add_chat_message(ctx.clone(), msg.clone());
                 }
             } else {
-                ctx.chat().messages.update(ctx.max_messages, messages.clone(), size);
+                ctx.update(ctx.config(|o| o.max_messages), messages.clone(), size);
                 for msg in messages {
                     add_chat_message(ctx.clone(), msg.clone());
                 }
@@ -69,35 +63,13 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
         },
         Err(e) => {
             let msg = format!("Read messages error: {}", e.to_string()).to_string();
-            ctx.chat().messages.append(ctx.max_messages, vec![msg.clone()]);
+            ctx.append(ctx.config(|o| o.max_messages), vec![msg.clone()]);
             add_chat_message(ctx.clone(), msg.clone());
         }
         _ => {}
     }
-    thread::sleep(Duration::from_millis(ctx.update_time as u64));
+    thread::sleep(Duration::from_millis(ctx.config(|o| o.update_time) as u64));
     Ok(())
-}
-
-pub fn ask_usize(name: impl ToString, default: usize) -> usize {
-    todo!()
-}
-
-pub fn ask_string(name: impl ToString, default: impl ToString + Clone) -> String {
-    todo!()
-}
-
-pub fn ask_string_option(name: impl ToString, default: impl ToString) -> Option<String> {
-    let default = default.to_string();
-
-    todo!()
-}
-
-pub fn ask_bool(name: impl ToString, default: bool) -> bool {
-    todo!()
-}
-
-pub fn show_message(title: impl ToString, message: impl ToString) {
-    todo!()
 }
 
 fn load_pixbuf(data: &[u8]) -> Pixbuf {
@@ -384,7 +356,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
     let window = ApplicationWindow::builder()
         .application(app)
-        .title(format!("bRAC - Connected to {} as {}", &ctx.host, &ctx.name))
+        .title(format!("bRAC - Connected to {} as {}", ctx.config(|o| o.host.clone()), &ctx.name))
         .default_width(500)
         .default_height(500)
         .resizable(false)
@@ -418,11 +390,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 fn setup(ctx: Arc<Context>, ui: UiModel) {
     let (sender, receiver) = channel();
 
-    set_chat(ctx.clone(), ChatContext {
-        messages: Arc::new(ChatStorage::new()), 
-        registered: Arc::new(RwLock::new(None)),
-        sender
-    });
+    *ctx.sender.write().unwrap() = Some(Arc::new(sender));
 
     thread::spawn({
         let ctx = ctx.clone();
@@ -494,7 +462,7 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
 
     if let Some((date, ip, content, nick)) = parse_message(message.clone()) {
         if let Some(ip) = ip {
-            if ctx.enable_ip_viewing {
+            if ctx.config(|o| o.show_other_ip) {
                 let ip = Label::builder()
                     .label(ip)
                     .margin_end(10)

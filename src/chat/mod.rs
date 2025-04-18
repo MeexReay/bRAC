@@ -1,10 +1,10 @@
 use std::{
     error::Error,
-    sync::{atomic::{AtomicUsize, Ordering}, Arc, RwLock}, 
+    sync::Arc, 
     time::{SystemTime, UNIX_EPOCH}
 };
 
-use crate::proto::{register_user, send_message_auth};
+use crate::{connect_rac, proto::{register_user, send_message_auth}};
 
 use super::{
     proto::{connect, read_messages, send_message, send_message_spoof_auth}, 
@@ -17,7 +17,6 @@ use regex::Regex;
 use ctx::Context;
 
 pub use gui::{
-    ChatContext,
     print_message,
     run_main_loop
 };
@@ -39,50 +38,6 @@ lazy_static! {
 pub mod gui;
 pub mod config;
 pub mod ctx;
-
-
-pub struct ChatStorage {
-    messages: RwLock<Vec<String>>,
-    packet_size: AtomicUsize
-}
-
-impl ChatStorage {
-    pub fn new() -> Self {
-        ChatStorage {
-            messages: RwLock::new(Vec::new()),
-            packet_size: AtomicUsize::default()
-        }
-    }
-
-    pub fn packet_size(&self) -> usize {
-        self.packet_size.load(Ordering::SeqCst)
-    }
-
-    pub fn messages(&self) -> Vec<String> {
-        self.messages.read().unwrap().clone()
-    }
-
-    pub fn update(&self, max_length: usize, messages: Vec<String>, packet_size: usize) {
-        self.packet_size.store(packet_size, Ordering::SeqCst);
-        let mut messages = messages;
-        if messages.len() > max_length {
-            messages.drain(max_length..);
-        }
-        *self.messages.write().unwrap() = messages;
-    }
-
-    pub fn append_and_store(&self, max_length: usize, messages: Vec<String>, packet_size: usize) {
-        self.packet_size.store(packet_size, Ordering::SeqCst);
-        self.append(max_length, messages);
-    }
-
-    pub fn append(&self, max_length: usize, messages: Vec<String>) {
-        self.messages.write().unwrap().append(&mut messages.clone());
-        if self.messages.read().unwrap().len() > max_length {
-            self.messages.write().unwrap().drain(max_length..);
-        }
-    }
-}
 
 
 const HELP_MESSAGE: &str = "Help message:
@@ -111,14 +66,14 @@ pub fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>
         let Some(times) = args.get(0) else { return Ok(()) };
         let times = times.parse()?;
         for _ in 0..times {
-            send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, "\r")?;
+            send_message(connect_rac!(ctx), "\r")?;
         }
     } else if command == "spam" {
         let Some(times) = args.get(0) else { return Ok(()) };
         let times = times.parse()?;
         let msg = args[1..].join(" ");
         for _ in 0..times {
-            send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, &("\r".to_string()+&msg))?;
+            send_message(connect_rac!(ctx), &("\r".to_string()+&msg))?;
         }
     } else if command == "help" {
         add_message(ctx.clone(), HELP_MESSAGE)?;
@@ -128,10 +83,10 @@ pub fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>
             return Ok(()) 
         };
 
-        match register_user(&mut connect(&ctx.host, ctx.enable_ssl)?, &ctx.name, pass) {
+        match register_user(connect_rac!(ctx), &ctx.name, pass) {
             Ok(true) => {
                 add_message(ctx.clone(), "you was registered successfully bro")?;
-                *ctx.chat().registered.write().unwrap() = Some(pass.to_string());
+                *ctx.registered.write().unwrap() = Some(pass.to_string());
             },
             Ok(false) => add_message(ctx.clone(), "user with this account already exists bruh")?,
             Err(e) => add_message(ctx.clone(), &format!("ERROR while registrationing: {}", e))?
@@ -143,22 +98,22 @@ pub fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>
         };
 
         add_message(ctx.clone(), "ye bro you was logged in")?;
-        *ctx.chat().registered.write().unwrap() = Some(pass.to_string());
+        *ctx.registered.write().unwrap() = Some(pass.to_string());
     } else if command == "ping" {
-        let mut before = ctx.chat().messages.packet_size();
+        let mut before = ctx.packet_size();
         let message = format!("Checking ping... {:X}", SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis());
 
-        send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, &message)?;
+        send_message(connect_rac!(ctx), &message)?;
 
         let start = SystemTime::now();
 
         loop {
             let data = read_messages(
-                &mut connect(&ctx.host, ctx.enable_ssl)?, 
-                ctx.max_messages, 
+                connect_rac!(ctx), 
+                ctx.config(|o| o.max_messages), 
                 before, 
-                !ctx.enable_ssl,
-                ctx.enable_chunked
+                !ctx.config(|o| o.ssl_enabled),
+                ctx.config(|o| o.chunked_enabled)
             ).ok().flatten();
 
             if let Some((data, size)) = data {
@@ -182,16 +137,16 @@ pub fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>
     Ok(())
 }
 
-pub fn prepare_message(context: Arc<Context>, message: &str) -> String {
+pub fn prepare_message(ctx: Arc<Context>, message: &str) -> String {
     format!("{}{}{}",
-        if !context.disable_hiding_ip {
+        if ctx.config(|o| o.hide_my_ip) {
             "\r\x07"
         } else {
             ""
         },
         message,
-        if !context.disable_hiding_ip { 
-            let spaces = if context.enable_auth {
+        if !ctx.config(|o| o.hide_my_ip) { 
+            let spaces = if ctx.config(|o| o.auth_enabled) {
                 39
             } else {
                 54
@@ -209,22 +164,22 @@ pub fn prepare_message(context: Arc<Context>, message: &str) -> String {
 }
 
 pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn Error>> {
-    if message.starts_with("/") && !ctx.disable_commands {
+    if message.starts_with("/") && ctx.config(|o| o.commands_enabled) {
         on_command(ctx.clone(), &message)?;
     } else {
         let message = prepare_message(
         ctx.clone(), 
-        &ctx.message_format
+        &ctx.config(|o| o.message_format.clone())
             .replace("{name}", &ctx.name)
             .replace("{text}", &message)
         );
 
-        if let Some(password) = ctx.chat().registered.read().unwrap().clone() {
-            send_message_auth(&mut connect(&ctx.host, ctx.enable_ssl)?, &ctx.name, &password, &message)?;
-        } else if ctx.enable_auth {
-            send_message_spoof_auth(&mut connect(&ctx.host, ctx.enable_ssl)?, &message)?;
+        if let Some(password) = ctx.registered.read().unwrap().clone() {
+            send_message_auth(connect_rac!(ctx), &ctx.name, &password, &message)?;
+        } else if ctx.config(|o| o.auth_enabled) {
+            send_message_spoof_auth(connect_rac!(ctx), &message)?;
         } else {
-            send_message(&mut connect(&ctx.host, ctx.enable_ssl)?, &message)?;
+            send_message(connect_rac!(ctx), &message)?;
         }
     }
 
@@ -274,8 +229,4 @@ pub fn find_username_color(message: &str) -> Option<(String, String, String)> {
         }
     }
     None
-}
-
-pub fn set_chat(ctx: Arc<Context>, chat: ChatContext) {
-    *ctx.chat.write().unwrap() = Some(Arc::new(chat));
 }

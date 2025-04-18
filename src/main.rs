@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bRAC::proto::{connect, read_messages, send_message};
-use bRAC::chat::{config::{configure, get_config_path, load_config, Args}, ctx::Context, run_main_loop};
+use bRAC::chat::{config::{get_config_path, load_config, Args}, ctx::Context, run_main_loop};
 use clap::Parser;
 
 
@@ -15,22 +15,16 @@ fn main() {
         return;
     }
 
-    if args.configure {
-        configure(config_path);
-        return;
-    }
-
-    let config = load_config(config_path);
-    
-    let ctx = Arc::new(Context::new(&config, &args));
+    let mut config = load_config(config_path);
 
     if args.read_messages {
-        let mut stream = connect(&ctx.host, ctx.enable_ssl).expect("Error reading message");
+        let mut stream = connect(&config.host, config.ssl_enabled).expect("Error reading message");
+
         print!("{}", read_messages(
                 &mut stream, 
-                ctx.max_messages, 
+                config.max_messages, 
                 0,
-                !ctx.enable_ssl,
+                !config.ssl_enabled,
                 false
             )
             .ok().flatten()
@@ -39,12 +33,21 @@ fn main() {
     }
 
     if let Some(message) = &args.send_message {
-        send_message(&mut connect(&ctx.host, ctx.enable_ssl).expect("Error sending message"), message).expect("Error sending message");
+        let mut stream = connect(&config.host, config.ssl_enabled).expect("Error sending message");
+
+        send_message(
+            &mut stream, 
+            message
+        ).expect("Error sending message");
     }
 
     if args.send_message.is_some() || args.read_messages {
         return;
     }
+
+    args.patch_config(&mut config);
+    
+    let ctx = Arc::new(Context::new(&config));
 
     run_main_loop(ctx.clone());
 }
