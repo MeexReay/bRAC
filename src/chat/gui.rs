@@ -241,6 +241,18 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
 
     save_button.connect_clicked(clone!(
         #[weak] ctx,
+        #[weak] host_entry,
+        #[weak] name_entry,
+        #[weak] message_format_entry,
+        #[weak] update_time_entry,
+        #[weak] max_messages_entry,
+        #[weak] hide_my_ip_entry,
+        #[weak] show_other_ip_entry,
+        #[weak] auth_enabled_entry,
+        #[weak] ssl_enabled_entry,
+        #[weak] chunked_enabled_entry,
+        #[weak] formatting_enabled_entry,
+        #[weak] commands_enabled_entry,
         move |_| {
             let config = Config {
                 host: host_entry.text().to_string(),
@@ -286,6 +298,45 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
             };
             ctx.set_config(&config);
             save_config(get_config_path(), &config);
+        }
+    ));
+
+    let reset_button = Button::builder()
+        .label("Reset all")
+        .build();
+
+    vbox.append(&reset_button);
+
+    reset_button.connect_clicked(clone!(
+        #[weak] ctx,
+        #[weak] host_entry,
+        #[weak] name_entry,
+        #[weak] message_format_entry,
+        #[weak] update_time_entry,
+        #[weak] max_messages_entry,
+        #[weak] hide_my_ip_entry,
+        #[weak] show_other_ip_entry,
+        #[weak] auth_enabled_entry,
+        #[weak] ssl_enabled_entry,
+        #[weak] chunked_enabled_entry,
+        #[weak] formatting_enabled_entry,
+        #[weak] commands_enabled_entry,
+        move |_| {
+            let config = Config::default();
+            ctx.set_config(&config);
+            save_config(get_config_path(), &config);
+            host_entry.set_text(&config.host);
+            name_entry.set_text(&config.name.unwrap_or_default());
+            message_format_entry.set_text(&config.message_format);
+            update_time_entry.set_text(&config.update_time.to_string());
+            max_messages_entry.set_text(&config.max_messages.to_string());
+            hide_my_ip_entry.set_active(config.hide_my_ip);
+            show_other_ip_entry.set_active(config.show_other_ip);
+            auth_enabled_entry.set_active(config.auth_enabled);
+            ssl_enabled_entry.set_active(config.ssl_enabled);
+            chunked_enabled_entry.set_active(config.chunked_enabled);
+            formatting_enabled_entry.set_active(config.formatting_enabled);
+            commands_enabled_entry.set_active(config.commands_enabled);
         }
     ));
 
@@ -659,10 +710,9 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
                     .label(ip)
                     .margin_end(10)
                     .halign(Align::Start)
+                    .valign(Align::Start)
                     .css_classes(["message-ip"])
                     .selectable(true)
-                    .wrap(true)
-                    .wrap_mode(WrapMode::Char)
                     .build();
 
                 hbox.append(&ip);
@@ -672,10 +722,9 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
         let date = Label::builder()
             .label(format!("[{date}]"))
             .halign(Align::Start)
+            .valign(Align::Start)
             .css_classes(["message-date"])
             .selectable(true)
-            .wrap(true)
-            .wrap_mode(WrapMode::Char)
             .build();
 
         hbox.append(&date);
@@ -684,10 +733,9 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
             let name = Label::builder()
                 .label(format!("<{name}>"))
                 .halign(Align::Start)
+                .valign(Align::Start)
                 .css_classes(["message-name", &format!("message-name-{}", color)])
                 .selectable(true)
-                .wrap(true)
-                .wrap_mode(WrapMode::Char)
                 .build();
 
             hbox.append(&name);
@@ -696,6 +744,7 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
         let content = Label::builder()
             .label(content)
             .halign(Align::Start)
+            .valign(Align::Start)
             .css_classes(["message-content"])
             .selectable(true)
             .wrap(true)
@@ -707,6 +756,7 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
         let content = Label::builder()
             .label(message)
             .halign(Align::Start)
+            .valign(Align::Start)
             .css_classes(["message-content"])
             .selectable(true)
             .wrap(true)

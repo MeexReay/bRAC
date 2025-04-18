@@ -24,7 +24,7 @@ lazy_static! {
 
   pub static ref COLORED_USERNAMES: Vec<(Regex, String)> = vec![
       (Regex::new(r"\u{B9AC}\u{3E70}<(.*?)> (.*)").unwrap(),         "green".to_string()),     // bRAC
-      (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), "red".to_string()), // CRAB
+      (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), "red".to_string()),       // CRAB
       (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(),         "magenta".to_string()),   // Mefidroniy
       (Regex::new(r"<(.*?)> (.*)").unwrap(),                         "cyan".to_string()),      // clRAC
   ];
