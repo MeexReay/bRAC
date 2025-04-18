@@ -7,10 +7,10 @@ use clap::Parser;
 const MESSAGE_FORMAT: &str = "\u{B9AC}\u{3E70}<{name}> {text}";
 
 fn default_true() -> bool { true }
-fn default_max_messages() -> usize { 200 }
-fn default_update_time() -> usize { 50 }
-fn default_host() -> String { "meex.lol:11234".to_string() }
-fn default_message_format() -> String { MESSAGE_FORMAT.to_string() }
+pub fn default_max_messages() -> usize { 200 }
+pub fn default_update_time() -> usize { 50 }
+pub fn default_host() -> String { "meex.lol:11234".to_string() }
+pub fn default_message_format() -> String { MESSAGE_FORMAT.to_string() }
 
 #[derive(serde::Serialize, serde::Deserialize, DefaultFromSerde, Clone)]
 pub struct Config {
@@ -19,11 +19,11 @@ pub struct Config {
     #[serde(default = "default_message_format")] pub message_format: String,
     #[serde(default = "default_update_time")] pub update_time: usize,
     #[serde(default = "default_max_messages")] pub max_messages: usize,
-    #[serde(default)] pub hide_my_ip: bool,
+    #[serde(default = "default_true")] pub hide_my_ip: bool,
     #[serde(default)] pub show_other_ip: bool,
     #[serde(default)] pub auth_enabled: bool,
     #[serde(default)] pub ssl_enabled: bool,
-    #[serde(default)] pub chunked_enabled: bool,
+    #[serde(default = "default_true")] pub chunked_enabled: bool,
     #[serde(default = "default_true")] pub formatting_enabled: bool,
     #[serde(default = "default_true")] pub commands_enabled: bool,
 }
@@ -80,8 +80,8 @@ pub fn load_config(path: PathBuf) -> Config {
     }
 }
 
-pub fn save_config(path: PathBuf, config: Config) {
-    let config_text = serde_yml::to_string(&config).expect("Config save error");
+pub fn save_config(path: PathBuf, config: &Config) {
+    let config_text = serde_yml::to_string(config).expect("Config save error");
     fs::create_dir_all(&path.parent().expect("Config save error")).expect("Config save error");
     fs::write(&path, config_text).expect("Config save error");
 }

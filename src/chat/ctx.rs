@@ -10,7 +10,7 @@ pub struct Context {
     pub sender: RwLock<Option<Arc<Sender<String>>>>,
     pub messages: RwLock<Vec<String>>,
     pub packet_size: AtomicUsize,
-    pub name: String
+    pub name: RwLock<String>
 }
 
 impl Context {
@@ -21,8 +21,20 @@ impl Context {
             sender: RwLock::new(None),
             messages: RwLock::new(Vec::new()),
             packet_size: AtomicUsize::default(),
-            name: config.name.clone().unwrap_or_else(|| format!("Anon#{:X}", random::<u16>())),
+            name: RwLock::new(config.name.clone().unwrap_or_else(|| format!("Anon#{:X}", random::<u16>()))),
         }
+    }
+
+    pub fn name(&self) -> String {
+        self.name.read().unwrap().clone()
+    }
+
+    pub fn set_config(&self, config: &Config) {
+        *self.config.write().unwrap() = config.clone();
+        *self.name.write().unwrap() = config.name.clone().unwrap_or_else(|| format!("Anon#{:X}", random::<u16>()));
+        *self.registered.write().unwrap() = None;
+        *self.messages.write().unwrap() = Vec::new();
+        self.packet_size.store(0, Ordering::SeqCst);
     }
 
     pub fn config<T>(&self, map: fn (&Config) -> T) -> T {

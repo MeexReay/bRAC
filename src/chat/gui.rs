@@ -5,7 +5,6 @@ use std::error::Error;
 use std::thread;
 
 use chrono::Local;
-use rand::Rng;
 
 use gtk4::{
     self as gtk, gdk::{Cursor, Display, Texture}, gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader}, gio::{
@@ -13,13 +12,14 @@ use gtk4::{
         MemoryInputStream, Menu
     }, glib::{
         self, clone, clone::Downgrade, idle_add_local, idle_add_local_once, source::timeout_add_local_once, timeout_add_local, ControlFlow
-    }, pango::WrapMode, prelude::*, AboutDialog, AlertDialog, Align, Application, ApplicationWindow, Box as GtkBox, 
-    Button, Calendar, CssProvider, Entry, Fixed, Justification, Label, ListBox, Orientation, Overlay, Picture, ScrolledWindow, Settings
+    }, pango::WrapMode, prelude::*, AboutDialog, Align, Application, ApplicationWindow, Box as GtkBox, 
+    Button, Calendar, CheckButton, CssProvider, Entry, Fixed, Justification, Label, ListBox, Orientation, 
+    Overlay, Picture, ScrolledWindow, Settings, Window
 };
 
 use crate::{connect_rac, proto::{connect, read_messages}};
 
-use super::{on_send_message, parse_message, ctx::Context};
+use super::{config::{default_max_messages, default_update_time, get_config_path, save_config, Config}, ctx::Context, on_send_message, parse_message};
 
 struct UiModel {
     chat_box: GtkBox,
@@ -79,18 +79,277 @@ fn load_pixbuf(data: &[u8]) -> Pixbuf {
     loader.pixbuf().unwrap()
 }
 
-fn build_menu(_: Arc<Context>, app: &Application) {
+// chunked_enabled: bool
+// formatting_enabled: bool
+// commands_enabled: bool
+
+fn open_settings(ctx: Arc<Context>, app: &Application) {
+    let vbox = GtkBox::new(Orientation::Vertical, 10);
+
+    vbox.set_margin_bottom(15);
+    vbox.set_margin_top(15);
+    vbox.set_margin_start(15);
+    vbox.set_margin_end(15);
+
+    let host_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    host_hbox.append(&Label::builder()
+        .label("Host")
+        .build());
+
+    let host_entry = Entry::builder()
+        .text(&ctx.config(|o| o.host.clone()))
+        .build();
+
+    host_hbox.append(&host_entry);
+
+    vbox.append(&host_hbox);
+
+    let name_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    name_hbox.append(&Label::builder()
+        .label("Name")
+        .build());
+
+    let name_entry = Entry::builder()
+        .text(&ctx.config(|o| o.name.clone()).unwrap_or_default())
+        .build();
+
+    name_hbox.append(&name_entry);
+
+    vbox.append(&name_hbox);
+
+    let message_format_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    message_format_hbox.append(&Label::builder()
+        .label("Message Format")
+        .build());
+
+    let message_format_entry = Entry::builder()
+        .text(&ctx.config(|o| o.message_format.clone()))
+        .build();
+
+    message_format_hbox.append(&message_format_entry);
+
+    vbox.append(&message_format_hbox);
+
+    let update_time_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    update_time_hbox.append(&Label::builder()
+        .label("Update Time")
+        .build());
+
+    let update_time_entry = Entry::builder()
+        .text(&ctx.config(|o| o.update_time.to_string()))
+        .build();
+
+    update_time_hbox.append(&update_time_entry);
+
+    vbox.append(&update_time_hbox);
+
+    let max_messages_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    max_messages_hbox.append(&Label::builder()
+        .label("Max Messages")
+        .build());
+
+    let max_messages_entry = Entry::builder()
+        .text(&ctx.config(|o| o.max_messages.to_string()))
+        .build();
+
+    max_messages_hbox.append(&max_messages_entry);
+
+    vbox.append(&max_messages_hbox);
+
+    let max_messages_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    max_messages_hbox.append(&Label::builder()
+        .label("Max Messages")
+        .build());
+
+    let max_messages_entry = Entry::builder()
+        .text(&ctx.config(|o| o.max_messages.to_string()))
+        .build();
+
+    max_messages_hbox.append(&max_messages_entry);
+
+    vbox.append(&max_messages_hbox);
+
+    let hide_my_ip_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    hide_my_ip_hbox.append(&Label::builder()
+        .label("Hide My IP")
+        .build());
+
+    let hide_my_ip_entry = CheckButton::builder()
+        .active(ctx.config(|o| o.hide_my_ip))
+        .build();
+
+    hide_my_ip_hbox.append(&hide_my_ip_entry);
+
+    vbox.append(&hide_my_ip_hbox);
+
+    let show_other_ip_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    show_other_ip_hbox.append(&Label::builder()
+        .label("Show Other IP")
+        .build());
+
+    let show_other_ip_entry = CheckButton::builder()
+        .active(ctx.config(|o| o.show_other_ip))
+        .build();
+
+    show_other_ip_hbox.append(&show_other_ip_entry);
+
+    vbox.append(&show_other_ip_hbox);
+
+    let auth_enabled_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    auth_enabled_hbox.append(&Label::builder()
+        .label("Auth Enabled")
+        .build());
+
+    let auth_enabled_entry = CheckButton::builder()
+        .active(ctx.config(|o| o.auth_enabled))
+        .build();
+
+    auth_enabled_hbox.append(&auth_enabled_entry);
+
+    vbox.append(&auth_enabled_hbox);
+
+    let ssl_enabled_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    ssl_enabled_hbox.append(&Label::builder()
+        .label("SSL Enabled")
+        .build());
+
+    let ssl_enabled_entry = CheckButton::builder()
+        .active(ctx.config(|o| o.ssl_enabled))
+        .build();
+
+    ssl_enabled_hbox.append(&ssl_enabled_entry);
+
+    vbox.append(&ssl_enabled_hbox);
+
+    let chunked_enabled_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    chunked_enabled_hbox.append(&Label::builder()
+        .label("Chunked Enabled")
+        .build());
+
+    let chunked_enabled_entry = CheckButton::builder()
+        .active(ctx.config(|o| o.chunked_enabled))
+        .build();
+
+    chunked_enabled_hbox.append(&chunked_enabled_entry);
+
+    vbox.append(&chunked_enabled_hbox);
+
+    let formatting_enabled_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    formatting_enabled_hbox.append(&Label::builder()
+        .label("Formatting Enabled")
+        .build());
+
+    let formatting_enabled_entry = CheckButton::builder()
+        .active(ctx.config(|o| o.formatting_enabled))
+        .build();
+
+    formatting_enabled_hbox.append(&formatting_enabled_entry);
+
+    vbox.append(&formatting_enabled_hbox);
+
+    let commands_enabled_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    commands_enabled_hbox.append(&Label::builder()
+        .label("Commands Enabled")
+        .build());
+
+    let commands_enabled_entry = CheckButton::builder()
+        .active(ctx.config(|o| o.commands_enabled))
+        .build();
+
+    commands_enabled_hbox.append(&commands_enabled_entry);
+
+    vbox.append(&commands_enabled_hbox);
+
+    let save_button = Button::builder()
+        .label("Save")
+        .build();
+
+    vbox.append(&save_button);
+
+    save_button.connect_clicked(clone!(
+        #[weak] ctx,
+        move |_| {
+            let config = Config {
+                host: host_entry.text().to_string(),
+                name: {
+                    let name = name_entry.text().to_string();
+        
+                    if name.is_empty() {
+                        None
+                    } else {
+                        Some(name)
+                    }
+                },
+                message_format: message_format_entry.text().to_string(),
+                update_time: {
+                    let update_time = update_time_entry.text();
+        
+                    if let Ok(update_time) = update_time.parse::<usize>() {
+                        update_time
+                    } else {
+                        let update_time = default_update_time();
+                        update_time_entry.set_text(&update_time.to_string());
+                        update_time
+                    }
+                },
+                max_messages: {
+                    let max_messages = max_messages_entry.text();
+        
+                    if let Ok(max_messages) = max_messages.parse::<usize>() {
+                        max_messages
+                    } else {
+                        let max_messages = default_max_messages();
+                        max_messages_entry.set_text(&max_messages.to_string());
+                        max_messages
+                    }
+                },
+                hide_my_ip: hide_my_ip_entry.is_active(),
+                show_other_ip: show_other_ip_entry.is_active(),
+                auth_enabled: auth_enabled_entry.is_active(),
+                ssl_enabled: ssl_enabled_entry.is_active(),
+                chunked_enabled: chunked_enabled_entry.is_active(),
+                formatting_enabled: formatting_enabled_entry.is_active(),
+                commands_enabled: commands_enabled_entry.is_active()
+            };
+            ctx.set_config(&config);
+            save_config(get_config_path(), &config);
+        }
+    ));
+
+    let window = Window::builder()
+        .application(app)
+        .title("Settings")
+        .default_width(400)
+        .default_height(500)
+        .decorated(true)
+        .child(&vbox)
+        .build();
+
+    window.present();
+}
+
+fn build_menu(ctx: Arc<Context>, app: &Application) {
     let menu = Menu::new();
 
     let file_menu = Menu::new();
-    file_menu.append(Some("New File"), Some("app.file_new"));
-    file_menu.append(Some("Make a bottleflip"), Some("app.make_bottleflip"));
-    file_menu.append(Some("Export brain to jpeg"), Some("unavailable"));
     file_menu.append(Some("About"), Some("app.about"));
+    file_menu.append(Some("Close"), Some("app.close"));
 
     let edit_menu = Menu::new();
-    edit_menu.append(Some("Edit File"), Some("app.file_edit"));
-    edit_menu.append(Some("Create a new parallel reality"), Some("app.parallel_reality_create"));
+    edit_menu.append(Some("Settings"), Some("app.settings"));
 
     menu.append_submenu(Some("File"), &file_menu);
     menu.append_submenu(Some("Edit"), &edit_menu);
@@ -98,49 +357,18 @@ fn build_menu(_: Arc<Context>, app: &Application) {
     app.set_menubar(Some((&menu).into()));
 
     app.add_action_entries([
-        ActionEntry::builder("file_new")
-            .activate(move |a: &Application, _, _| {
-                    AlertDialog::builder()
-                        .message("Successful creatin")
-                        .detail("your file was created")
-                        .buttons(["ok", "cancel", "confirm", "click"])
-                        .build()
-                        .show(Some(&a.windows()[0]));
+        ActionEntry::builder("settings")
+            .activate(clone!(
+                #[weak] ctx,
+                move |a: &Application, _, _| {
+                    open_settings(ctx, a);
                 }
-            )
+            ))
             .build(),
-        ActionEntry::builder("make_bottleflip")
+        ActionEntry::builder("close")
             .activate(move |a: &Application, _, _| {
-                    AlertDialog::builder()
-                        .message("Sorry")
-                        .detail("bottleflip gone wrong :(")
-                        .buttons(["yes", "no"])
-                        .build()
-                        .show(Some(&a.windows()[0]));
-                }
-            )
-            .build(),
-        ActionEntry::builder("parallel_reality_create")
-            .activate(move |a: &Application, _, _| {
-                    AlertDialog::builder()
-                        .message("Your new parallel reality has been created")
-                        .detail(format!("Your parallel reality code: {}", rand::rng().random_range(1..100)))
-                        .buttons(["chocolate"])
-                        .build()
-                        .show(Some(&a.windows()[0]));
-                }
-            )
-            .build(),
-        ActionEntry::builder("file_edit")
-            .activate(move |a: &Application, _, _| {
-                    AlertDialog::builder()
-                        .message("Successful editioning")
-                        .detail("your file was edited")
-                        .buttons(["okey"])
-                        .build()
-                        .show(Some(&a.windows()[0]));
-                }
-            )
+                a.quit();
+            })
             .build(),
         ActionEntry::builder("about")
             .activate(clone!(
@@ -356,7 +584,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
     let window = ApplicationWindow::builder()
         .application(app)
-        .title(format!("bRAC - Connected to {} as {}", ctx.config(|o| o.host.clone()), &ctx.name))
+        .title(format!("bRAC - Connected to {} as {}", ctx.config(|o| o.host.clone()), &ctx.name()))
         .default_width(500)
         .default_height(500)
         .resizable(false)
@@ -458,6 +686,10 @@ fn load_css() {
 }
 
 fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
+    if message.is_empty() {
+        return;
+    }
+
     let hbox = GtkBox::new(Orientation::Horizontal, 2);
 
     if let Some((date, ip, content, nick)) = parse_message(message.clone()) {

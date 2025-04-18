@@ -83,7 +83,7 @@ pub fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>
             return Ok(()) 
         };
 
-        match register_user(connect_rac!(ctx), &ctx.name, pass) {
+        match register_user(connect_rac!(ctx), &ctx.name(), pass) {
             Ok(true) => {
                 add_message(ctx.clone(), "you was registered successfully bro")?;
                 *ctx.registered.write().unwrap() = Some(pass.to_string());
@@ -170,12 +170,12 @@ pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn E
         let message = prepare_message(
         ctx.clone(), 
         &ctx.config(|o| o.message_format.clone())
-            .replace("{name}", &ctx.name)
+            .replace("{name}", &ctx.name())
             .replace("{text}", &message)
         );
 
         if let Some(password) = ctx.registered.read().unwrap().clone() {
-            send_message_auth(connect_rac!(ctx), &ctx.name, &password, &message)?;
+            send_message_auth(connect_rac!(ctx), &ctx.name(), &password, &message)?;
         } else if ctx.config(|o| o.auth_enabled) {
             send_message_spoof_auth(connect_rac!(ctx), &message)?;
         } else {
