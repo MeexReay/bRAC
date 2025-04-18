@@ -1,11 +1,13 @@
 use std::sync::{atomic::{AtomicUsize, Ordering}, mpsc::Sender, Arc, RwLock};
 
+use rand::random;
+
 use super::config::Config;
 
 pub struct Context {
-    pub registered: Arc<RwLock<Option<String>>>,
-    pub config: Arc<RwLock<Config>>,
-    pub sender: Arc<RwLock<Option<Arc<Sender<String>>>>>,
+    pub registered: RwLock<Option<String>>,
+    pub config: RwLock<Config>,
+    pub sender: RwLock<Option<Arc<Sender<String>>>>,
     pub messages: RwLock<Vec<String>>,
     pub packet_size: AtomicUsize,
     pub name: String
@@ -14,12 +16,12 @@ pub struct Context {
 impl Context {
     pub fn new(config: &Config) -> Context {
         Context {
-            registered: Arc::new(RwLock::new(None)),
-            config: Arc::new(RwLock::new(config.clone())),
-            sender: Arc::new(RwLock::new(None)),
+            registered: RwLock::new(None),
+            config: RwLock::new(config.clone()),
+            sender: RwLock::new(None),
             messages: RwLock::new(Vec::new()),
             packet_size: AtomicUsize::default(),
-            name: config.name.clone().expect("not implemented"), // TODO: ask for name
+            name: config.name.clone().unwrap_or_else(|| format!("Anon#{:X}", random::<u16>())),
         }
     }
 
@@ -35,7 +37,7 @@ impl Context {
         self.messages.read().unwrap().clone()
     }
 
-    pub fn update(&self, max_length: usize, messages: Vec<String>, packet_size: usize) {
+    pub fn put_messages_packet(&self, max_length: usize, messages: Vec<String>, packet_size: usize) {
         self.packet_size.store(packet_size, Ordering::SeqCst);
         let mut messages = messages;
         if messages.len() > max_length {
@@ -44,12 +46,12 @@ impl Context {
         *self.messages.write().unwrap() = messages;
     }
 
-    pub fn append_and_store(&self, max_length: usize, messages: Vec<String>, packet_size: usize) {
+    pub fn add_messages_packet(&self, max_length: usize, messages: Vec<String>, packet_size: usize) {
         self.packet_size.store(packet_size, Ordering::SeqCst);
-        self.append(max_length, messages);
+        self.add_message(max_length, messages);
     }
 
-    pub fn append(&self, max_length: usize, messages: Vec<String>) {
+    pub fn add_message(&self, max_length: usize, messages: Vec<String>) {
         self.messages.write().unwrap().append(&mut messages.clone());
         if self.messages.read().unwrap().len() > max_length {
             self.messages.write().unwrap().drain(max_length..);

@@ -35,7 +35,7 @@ pub fn add_chat_message(ctx: Arc<Context>, message: String) {
 }
 
 pub fn print_message(ctx: Arc<Context>, message: String) -> Result<(), Box<dyn Error>> {
-    ctx.append(ctx.config(|o| o.max_messages), vec![message.clone()]);
+    ctx.add_message(ctx.config(|o| o.max_messages), vec![message.clone()]);
     add_chat_message(ctx.clone(), message);
     Ok(())
 }
@@ -50,12 +50,12 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     ) {
         Ok(Some((messages, size))) => {
             if ctx.config(|o| o.chunked_enabled) {
-                ctx.append_and_store(ctx.config(|o| o.max_messages), messages.clone(), size);
+                ctx.add_messages_packet(ctx.config(|o| o.max_messages), messages.clone(), size);
                 for msg in messages {
                     add_chat_message(ctx.clone(), msg.clone());
                 }
             } else {
-                ctx.update(ctx.config(|o| o.max_messages), messages.clone(), size);
+                ctx.put_messages_packet(ctx.config(|o| o.max_messages), messages.clone(), size);
                 for msg in messages {
                     add_chat_message(ctx.clone(), msg.clone());
                 }
@@ -63,7 +63,7 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
         },
         Err(e) => {
             let msg = format!("Read messages error: {}", e.to_string()).to_string();
-            ctx.append(ctx.config(|o| o.max_messages), vec![msg.clone()]);
+            ctx.add_message(ctx.config(|o| o.max_messages), vec![msg.clone()]);
             add_chat_message(ctx.clone(), msg.clone());
         }
         _ => {}
