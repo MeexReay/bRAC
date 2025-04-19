@@ -31,10 +31,9 @@
             overlays = [ (import inputs.rust-overlay) ];
           };
 
-          packages.default = self'.packages.bRAC;
           devShells.default = self'.devShells.stable;
 
-          packages.bRAC = let 
+          packages.default = let 
               deps = with pkgs; [
                 pkg-config
                 openssl
