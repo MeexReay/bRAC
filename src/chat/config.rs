@@ -58,6 +58,7 @@ pub fn get_config_path() -> PathBuf {
 
     #[cfg(target_os = "windows")]
     if let Some(dir) = {
+        use std::env;
         env::var("APPDATA")
             .ok()
             .and_then(|o| Some(PathBuf::from_str(&o).ok()?.join("bRAC")))
