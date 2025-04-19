@@ -67,8 +67,10 @@ messages starting with a slash are sent to chat only if the `--disable-commands`
 
 ## docs
 
-- [Message formats](https://github.com/MeexReay/bRAC/blob/main/docs/message_formats.md)
-- [Authenticated mode](https://github.com/MeexReay/bRAC/blob/main/docs/auth_mode.md)
+- [Message formats](docs/message_formats.md)
+- [Authenticated mode](docs/auth_mode.md)
+- [Cross compile](docs/cross_compile.md)
+- [FAQ](docs/faq.md)
 
 ## see also
 
