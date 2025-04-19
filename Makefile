@@ -16,12 +16,17 @@ build/windows-x86_64:
 	mv $@/bin/* $@/
 	cp target/x86_64-pc-windows-gnu/release/bRAC.exe $@
 	rm -r $@/bin
+	# TODO: disable console
+	# TODO: set icon
 
 build/linux-x86_64:
 	mkdir -p build
 	mkdir -p $@
 	cargo build -r --target x86_64-unknown-linux-gnu
+	# patchbin target/x86_64-unknown-linux-gnu/release/bRAC
 	cp target/x86_64-unknown-linux-gnu/release/bRAC $@
+	cp bRAC.png $@
+	cp bRAC.desktop $@
 
 clean:
 	rm -r build

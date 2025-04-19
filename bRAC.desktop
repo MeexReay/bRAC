@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=bRAC
+Version=0.1.4
+Type=Application
+Comment=better RAC client
+Icon=bRAC.png
+Exec=bRAC
+Categories=Network;
+StartupNotify=true
+DBusActivatable=true
+Terminal=false
+X-GNOME-UsesNotifications=true

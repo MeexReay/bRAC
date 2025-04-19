@@ -5,7 +5,7 @@ use std::thread;
 
 use chrono::Local;
 
-use gtk4::{self as gtk, glib::timeout_add_once};
+use gtk4::{self as gtk, gio::Notification, glib::timeout_add_once};
 
 use gtk::prelude::*;
 use gtk::gdk::{Cursor, Display, Texture};
@@ -30,7 +30,8 @@ ctx::Context, on_send_message, parse_message, print_message, recv_tick, sanitize
 
 struct UiModel {
     chat_box: GtkBox,
-    chat_scrolled: ScrolledWindow
+    chat_scrolled: ScrolledWindow,
+    app: Application
 }
 
 thread_local!(
@@ -583,11 +584,12 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
     UiModel {
         chat_scrolled,
-        chat_box
+        chat_box,
+        app: app.clone()
     }
 }
 
-fn setup(ctx: Arc<Context>, ui: UiModel) {
+fn setup(app: &Application, ctx: Arc<Context>, ui: UiModel) {
     let (sender, receiver) = channel();
 
     *ctx.sender.write().unwrap() = Some(Arc::new(sender));
@@ -652,6 +654,8 @@ fn load_css() {
 }
 
 fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
+    let app = ui.app.clone();
+
     let Some(message) = sanitize_message(message) else { return; };
 
     if message.is_empty() {
@@ -663,8 +667,8 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
     if let Some((date, ip, content, nick)) = parse_message(message.clone()) {
         if let Some(ip) = ip {
             if ctx.config(|o| o.show_other_ip) {
-                let ip = Label::builder()
-                    .label(ip)
+                let ip_label = Label::builder()
+                    .label(&ip)
                     .margin_end(10)
                     .halign(Align::Start)
                     .valign(Align::Start)
@@ -672,11 +676,11 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
                     .selectable(true)
                     .build();
 
-                hbox.append(&ip);
+                hbox.append(&ip_label);
             }
         }
 
-        let date = Label::builder()
+        let date_label = Label::builder()
             .label(format!("[{date}]"))
             .halign(Align::Start)
             .valign(Align::Start)
@@ -684,10 +688,10 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
             .selectable(true)
             .build();
 
-        hbox.append(&date);
+        hbox.append(&date_label);
 
         if let Some((name, color)) = nick {
-            let name = Label::builder()
+            let name_label = Label::builder()
                 .label(format!("<{name}>"))
                 .halign(Align::Start)
                 .valign(Align::Start)
@@ -695,11 +699,27 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
                 .selectable(true)
                 .build();
 
-            hbox.append(&name);
+            hbox.append(&name_label);
+
+            if !app.windows()[0].is_active() {
+                if ctx.config(|o| o.chunked_enabled) {
+                    let notif = Notification::new(&format!("{}'s Message", &name));
+                    notif.set_body(Some(&content));
+                    app.send_notification(Some("user-message"), &notif);
+                }
+            }
+        } else {
+            if !app.windows()[0].is_active() {
+                if ctx.config(|o| o.chunked_enabled) {
+                    let notif = Notification::new("System Message");
+                    notif.set_body(Some(&content));
+                    app.send_notification(Some("system-message"), &notif);
+                }
+            }
         }
 
-        let content = Label::builder()
-            .label(content)
+        let content_label = Label::builder()
+            .label(&content)
             .halign(Align::Start)
             .valign(Align::Start)
             .css_classes(["message-content"])
@@ -708,10 +728,11 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
             .wrap_mode(WrapMode::Char)
             .build();
 
-        hbox.append(&content);
+        hbox.append(&content_label);
+
     } else {
-        let content = Label::builder()
-            .label(message)
+        let content_label = Label::builder()
+            .label(&message)
             .halign(Align::Start)
             .valign(Align::Start)
             .css_classes(["message-content"])
@@ -720,7 +741,15 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
             .wrap_mode(WrapMode::Char)
             .build();
 
-        hbox.append(&content);
+        hbox.append(&content_label);
+
+        if !app.windows()[0].is_active() {
+            if ctx.config(|o| o.chunked_enabled) {
+                let notif = Notification::new("Chat Message");
+                notif.set_body(Some(&message));
+                app.send_notification(Some("chat-message"), &notif);
+            }
+        }
     }
 
     ui.chat_box.append(&hbox);
@@ -757,7 +786,7 @@ pub fn run_main_loop(ctx: Arc<Context>) {
 
         move |app| {
             let ui = build_ui(ctx.clone(), app);
-            setup(ctx.clone(), ui);
+            setup(app, ctx.clone(), ui);
             load_css();
         }
     });
