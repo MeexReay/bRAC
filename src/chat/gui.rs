@@ -5,7 +5,7 @@ use std::thread;
 
 use chrono::Local;
 
-use gtk4 as gtk;
+use gtk4::{self as gtk, glib::timeout_add_once};
 
 use gtk::prelude::*;
 use gtk::gdk::{Cursor, Display, Texture};
@@ -14,8 +14,6 @@ use gtk::gio::{self, ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
 use gtk::glib::clone;
 use gtk::glib::{
     self, clone::Downgrade, 
-    idle_add_local, 
-    idle_add_local_once, 
     timeout_add_local, 
     source::timeout_add_local_once,
     ControlFlow
@@ -39,8 +37,12 @@ thread_local!(
     static GLOBAL: RefCell<Option<(UiModel, Receiver<String>)>> = RefCell::new(None);
 );
 
+pub fn clear_chat_messages(ctx: Arc<Context>, message: String) {
+    let _ = ctx.sender.read().unwrap().clone().unwrap().send((message, true));
+}
+
 pub fn add_chat_message(ctx: Arc<Context>, message: String) {
-    let _ = ctx.sender.read().unwrap().clone().unwrap().send(message);
+    let _ = ctx.sender.read().unwrap().clone().unwrap().send((message, false));
 }
 
 fn load_pixbuf(data: &[u8]) -> Pixbuf {
@@ -427,7 +429,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     timeout_add_local(Duration::from_millis(30), {
         let logo = logo.clone();
         let logo_anim = logo_anim.clone();
-        
+
         move || {
             logo.set_pixbuf(Some(&logo_anim.pixbuf()));
             logo_anim.advance(SystemTime::now());
@@ -504,7 +506,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         #[weak] ctx,
         move |_| {
             if text_entry.text().is_empty() { return; }
-            idle_add_local_once(clone!(
+            timeout_add_local_once(Duration::ZERO, clone!(
                 #[weak] text_entry,
                 move || {
                     text_entry.set_text("");
@@ -523,7 +525,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         #[weak] ctx,
         move |_| {
             if text_entry.text().is_empty() { return; }
-            idle_add_local_once(clone!(
+            timeout_add_local_once(Duration::ZERO, clone!(
                 #[weak] text_entry,
                 move || {
                     text_entry.set_text("");
@@ -543,14 +545,13 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
     let scrolled_window_weak = Downgrade::downgrade(&chat_scrolled);
 
-    idle_add_local({
+    timeout_add_local_once(Duration::ZERO, {
         let scrolled_window_weak = scrolled_window_weak.clone();
         
         move || {
             if let Some(o) = scrolled_window_weak.upgrade() {
                 o.vadjustment().set_value(o.vadjustment().upper() - o.vadjustment().page_size());
             }
-            ControlFlow::Break
         }
     });
 
@@ -570,11 +571,10 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
         move |_| {
             let scrolled_window_weak = scrolled_window_weak.clone();
-            idle_add_local(move || {
+            timeout_add_local_once(Duration::ZERO, move || {
                 if let Some(o) = scrolled_window_weak.upgrade() {
                     o.vadjustment().set_value(o.vadjustment().upper() - o.vadjustment().page_size());
                 }
-                ControlFlow::Break
             });
         }
     });
@@ -603,12 +603,17 @@ fn setup(ctx: Arc<Context>, ui: UiModel) {
     thread::spawn({
         let ctx = ctx.clone();
         move || {
-            while let Ok(message) = receiver.recv() {
+            while let Ok((message, clear)) = receiver.recv() {
                 let _ = tx.send(message.clone());
                 let ctx = ctx.clone();
-                glib::source::timeout_add_once(Duration::ZERO, move || {
+                timeout_add_once(Duration::ZERO, move || {
                     GLOBAL.with(|global| {
                         if let Some((ui, rx)) = &*global.borrow() {
+                            if clear {
+                                while let Some(row) = ui.chat_box.last_child() {
+                                    ui.chat_box.remove(&row);
+                                }
+                            }
                             let message: String = rx.recv().unwrap();
                             on_add_message(ctx.clone(), &ui, message);
                         }

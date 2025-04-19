@@ -6,7 +6,7 @@ build/windows-x86_64:
 	mkdir -p build
 	mkdir -p $@
 	cargo build -r --target x86_64-pc-windows-gnu
-	cp target/x86_64-pc-windows-gnu/release/bRAC $@/bin
+	cp target/x86_64-pc-windows-gnu/release/bRAC.exe $@/bin
 	curl -s https://api.github.com/repos/wingtk/gvsbuild/releases/latest \
 		| grep -o ".*browser_download_url.*GTK4_Gvsbuild.*_x64.zip.*" \
 		| cut -d : -f 2,3 \
@@ -21,7 +21,7 @@ build/linux-x86_64:
 	mkdir -p build
 	mkdir -p $@
 	cargo build -r --target x86_64-unknown-linux-gnu
-	cp target/x86_64-pc-windows-gnu/release/bRAC $@
+	cp target/x86_64-unknown-linux-gnu/release/bRAC $@
 
 clean:
 	rm -r build

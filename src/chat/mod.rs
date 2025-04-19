@@ -9,7 +9,7 @@ use super::{
     util::sanitize_text
 };
 
-use gui::add_chat_message;
+use gui::{add_chat_message, clear_chat_messages};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -166,6 +166,8 @@ pub fn print_message(ctx: Arc<Context>, message: String) -> Result<(), Box<dyn E
 }
 
 pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
+    let last_size = ctx.packet_size();
+
     match read_messages(
         connect_rac!(ctx), 
         ctx.config(|o| o.max_messages), 
@@ -176,13 +178,29 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
         Ok(Some((messages, size))) => {
             if ctx.config(|o| o.chunked_enabled) {
                 ctx.add_messages_packet(ctx.config(|o| o.max_messages), messages.clone(), size);
-                for msg in messages {
-                    add_chat_message(ctx.clone(), msg.clone());
+                if last_size == 0 {
+                    if messages.len() >= 1 {
+                        clear_chat_messages(ctx.clone(), messages[0].clone());
+                        if messages.len() >= 2 {
+                            for msg in &messages[1..] {
+                                add_chat_message(ctx.clone(), msg.clone());
+                            }
+                        }
+                    }
+                } else {
+                    for msg in messages {
+                        add_chat_message(ctx.clone(), msg.clone());
+                    }
                 }
             } else {
                 ctx.put_messages_packet(ctx.config(|o| o.max_messages), messages.clone(), size);
-                for msg in messages {
-                    add_chat_message(ctx.clone(), msg.clone());
+                if messages.len() >= 1 {
+                    clear_chat_messages(ctx.clone(), messages[0].clone());
+                    if messages.len() >= 2 {
+                        for msg in &messages[1..] {
+                            add_chat_message(ctx.clone(), msg.clone());
+                        }
+                    }
                 }
             }
         },
