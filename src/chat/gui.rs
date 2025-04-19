@@ -427,8 +427,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     timeout_add_local(Duration::from_millis(30), {
         let logo = logo.clone();
         let logo_anim = logo_anim.clone();
-        let fixed = fixed.clone();
-
+        
         move || {
             logo.set_pixbuf(Some(&logo_anim.pixbuf()));
             logo_anim.advance(SystemTime::now());
