@@ -18,7 +18,7 @@ fn main() {
     let mut config = load_config(config_path);
 
     if args.read_messages {
-        let mut stream = connect(&config.host, config.ssl_enabled).expect("Error reading message");
+        let mut stream = connect(&config.host, config.ssl_enabled, config.proxy.clone()).expect("Error reading message");
 
         print!("{}", read_messages(
                 &mut stream, 
@@ -33,7 +33,7 @@ fn main() {
     }
 
     if let Some(message) = &args.send_message {
-        let mut stream = connect(&config.host, config.ssl_enabled).expect("Error sending message");
+        let mut stream = connect(&config.host, config.ssl_enabled, config.proxy.clone()).expect("Error sending message");
 
         send_message(
             &mut stream, 

@@ -26,6 +26,7 @@ pub struct Config {
     #[serde(default = "default_true")] pub chunked_enabled: bool,
     #[serde(default = "default_true")] pub formatting_enabled: bool,
     #[serde(default = "default_true")] pub commands_enabled: bool,
+    #[serde(default)] pub proxy: Option<String>,
 }
 
 pub fn get_config_path() -> PathBuf {
@@ -113,12 +114,14 @@ pub struct Args {
     #[arg(long)] pub chunked_enabled: Option<bool>,
     #[arg(long)] pub formatting_enabled: Option<bool>,
     #[arg(long)] pub commands_enabled: Option<bool>,
+    #[arg(long)] pub proxy: Option<String>,
 }
 
 impl Args {
     pub fn patch_config(&self, config: &mut Config) {
         if let Some(v) = self.host.clone() { config.host = v }
         if let Some(v) = self.name.clone() { config.name = Some(v) }
+        if let Some(v) = self.proxy.clone() { config.proxy = Some(v) }
         if let Some(v) = self.message_format.clone() { config.message_format = v }
         if let Some(v) = self.update_time.clone() { config.update_time = v }
         if let Some(v) = self.max_messages.clone() { config.max_messages = v }

@@ -79,7 +79,7 @@ pub fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>
             return Ok(()) 
         };
 
-        match register_user(connect_rac!(ctx), &ctx.name(), pass) {
+        match register_user(connect_rac!(ctx), &ctx.name(), pass, !ctx.config(|o| o.ssl_enabled)) {
             Ok(true) => {
                 add_message(ctx.clone(), "you was registered successfully bro")?;
                 *ctx.registered.write().unwrap() = Some(pass.to_string());
@@ -209,9 +209,9 @@ pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn E
         );
 
         if let Some(password) = ctx.registered.read().unwrap().clone() {
-            send_message_auth(connect_rac!(ctx), &ctx.name(), &password, &message)?;
+            send_message_auth(connect_rac!(ctx), &ctx.name(), &password, &message, !ctx.config(|o| o.ssl_enabled))?;
         } else if ctx.config(|o| o.auth_enabled) {
-            send_message_spoof_auth(connect_rac!(ctx), &message)?;
+            send_message_spoof_auth(connect_rac!(ctx), &message, !ctx.config(|o| o.ssl_enabled))?;
         } else {
             send_message(connect_rac!(ctx), &message)?;
         }
@@ -220,17 +220,16 @@ pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn E
     Ok(())
 } 
 
-/// message -> (date, ip, text, (name, color))
-pub fn parse_message(message: String) -> Option<(String, Option<String>, String, Option<(String, String)>)> {
+pub fn sanitize_message(message: String) -> Option<String> {
     let message = sanitize_text(&message);
 
-    let message = message
-        .trim_start_matches("(UNREGISTERED)")
-        .trim_start_matches("(UNAUTHORIZED)")
-        .trim_start_matches("(UNAUTHENTICATED)")
-        .trim()
-        .to_string()+" ";
+    let message = message.trim().to_string();
 
+    Some(message)
+}
+
+/// message -> (date, ip, text, (name, color))
+pub fn parse_message(message: String) -> Option<(String, Option<String>, String, Option<(String, String)>)> {
     if message.is_empty() {
         return None
     }
@@ -240,6 +239,13 @@ pub fn parse_message(message: String) -> Option<(String, Option<String>, String,
         date.get(1)?.as_str().to_string(), 
         date.get(2)?.as_str().to_string(), 
     );
+
+    let message = message
+        .trim_start_matches("(UNREGISTERED)")
+        .trim_start_matches("(UNAUTHORIZED)")
+        .trim_start_matches("(UNAUTHENTICATED)")
+        .trim()
+        .to_string();
 
     let (ip, message) = if let Some(message) = IP_REGEX.captures(&message) {
         (Some(message.get(1)?.as_str().to_string()), message.get(2)?.as_str().to_string())

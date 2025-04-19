@@ -1,4 +1,4 @@
-use std::{sync::{mpsc::{channel, Receiver}, Arc}, time::UNIX_EPOCH};
+use std::sync::{mpsc::{channel, Receiver}, Arc};
 use std::cell::RefCell;
 use std::time::{Duration, SystemTime};
 use std::thread;
@@ -28,7 +28,7 @@ use gtk::{
 };
 
 use super::{config::{default_max_messages, default_update_time, get_config_path, save_config, Config}, 
-ctx::Context, on_send_message, parse_message, print_message, recv_tick};
+ctx::Context, on_send_message, parse_message, print_message, recv_tick, sanitize_message};
 
 struct UiModel {
     chat_box: GtkBox,
@@ -103,6 +103,20 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     message_format_hbox.append(&message_format_entry);
 
     vbox.append(&message_format_hbox);
+
+    let proxy_hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    proxy_hbox.append(&Label::builder()
+        .label("Socks5 Proxy")
+        .build());
+
+    let proxy_entry = Entry::builder()
+        .text(&ctx.config(|o| o.proxy.clone()).unwrap_or_default())
+        .build();
+
+    proxy_hbox.append(&proxy_entry);
+
+    vbox.append(&proxy_hbox);
 
     let update_time_hbox = GtkBox::new(Orientation::Horizontal, 5);
 
@@ -264,6 +278,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         #[weak] chunked_enabled_entry,
         #[weak] formatting_enabled_entry,
         #[weak] commands_enabled_entry,
+        #[weak] proxy_entry,
         move |_| {
             let config = Config {
                 host: host_entry.text().to_string(),
@@ -305,7 +320,16 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 ssl_enabled: ssl_enabled_entry.is_active(),
                 chunked_enabled: chunked_enabled_entry.is_active(),
                 formatting_enabled: formatting_enabled_entry.is_active(),
-                commands_enabled: commands_enabled_entry.is_active()
+                commands_enabled: commands_enabled_entry.is_active(),
+                proxy: {
+                    let proxy = proxy_entry.text().to_string();
+        
+                    if proxy.is_empty() {
+                        None
+                    } else {
+                        Some(proxy)
+                    }
+                }
             };
             ctx.set_config(&config);
             save_config(get_config_path(), &config);
@@ -332,12 +356,14 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         #[weak] chunked_enabled_entry,
         #[weak] formatting_enabled_entry,
         #[weak] commands_enabled_entry,
+        #[weak] proxy_entry,
         move |_| {
             let config = Config::default();
             ctx.set_config(&config);
             save_config(get_config_path(), &config);
             host_entry.set_text(&config.host);
             name_entry.set_text(&config.name.unwrap_or_default());
+            proxy_entry.set_text(&config.proxy.unwrap_or_default());
             message_format_entry.set_text(&config.message_format);
             update_time_entry.set_text(&config.update_time.to_string());
             max_messages_entry.set_text(&config.max_messages.to_string());
@@ -718,6 +744,8 @@ fn load_css() {
 }
 
 fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
+    let Some(message) = sanitize_message(message) else { return; };
+
     if message.is_empty() {
         return;
     }
