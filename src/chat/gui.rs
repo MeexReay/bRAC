@@ -432,7 +432,6 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         move || {
             logo.set_pixbuf(Some(&logo_anim.pixbuf()));
             logo_anim.advance(SystemTime::now());
-            dbg!(fixed.size(Orientation::Horizontal), fixed.size(Orientation::Vertical));
 
             ControlFlow::Continue
         }
