@@ -50,9 +50,93 @@ fn load_pixbuf(data: &[u8]) -> Pixbuf {
     loader.pixbuf().unwrap()
 }
 
-// chunked_enabled: bool
-// formatting_enabled: bool
-// commands_enabled: bool
+macro_rules! gui_entry_setting {
+    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {
+        {
+            let hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+            hbox.append(&Label::builder()
+                .label($e)
+                .build());
+
+            let entry = Entry::builder()
+                .text(&$ctx.config(|o| o.$i.clone()))
+                .build();
+
+            hbox.append(&entry);
+
+            $vbox.append(&hbox);
+
+            entry
+        }
+    };
+}
+
+macro_rules! gui_usize_entry_setting {
+    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {
+        {
+            let hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+            hbox.append(&Label::builder()
+                .label($e)
+                .build());
+
+            let entry = Entry::builder()
+                .text(&$ctx.config(|o| o.$i.to_string()))
+                .build();
+
+            hbox.append(&entry);
+
+            $vbox.append(&hbox);
+
+            entry
+        }
+    };
+}
+
+macro_rules! gui_option_entry_setting {
+    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {
+        {
+            let hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+            hbox.append(&Label::builder()
+                .label($e)
+                .build());
+
+            let entry = Entry::builder()
+                .text(&$ctx.config(|o| o.$i.clone()).unwrap_or_default())
+                .build();
+
+            hbox.append(&entry);
+
+            $vbox.append(&hbox);
+
+            entry
+        }
+    };
+}
+
+macro_rules! gui_checkbox_setting {
+    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {
+        {
+            let hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+            hbox.append(&Label::builder()
+                .label($e)
+                .build());
+
+            let entry = CheckButton::builder()
+                .active($ctx.config(|o| o.$i))
+                .build();
+
+            hbox.append(&entry);
+
+            $vbox.append(&hbox);
+
+            entry
+        }
+    };
+}
 
 fn open_settings(ctx: Arc<Context>, app: &Application) {
     let vbox = GtkBox::new(Orientation::Vertical, 10);
@@ -62,201 +146,19 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     vbox.set_margin_start(15);
     vbox.set_margin_end(15);
 
-    let host_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    host_hbox.append(&Label::builder()
-        .label("Host")
-        .build());
-
-    let host_entry = Entry::builder()
-        .text(&ctx.config(|o| o.host.clone()))
-        .build();
-
-    host_hbox.append(&host_entry);
-
-    vbox.append(&host_hbox);
-
-    let name_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    name_hbox.append(&Label::builder()
-        .label("Name")
-        .build());
-
-    let name_entry = Entry::builder()
-        .text(&ctx.config(|o| o.name.clone()).unwrap_or_default())
-        .build();
-
-    name_hbox.append(&name_entry);
-
-    vbox.append(&name_hbox);
-
-    let message_format_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    message_format_hbox.append(&Label::builder()
-        .label("Message Format")
-        .build());
-
-    let message_format_entry = Entry::builder()
-        .text(&ctx.config(|o| o.message_format.clone()))
-        .build();
-
-    message_format_hbox.append(&message_format_entry);
-
-    vbox.append(&message_format_hbox);
-
-    let proxy_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    proxy_hbox.append(&Label::builder()
-        .label("Socks5 Proxy")
-        .build());
-
-    let proxy_entry = Entry::builder()
-        .text(&ctx.config(|o| o.proxy.clone()).unwrap_or_default())
-        .build();
-
-    proxy_hbox.append(&proxy_entry);
-
-    vbox.append(&proxy_hbox);
-
-    let update_time_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    update_time_hbox.append(&Label::builder()
-        .label("Update Time")
-        .build());
-
-    let update_time_entry = Entry::builder()
-        .text(&ctx.config(|o| o.update_time.to_string()))
-        .build();
-
-    update_time_hbox.append(&update_time_entry);
-
-    vbox.append(&update_time_hbox);
-
-    let max_messages_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    max_messages_hbox.append(&Label::builder()
-        .label("Max Messages")
-        .build());
-
-    let max_messages_entry = Entry::builder()
-        .text(&ctx.config(|o| o.max_messages.to_string()))
-        .build();
-
-    max_messages_hbox.append(&max_messages_entry);
-
-    vbox.append(&max_messages_hbox);
-
-    let max_messages_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    max_messages_hbox.append(&Label::builder()
-        .label("Max Messages")
-        .build());
-
-    let max_messages_entry = Entry::builder()
-        .text(&ctx.config(|o| o.max_messages.to_string()))
-        .build();
-
-    max_messages_hbox.append(&max_messages_entry);
-
-    vbox.append(&max_messages_hbox);
-
-    let hide_my_ip_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    hide_my_ip_hbox.append(&Label::builder()
-        .label("Hide My IP")
-        .build());
-
-    let hide_my_ip_entry = CheckButton::builder()
-        .active(ctx.config(|o| o.hide_my_ip))
-        .build();
-
-    hide_my_ip_hbox.append(&hide_my_ip_entry);
-
-    vbox.append(&hide_my_ip_hbox);
-
-    let show_other_ip_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    show_other_ip_hbox.append(&Label::builder()
-        .label("Show Other IP")
-        .build());
-
-    let show_other_ip_entry = CheckButton::builder()
-        .active(ctx.config(|o| o.show_other_ip))
-        .build();
-
-    show_other_ip_hbox.append(&show_other_ip_entry);
-
-    vbox.append(&show_other_ip_hbox);
-
-    let auth_enabled_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    auth_enabled_hbox.append(&Label::builder()
-        .label("Auth Enabled")
-        .build());
-
-    let auth_enabled_entry = CheckButton::builder()
-        .active(ctx.config(|o| o.auth_enabled))
-        .build();
-
-    auth_enabled_hbox.append(&auth_enabled_entry);
-
-    vbox.append(&auth_enabled_hbox);
-
-    let ssl_enabled_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    ssl_enabled_hbox.append(&Label::builder()
-        .label("SSL Enabled")
-        .build());
-
-    let ssl_enabled_entry = CheckButton::builder()
-        .active(ctx.config(|o| o.ssl_enabled))
-        .build();
-
-    ssl_enabled_hbox.append(&ssl_enabled_entry);
-
-    vbox.append(&ssl_enabled_hbox);
-
-    let chunked_enabled_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    chunked_enabled_hbox.append(&Label::builder()
-        .label("Chunked Enabled")
-        .build());
-
-    let chunked_enabled_entry = CheckButton::builder()
-        .active(ctx.config(|o| o.chunked_enabled))
-        .build();
-
-    chunked_enabled_hbox.append(&chunked_enabled_entry);
-
-    vbox.append(&chunked_enabled_hbox);
-
-    let formatting_enabled_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    formatting_enabled_hbox.append(&Label::builder()
-        .label("Formatting Enabled")
-        .build());
-
-    let formatting_enabled_entry = CheckButton::builder()
-        .active(ctx.config(|o| o.formatting_enabled))
-        .build();
-
-    formatting_enabled_hbox.append(&formatting_enabled_entry);
-
-    vbox.append(&formatting_enabled_hbox);
-
-    let commands_enabled_hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-    commands_enabled_hbox.append(&Label::builder()
-        .label("Commands Enabled")
-        .build());
-
-    let commands_enabled_entry = CheckButton::builder()
-        .active(ctx.config(|o| o.commands_enabled))
-        .build();
-
-    commands_enabled_hbox.append(&commands_enabled_entry);
-
-    vbox.append(&commands_enabled_hbox);
+    let host_entry = gui_entry_setting!("Host", host, ctx, vbox);
+    let name_entry = gui_option_entry_setting!("Name", name, ctx, vbox);
+    let message_format_entry = gui_entry_setting!("Message Format", message_format, ctx, vbox);
+    let proxy_entry = gui_option_entry_setting!("Socks5 proxy", proxy, ctx, vbox);
+    let update_time_entry = gui_usize_entry_setting!("Update Time", update_time, ctx, vbox);
+    let max_messages_entry = gui_usize_entry_setting!("Max Messages", max_messages, ctx, vbox);
+    let hide_my_ip_entry = gui_checkbox_setting!("Hide My IP", hide_my_ip, ctx, vbox);
+    let show_other_ip_entry = gui_checkbox_setting!("Show Other IP", show_other_ip, ctx, vbox);
+    let auth_enabled_entry = gui_checkbox_setting!("Fake Auth Enabled", auth_enabled, ctx, vbox);
+    let ssl_enabled_entry = gui_checkbox_setting!("SSL Enabled", ssl_enabled, ctx, vbox);
+    let chunked_enabled_entry = gui_checkbox_setting!("Chunked Enabled", chunked_enabled, ctx, vbox);
+    let formatting_enabled_entry = gui_checkbox_setting!("Formatting Enabled", formatting_enabled, ctx, vbox);
+    let commands_enabled_entry = gui_checkbox_setting!("Commands Enabled", commands_enabled, ctx, vbox);
 
     let save_button = Button::builder()
         .label("Save")
