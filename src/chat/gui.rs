@@ -1,19 +1,30 @@
-use std::sync::{Arc, mpsc::{channel, Receiver}};
+use std::{sync::{mpsc::{channel, Receiver}, Arc}, time::UNIX_EPOCH};
 use std::cell::RefCell;
 use std::time::{Duration, SystemTime};
 use std::thread;
 
 use chrono::Local;
 
-use gtk4::{
-    self as gtk, gdk::{Cursor, Display, Texture}, gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader}, gio::{
-        self, ActionEntry, ApplicationFlags, 
-        MemoryInputStream, Menu
-    }, glib::{
-        self, clone, clone::Downgrade, idle_add_local, idle_add_local_once, source::timeout_add_local_once, timeout_add_local, ControlFlow
-    }, pango::WrapMode, prelude::*, AboutDialog, Align, Application, ApplicationWindow, Box as GtkBox, 
-    Button, Calendar, CheckButton, CssProvider, Entry, Fixed, Justification, Label, ListBox, Orientation, 
-    Overlay, Picture, ScrolledWindow, Settings, Window
+use gtk4 as gtk;
+
+use gtk::prelude::*;
+use gtk::gdk::{Cursor, Display, Texture};
+use gtk::gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader};
+use gtk::gio::{self, ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
+use gtk::glib::clone;
+use gtk::glib::{
+    self, clone::Downgrade, 
+    idle_add_local, 
+    idle_add_local_once, 
+    timeout_add_local, 
+    source::timeout_add_local_once,
+    ControlFlow
+};
+use gtk::pango::WrapMode;
+use gtk::{
+    AboutDialog, Align, Application, ApplicationWindow, Box as GtkBox, 
+    Button, Calendar, CheckButton, CssProvider, Entry, Fixed, GestureClick, 
+    Justification, Label, ListBox, Orientation, Overlay, Picture, ScrolledWindow, Settings, Window
 };
 
 use super::{config::{default_max_messages, default_update_time, get_config_path, save_config, Config}, 
@@ -434,9 +445,30 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
     let server_list = ListBox::new();
 
-    server_list.append(&Label::builder().label("meex.lol:42666").halign(Align::Start).selectable(true).build());
-    server_list.append(&Label::builder().label("meex.lol:11234").halign(Align::Start).selectable(true).build());
-    server_list.append(&Label::builder().label("91.192.22.20:42666").halign(Align::Start).selectable(true).build());
+    for url in ["meex.lol:42666", "meex.lol:11234", "91.192.22.20:42666"] {
+        let url = url.to_string();
+
+        let label = Label::builder()
+            .label(&url)
+            .halign(Align::Start)
+            .build();
+
+        let click = GestureClick::new();
+
+        click.connect_pressed(clone!(
+            #[weak] ctx,
+            move |_, _, _, _| {
+                let mut config = ctx.config.read().unwrap().clone();
+                config.host = url.clone();
+                ctx.set_config(&config);
+                save_config(get_config_path(), &config);
+            }
+        ));
+
+        label.add_controller(click);
+
+        server_list.append(&label);
+    }
 
     server_list_vbox.append(&Label::builder().label("Server List:").build());
 
@@ -626,17 +658,6 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     }
 }
 
-fn run_recv_loop(ctx: Arc<Context>) {
-    thread::spawn(move || {
-        loop { 
-            if let Err(e) = recv_tick(ctx.clone()) {
-                let _ = print_message(ctx.clone(), format!("Print messages error: {}", e.to_string()).to_string());
-                thread::sleep(Duration::from_secs(1));
-            }
-        }
-    });
-}
-
 fn setup(ctx: Arc<Context>, ui: UiModel) {
     let (sender, receiver) = channel();
 
@@ -775,6 +796,17 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
                 o.vadjustment().set_value(o.vadjustment().upper() - o.vadjustment().page_size());
             }
         });
+    });
+}
+
+fn run_recv_loop(ctx: Arc<Context>) {
+    thread::spawn(move || {
+        loop { 
+            if let Err(e) = recv_tick(ctx.clone()) {
+                let _ = print_message(ctx.clone(), format!("Print messages error: {}", e.to_string()).to_string());
+                thread::sleep(Duration::from_secs(1));
+            }
+        }
     });
 }
 

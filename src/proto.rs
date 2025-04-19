@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::{error::Error, fmt::Debug, io::{Read, Write}, net::TcpStream};
+use std::{error::Error, fmt::Debug, io::{Read, Write}, net::{SocketAddr, TcpStream, ToSocketAddrs}, str::FromStr, time::Duration};
 use native_tls::TlsConnector;
 
 pub trait RacStream: Read + Write + Unpin + Send + Sync + Debug {}
@@ -29,7 +29,13 @@ pub fn connect(host: &str, ssl: bool) -> Result<Box<dyn RacStream>, Box<dyn Erro
             .connect(&ip, connect(&host, false)?)?))
     }
 
-    Ok(Box::new(TcpStream::connect(host)?))
+    let addr = host.to_socket_addrs()?.next().ok_or::<Box<dyn Error>>("addr parse error".into())?;
+    let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
+
+    stream.set_read_timeout(Some(Duration::from_secs(5)));
+    stream.set_write_timeout(Some(Duration::from_secs(5)));
+
+    Ok(Box::new(stream))
 }
 
 /// Send message
