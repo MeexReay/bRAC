@@ -427,10 +427,12 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     timeout_add_local(Duration::from_millis(30), {
         let logo = logo.clone();
         let logo_anim = logo_anim.clone();
+        let fixed = fixed.clone();
 
         move || {
             logo.set_pixbuf(Some(&logo_anim.pixbuf()));
             logo_anim.advance(SystemTime::now());
+            dbg!(fixed.size(Orientation::Horizontal), fixed.size(Orientation::Vertical));
 
             ControlFlow::Continue
         }
@@ -455,6 +457,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     });
 
     fixed.put(&time, 432.0, 4.0);
+    fixed.set_halign(Align::End);
 
     widget_box_overlay.add_overlay(&fixed);
 
@@ -558,7 +561,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         .title(format!("bRAC - Connected to {} as {}", ctx.config(|o| o.host.clone()), &ctx.name()))
         .default_width(500)
         .default_height(500)
-        .resizable(false)
+        .resizable(true)
         .decorated(true)
         .show_menubar(true)
         .child(&main_box)
