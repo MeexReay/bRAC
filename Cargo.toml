@@ -17,8 +17,8 @@ chrono = "0.4.40"
 serde_default = "0.2.0"
 socks = "0.3.4"
 libnotify = { version = "1.0.3", optional = true }
-gdk-pixbuf = "0.3.0"
+gdk-pixbuf = { version = "0.3.0", optional = true }
 
 [features]
 default = ["libnotify"]
-libnotify = ["dep:libnotify"]
+libnotify = ["dep:libnotify", "dep:gdk-pixbuf"]

@@ -1,4 +1,4 @@
-use std::{sync::{mpsc::{channel, Receiver}, Arc, RwLock}, time::UNIX_EPOCH};
+use std::sync::{mpsc::{channel, Receiver}, Arc, RwLock};
 use std::cell::RefCell;
 use std::time::{Duration, SystemTime};
 use std::thread;
@@ -32,7 +32,7 @@ ctx::Context, on_send_message, parse_message, print_message, recv_tick, sanitize
 struct UiModel {
     chat_box: GtkBox,
     chat_scrolled: ScrolledWindow,
-    app: Application,
+    // app: Application,
     window: ApplicationWindow,
     #[cfg(feature = "libnotify")]
     notifications: Arc<RwLock<Vec<libnotify::Notification>>>
@@ -55,13 +55,6 @@ fn load_pixbuf(data: &[u8]) -> Pixbuf {
     loader.write(data).unwrap();
     loader.close().unwrap();
     loader.pixbuf().unwrap()
-}
-
-fn load_gdk_pixbuf(data: &[u8]) -> gdk_pixbuf::Pixbuf {
-    let loader = gdk_pixbuf::PixbufLoader::new();
-    loader.loader_write(data).unwrap();
-    loader.close().unwrap();
-    loader.get_pixbuf().unwrap()
 }
 
 macro_rules! gui_entry_setting {
@@ -596,14 +589,14 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     UiModel {
         chat_scrolled,
         chat_box,
-        app: app.clone(),
+        // app: app.clone(),
         window: window.clone(),
         #[cfg(feature = "libnotify")]
         notifications: Arc::new(RwLock::new(Vec::<libnotify::Notification>::new()))
     }
 }
 
-fn setup(app: &Application, ctx: Arc<Context>, ui: UiModel) {
+fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
     let (sender, receiver) = channel();
 
     *ctx.sender.write().unwrap() = Some(Arc::new(sender));
@@ -686,7 +679,10 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
 
     let notification = Notification::new(title, message, None);
     notification.set_app_name("bRAC");
-    notification.set_image_from_pixbuf(&load_gdk_pixbuf(include_bytes!("images/icon.png")));
+    let pixbuf_loader = gdk_pixbuf::PixbufLoader::new();
+    pixbuf_loader.loader_write(include_bytes!("images/icon.png")).unwrap();
+    pixbuf_loader.close().unwrap();
+    notification.set_image_from_pixbuf(&pixbuf_loader.get_pixbuf().unwrap());
     notification.show().expect("libnotify send error");
 
     ui.notifications.write().unwrap().push(notification);
