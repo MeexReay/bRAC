@@ -18,19 +18,7 @@
 
 .message-name { font-weight: bold; }
 
-.message-name-black { color: #2E2E2E; }
-.message-name-bright-black { color: #555555; }
-.message-name-red { color: #8B0000; }
-.message-name-bright-red { color: #FF0000; }
-.message-name-green { color: #006400; }
-.message-name-bright-green { color: #00FF00; }
-.message-name-yellow { color: #8B8B00; }
-.message-name-bright-yellow { color: #FFFF00; }
-.message-name-blue { color: #00008B; }
-.message-name-bright-blue { color: #0000FF; }
-.message-name-bright-magenta { color: #FF00FF; }
-.message-name-magenta { color: #8B008B; }
-.message-name-cyan { color: #008B8B; }
-.message-name-bright-cyan { color: #00FFFF; }
-.message-name-white { color: #A9A9A9; }
-.message-name-bright-white { color: #FFFFFF; }
+.message-name-green { color: #16a516; }
+.message-name-red { color: #b91818; }
+.message-name-magenta { color: #b619b6; }
+.message-name-cyan { color: #19b1b1; }
