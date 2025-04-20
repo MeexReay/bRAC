@@ -1,22 +1,23 @@
-use std::sync::{mpsc::{channel, Receiver}, Arc};
+use std::{sync::{mpsc::{channel, Receiver}, Arc}, time::UNIX_EPOCH};
 use std::cell::RefCell;
 use std::time::{Duration, SystemTime};
 use std::thread;
 
 use chrono::Local;
 
-use gtk4::{self as gtk, gio::Notification, glib::timeout_add_once};
+use gtk4 as gtk;
 
+use gtk::gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader};
 use gtk::prelude::*;
 use gtk::gdk::{Cursor, Display, Texture};
-use gtk::gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader};
 use gtk::gio::{self, ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
 use gtk::glib::clone;
 use gtk::glib::{
     self, clone::Downgrade, 
     timeout_add_local, 
     source::timeout_add_local_once,
-    ControlFlow
+    ControlFlow,
+    timeout_add_once
 };
 use gtk::pango::WrapMode;
 use gtk::{
@@ -31,7 +32,8 @@ ctx::Context, on_send_message, parse_message, print_message, recv_tick, sanitize
 struct UiModel {
     chat_box: GtkBox,
     chat_scrolled: ScrolledWindow,
-    app: Application
+    app: Application,
+    window: ApplicationWindow
 }
 
 thread_local!(
@@ -51,6 +53,13 @@ fn load_pixbuf(data: &[u8]) -> Pixbuf {
     loader.write(data).unwrap();
     loader.close().unwrap();
     loader.pixbuf().unwrap()
+}
+
+fn load_gdk_pixbuf(data: &[u8]) -> gdk_pixbuf::Pixbuf {
+    let loader = gdk_pixbuf::PixbufLoader::new();
+    loader.loader_write(data).unwrap();
+    loader.close().unwrap();
+    loader.get_pixbuf().unwrap()
 }
 
 macro_rules! gui_entry_setting {
@@ -585,7 +594,8 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     UiModel {
         chat_scrolled,
         chat_box,
-        app: app.clone()
+        app: app.clone(),
+        window: window.clone()
     }
 }
 
@@ -653,9 +663,26 @@ fn load_css() {
     );
 }
 
-fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
-    let app = ui.app.clone();
+#[cfg(feature = "libnotify")]
+fn send_notification(_: Arc<Context>, _: &UiModel, title: &str, message: &str) {
+    use libnotify::Notification;
 
+    let notification = Notification::new(title, message, None);
+    notification.set_app_name("bRAC");
+    notification.set_image_from_pixbuf(&load_gdk_pixbuf(include_bytes!("images/icon.png")));
+    notification.show().expect("libnotify send error");
+}
+
+#[cfg(not(feature = "libnotify"))]
+fn send_notification(ctx: Arc<Context>, ui: &UiModel, title: &str, message: &str) {
+    use gtk4::gio::Notification;
+
+    let notif = Notification::new(title);
+    notif.set_body(Some(&message));
+    ui.app.send_notification(None, &notif);
+}
+
+fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
     let Some(message) = sanitize_message(message) else { return; };
 
     if message.is_empty() {
@@ -701,19 +728,21 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
 
             hbox.append(&name_label);
 
-            if !app.windows()[0].is_active() {
+            if !ui.window.is_active() {
                 if ctx.config(|o| o.chunked_enabled) {
-                    let notif = Notification::new(&format!("{}'s Message", &name));
-                    notif.set_body(Some(&content));
-                    app.send_notification(Some("user-message"), &notif);
+                    send_notification(ctx.clone(), ui, &format!("{}'s Message", &name), &content);
+                    // let notif = Notification::new(&format!("{}'s Message", &name));
+                    // notif.set_body(Some(&content));
+                    // app.send_notification(Some("user-message"), &notif);
                 }
             }
         } else {
-            if !app.windows()[0].is_active() {
+            if !ui.window.is_active() {
                 if ctx.config(|o| o.chunked_enabled) {
-                    let notif = Notification::new("System Message");
-                    notif.set_body(Some(&content));
-                    app.send_notification(Some("system-message"), &notif);
+                    send_notification(ctx.clone(), ui, "System Message", &content);
+                    // let notif = Notification::new("System Message");
+                    // notif.set_body(Some(&content));
+                    // app.send_notification(Some("system-message"), &notif);
                 }
             }
         }
@@ -743,11 +772,12 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
 
         hbox.append(&content_label);
 
-        if !app.windows()[0].is_active() {
+        if !ui.window.is_active() {
             if ctx.config(|o| o.chunked_enabled) {
-                let notif = Notification::new("Chat Message");
-                notif.set_body(Some(&message));
-                app.send_notification(Some("chat-message"), &notif);
+                send_notification(ctx.clone(), ui, "Chat Message", &message);
+                // let notif = Notification::new("Chat Message");
+                // notif.set_body(Some(&message));
+                // app.send_notification(Some("chat-message"), &notif);
             }
         }
     }
@@ -776,6 +806,11 @@ fn run_recv_loop(ctx: Arc<Context>) {
 }
 
 pub fn run_main_loop(ctx: Arc<Context>) {
+    #[cfg(feature = "libnotify")]
+    {
+        libnotify::init("ru.themixray.bRAC").expect("libnotify init error");
+    }
+
     let application = Application::builder()
         .application_id("ru.themixray.bRAC")
         .flags(ApplicationFlags::FLAGS_NONE)
@@ -800,4 +835,9 @@ pub fn run_main_loop(ctx: Arc<Context>) {
     });
 
     application.run_with_args::<&str>(&[]);
+
+    #[cfg(feature = "libnotify")]
+    {
+        libnotify::uninit();
+    }
 }
