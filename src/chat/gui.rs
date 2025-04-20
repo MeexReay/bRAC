@@ -1,4 +1,4 @@
-use std::{sync::{mpsc::{channel, Receiver}, Arc}, time::UNIX_EPOCH};
+use std::{sync::{mpsc::{channel, Receiver}, Arc, RwLock}, time::UNIX_EPOCH};
 use std::cell::RefCell;
 use std::time::{Duration, SystemTime};
 use std::thread;
@@ -33,7 +33,9 @@ struct UiModel {
     chat_box: GtkBox,
     chat_scrolled: ScrolledWindow,
     app: Application,
-    window: ApplicationWindow
+    window: ApplicationWindow,
+    #[cfg(feature = "libnotify")]
+    notifications: Arc<RwLock<Vec<libnotify::Notification>>>
 }
 
 thread_local!(
@@ -595,7 +597,9 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         chat_scrolled,
         chat_box,
         app: app.clone(),
-        window: window.clone()
+        window: window.clone(),
+        #[cfg(feature = "libnotify")]
+        notifications: Arc::new(RwLock::new(Vec::<libnotify::Notification>::new()))
     }
 }
 
@@ -607,6 +611,19 @@ fn setup(app: &Application, ctx: Arc<Context>, ui: UiModel) {
     run_recv_loop(ctx.clone());
 
     let (tx, rx) = channel();
+
+    #[cfg(feature = "libnotify")]
+    ui.window.connect_notify(Some("is-active"), move |a, _| {
+        if a.is_active() {
+            GLOBAL.with(|global| {
+                if let Some((ui, _)) = &*global.borrow() {
+                    for i in ui.notifications.read().unwrap().clone() {
+                        i.close().expect("libnotify close error");
+                    }
+                }
+            });
+        }
+    });
 
     GLOBAL.with(|global| {
         *global.borrow_mut() = Some((ui, rx));
@@ -664,13 +681,15 @@ fn load_css() {
 }
 
 #[cfg(feature = "libnotify")]
-fn send_notification(_: Arc<Context>, _: &UiModel, title: &str, message: &str) {
+fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) {
     use libnotify::Notification;
 
     let notification = Notification::new(title, message, None);
     notification.set_app_name("bRAC");
     notification.set_image_from_pixbuf(&load_gdk_pixbuf(include_bytes!("images/icon.png")));
     notification.show().expect("libnotify send error");
+
+    ui.notifications.write().unwrap().push(notification);
 }
 
 #[cfg(not(feature = "libnotify"))]
