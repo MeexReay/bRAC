@@ -18,6 +18,8 @@ build/windows-x86_64:
 	mv $@/bin/* $@/
 	cp target/x86_64-pc-windows-gnu/release/bRAC.exe $@
 	rm -r $@/bin
+	cp install.bat $@
+	cp uninstall.bat $@
 
 build/linux-x86_64:
 	mkdir -p build
