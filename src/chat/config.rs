@@ -27,6 +27,7 @@ pub struct Config {
     #[serde(default = "default_true")] pub formatting_enabled: bool,
     #[serde(default = "default_true")] pub commands_enabled: bool,
     #[serde(default)] pub proxy: Option<String>,
+    #[serde(default = "default_true")] pub notifications_enabled: bool,
 }
 
 pub fn get_config_path() -> PathBuf {
@@ -115,6 +116,7 @@ pub struct Args {
     #[arg(long)] pub chunked_enabled: Option<bool>,
     #[arg(long)] pub formatting_enabled: Option<bool>,
     #[arg(long)] pub commands_enabled: Option<bool>,
+    #[arg(long)] pub notifications_enabled: Option<bool>,
     #[arg(long)] pub proxy: Option<String>,
 }
 
@@ -124,14 +126,15 @@ impl Args {
         if let Some(v) = self.name.clone() { config.name = Some(v) }
         if let Some(v) = self.proxy.clone() { config.proxy = Some(v) }
         if let Some(v) = self.message_format.clone() { config.message_format = v }
-        if let Some(v) = self.update_time.clone() { config.update_time = v }
-        if let Some(v) = self.max_messages.clone() { config.max_messages = v }
-        if let Some(v) = self.hide_my_ip.clone() { config.hide_my_ip = v }
-        if let Some(v) = self.show_other_ip.clone() { config.show_other_ip = v }
-        if let Some(v) = self.auth_enabled.clone() { config.auth_enabled = v }
-        if let Some(v) = self.ssl_enabled.clone() { config.ssl_enabled = v }
-        if let Some(v) = self.chunked_enabled.clone() { config.chunked_enabled = v }
-        if let Some(v) = self.formatting_enabled.clone() { config.formatting_enabled = v }
-        if let Some(v) = self.commands_enabled.clone() { config.commands_enabled = v }
+        if let Some(v) = self.update_time { config.update_time = v }
+        if let Some(v) = self.max_messages { config.max_messages = v }
+        if let Some(v) = self.hide_my_ip { config.hide_my_ip = v }
+        if let Some(v) = self.show_other_ip { config.show_other_ip = v }
+        if let Some(v) = self.auth_enabled { config.auth_enabled = v }
+        if let Some(v) = self.ssl_enabled { config.ssl_enabled = v }
+        if let Some(v) = self.chunked_enabled { config.chunked_enabled = v }
+        if let Some(v) = self.formatting_enabled { config.formatting_enabled = v }
+        if let Some(v) = self.commands_enabled { config.commands_enabled = v }
+        if let Some(v) = self.notifications_enabled { config.notifications_enabled = v }
     }
 }

@@ -1,6 +1,8 @@
-.PHONY: clean build
+.PHONY: clean build windows build
 
 build: build/windows-x86_64 build/linux-x86_64
+windows: build/windows-x86_64
+linux: build/linux-x86_64
 
 build/windows-x86_64:
 	mkdir -p build
@@ -20,7 +22,7 @@ build/windows-x86_64:
 build/linux-x86_64:
 	mkdir -p build
 	mkdir -p $@
-	cargo build -r -F libnotify --target x86_64-unknown-linux-gnu
+	cargo build -r --target x86_64-unknown-linux-gnu
 	# patchbin target/x86_64-unknown-linux-gnu/release/bRAC
 	cp target/x86_64-unknown-linux-gnu/release/bRAC $@
 	cp ru.themixray.bRAC.png $@

@@ -35,7 +35,9 @@ struct UiModel {
     app: Application,
     window: ApplicationWindow,
     #[cfg(feature = "libnotify")]
-    notifications: Arc<RwLock<Vec<libnotify::Notification>>>
+    notifications: Arc<RwLock<Vec<libnotify::Notification>>>,
+    #[cfg(not(feature = "libnotify"))]
+    notifications: Arc<RwLock<Vec<String>>>
 }
 
 thread_local!(
@@ -166,6 +168,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     let chunked_enabled_entry = gui_checkbox_setting!("Chunked Enabled", chunked_enabled, ctx, vbox);
     let formatting_enabled_entry = gui_checkbox_setting!("Formatting Enabled", formatting_enabled, ctx, vbox);
     let commands_enabled_entry = gui_checkbox_setting!("Commands Enabled", commands_enabled, ctx, vbox);
+    let notifications_enabled_entry = gui_checkbox_setting!("Notifications Enabled", notifications_enabled, ctx, vbox);
 
     let save_button = Button::builder()
         .label("Save")
@@ -187,6 +190,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         #[weak] chunked_enabled_entry,
         #[weak] formatting_enabled_entry,
         #[weak] commands_enabled_entry,
+        #[weak] notifications_enabled_entry,
         #[weak] proxy_entry,
         move |_| {
             let config = Config {
@@ -230,6 +234,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 chunked_enabled: chunked_enabled_entry.is_active(),
                 formatting_enabled: formatting_enabled_entry.is_active(),
                 commands_enabled: commands_enabled_entry.is_active(),
+                notifications_enabled: notifications_enabled_entry.is_active(),
                 proxy: {
                     let proxy = proxy_entry.text().to_string();
         
@@ -265,6 +270,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         #[weak] chunked_enabled_entry,
         #[weak] formatting_enabled_entry,
         #[weak] commands_enabled_entry,
+        #[weak] notifications_enabled_entry,
         #[weak] proxy_entry,
         move |_| {
             let config = Config::default();
@@ -283,6 +289,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
             chunked_enabled_entry.set_active(config.chunked_enabled);
             formatting_enabled_entry.set_active(config.formatting_enabled);
             commands_enabled_entry.set_active(config.commands_enabled);
+            notifications_enabled_entry.set_active(config.notifications_enabled);
         }
     ));
 
@@ -295,6 +302,22 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         .child(&vbox)
         .build();
 
+    let controller = gtk::EventControllerKey::new();
+    controller.connect_key_pressed({
+        let window = window.clone();
+
+        move |_, key, _, _| {
+            if key == gtk::gdk::Key::Escape {
+                window.close();
+                gtk::glib::Propagation::Proceed
+            } else {
+                gtk::glib::Propagation::Stop
+            }
+        }
+    });
+
+    window.add_controller(controller);
+    
     window.present();
 }
 
@@ -592,7 +615,9 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         app: app.clone(),
         window: window.clone(),
         #[cfg(feature = "libnotify")]
-        notifications: Arc::new(RwLock::new(Vec::<libnotify::Notification>::new()))
+        notifications: Arc::new(RwLock::new(Vec::<libnotify::Notification>::new())),
+        #[cfg(not(feature = "libnotify"))]
+        notifications: Arc::new(RwLock::new(Vec::<String>::new())),
     }
 }
 
@@ -612,6 +637,19 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
                 if let Some((ui, _)) = &*global.borrow() {
                     for i in ui.notifications.read().unwrap().clone() {
                         i.close().expect("libnotify close error");
+                    }
+                }
+            });
+        }
+    });
+
+    #[cfg(not(feature = "libnotify"))]
+    ui.window.connect_notify(Some("is-active"), move |a, _| {
+        if a.is_active() {
+            GLOBAL.with(|global| {
+                if let Some((ui, _)) = &*global.borrow() {
+                    for i in ui.notifications.read().unwrap().clone() {
+                        ui.app.withdraw_notification(&i);
                     }
                 }
             });
@@ -690,11 +728,21 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
 
 #[cfg(not(feature = "libnotify"))]
 fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) {
+    use std::{hash::{DefaultHasher, Hasher}, time::UNIX_EPOCH};
+
     use gtk4::gio::Notification;
+
+    let mut hash = DefaultHasher::new();
+    hash.write(title.as_bytes());
+    hash.write(message.as_bytes());
+
+    let id = format!("bRAC-{}-{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis(), hash.finish());
 
     let notif = Notification::new(title);
     notif.set_body(Some(&message));
-    ui.app.send_notification(None, &notif);
+    ui.app.send_notification(Some(&id), &notif);
+
+    ui.notifications.write().unwrap().push(id);
 }
 
 fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
