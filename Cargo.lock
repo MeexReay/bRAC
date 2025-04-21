@@ -106,6 +106,8 @@ dependencies = [
  "serde_default",
  "serde_yml",
  "socks",
+ "winapi",
+ "winresource",
 ]
 
 [[package]]
@@ -1645,6 +1647,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63d3fcd9bba44b03821e7d699eeee959f3126dcc4aa8e4ae18ec617c2a5cea10"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "winresource"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba4a67c78ee5782c0c1cb41bebc7e12c6e79644daa1650ebbc1de5d5b08593f7"
+dependencies = [
+ "toml",
+ "version_check",
 ]
 
 [[package]]

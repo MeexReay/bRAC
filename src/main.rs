@@ -2,10 +2,12 @@ use std::sync::Arc;
 
 use bRAC::proto::{connect, read_messages, send_message};
 use bRAC::chat::{config::{get_config_path, load_config, Args}, ctx::Context, run_main_loop};
-use clap::Parser;
-
+use clap::Parser; 
 
 fn main() {
+    #[cfg(feature = "winapi")]
+    unsafe { winapi::um::wincon::FreeConsole() };
+
     let args = Args::parse();
     
     let config_path = get_config_path();

@@ -32,7 +32,7 @@ ctx::Context, on_send_message, parse_message, print_message, recv_tick, sanitize
 struct UiModel {
     chat_box: GtkBox,
     chat_scrolled: ScrolledWindow,
-    // app: Application,
+    app: Application,
     window: ApplicationWindow,
     #[cfg(feature = "libnotify")]
     notifications: Arc<RwLock<Vec<libnotify::Notification>>>
@@ -589,7 +589,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     UiModel {
         chat_scrolled,
         chat_box,
-        // app: app.clone(),
+        app: app.clone(),
         window: window.clone(),
         #[cfg(feature = "libnotify")]
         notifications: Arc::new(RwLock::new(Vec::<libnotify::Notification>::new()))
@@ -689,7 +689,7 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
 }
 
 #[cfg(not(feature = "libnotify"))]
-fn send_notification(ctx: Arc<Context>, ui: &UiModel, title: &str, message: &str) {
+fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) {
     use gtk4::gio::Notification;
 
     let notif = Notification::new(title);
