@@ -19,6 +19,7 @@ socks = "0.3.4"
 libnotify = { version = "1.0.3", optional = true }
 gdk-pixbuf = { version = "0.3.0", optional = true }
 winapi = { version = "0.3.9", optional = true, features = ["wincon", "winuser"] }
+tungstenite = "0.26.2"
 
 [features]
 default = []

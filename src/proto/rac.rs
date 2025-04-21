@@ -1,83 +1,4 @@
-#![allow(unused)]
-
-use std::{error::Error, fmt::Debug, io::{Read, Write}, net::{SocketAddr, TcpStream, ToSocketAddrs}, str::FromStr, time::Duration};
-use native_tls::{TlsConnector, TlsStream};
-use socks::Socks5Stream;
-
-use crate::util::parse_socks5_url;
-
-pub trait RacStream: Read + Write + Unpin + Send + Sync + Debug {
-    fn set_read_timeout(&self, timeout: Duration);
-    fn set_write_timeout(&self, timeout: Duration);
-}
-
-impl RacStream for TcpStream {
-    fn set_read_timeout(&self, timeout: Duration) { let _ = TcpStream::set_read_timeout(&self, Some(timeout)); }
-    fn set_write_timeout(&self, timeout: Duration) { let _ = TcpStream::set_write_timeout(&self, Some(timeout)); }
-}
-
-impl RacStream for Socks5Stream {
-    fn set_read_timeout(&self, timeout: Duration) { let _ = TcpStream::set_read_timeout(self.get_ref(), Some(timeout)); }
-    fn set_write_timeout(&self, timeout: Duration) { let _ = TcpStream::set_write_timeout(self.get_ref(), Some(timeout)); }
-}
-
-impl<T: RacStream> RacStream for TlsStream<T> {
-    fn set_read_timeout(&self, timeout: Duration) { self.get_ref().set_read_timeout(timeout); }
-    fn set_write_timeout(&self, timeout: Duration) { self.get_ref().set_write_timeout(timeout); }
-}
-
-impl RacStream for TlsStream<Box<dyn RacStream>> {
-    fn set_read_timeout(&self, timeout: Duration) { self.get_ref().set_read_timeout(timeout); }
-    fn set_write_timeout(&self, timeout: Duration) { self.get_ref().set_write_timeout(timeout); }
-}
-
-/// Create RAC connection (also you can just TcpStream::connect)
-///
-/// host - host string, example: "example.com:12345", "example.com" (default port is 42666)
-/// ssl - wrap with ssl client, write false if you dont know what it is
-/// proxy - socks5 proxy (host, (user, pass))
-pub fn connect(host: &str, ssl: bool, proxy: Option<String>) -> Result<Box<dyn RacStream>, Box<dyn Error>> {
-    let host = if host.contains(":") {
-        host.to_string()
-    } else {
-        format!("{host}:42666")
-    };
-
-    let stream: Box<dyn RacStream> = if let Some(proxy) = proxy {
-        if let Some((proxy, auth)) = parse_socks5_url(&proxy) {
-            if let Some((user, pass)) = auth {
-                Box::new(Socks5Stream::connect_with_password(&proxy, host.as_str(), &user, &pass)?)
-            } else {
-                Box::new(Socks5Stream::connect(&proxy, host.as_str())?)
-            }
-        } else {
-            return Err("proxy parse error".into());
-        }
-    } else {
-        let addr = host.to_socket_addrs()?.next().ok_or::<Box<dyn Error>>("addr parse error".into())?;
-
-        Box::new(TcpStream::connect(&addr)?)
-    };
-
-    let stream = if ssl {
-        let ip: String = host.split_once(":")
-            .map(|o| o.0.to_string())
-            .unwrap_or(host.clone());
-
-        Box::new(TlsConnector::builder()
-            .danger_accept_invalid_certs(true)
-            .danger_accept_invalid_hostnames(true)
-            .build()?
-            .connect(&ip, stream)?)
-    } else {
-        stream
-    };
-
-    stream.set_read_timeout(Duration::from_secs(3));
-    stream.set_write_timeout(Duration::from_secs(3));
-
-    Ok(stream)
-}
+use std::{error::Error, io::{Read, Write}};
 
 /// Send message
 ///
@@ -153,30 +74,6 @@ pub fn send_message_auth(
             Ok(0)
         }
     }
-}
-
-/// Send message with fake auth
-///
-/// Explaination:
-///
-/// let (name, message) = message.split("> ") else { return send_message(stream, message) }
-/// if send_message_auth(name, name, message) != 0 {
-///     let name = "\x1f" + name
-///     register_user(stream, name, name)
-///     send_message_spoof_auth(stream, name + "> " + message)
-/// }
-pub fn send_message_spoof_auth(stream: &mut (impl Write + Read), message: &str, remove_null: bool) -> Result<(), Box<dyn Error>> {
-    let Some((name, message)) = message.split_once("> ") else { return send_message(stream, message) };
-
-    if let Ok(f) = send_message_auth(stream, &name, &message, &message, remove_null) {
-        if f != 0 {
-            let name = format!("\x1f{name}");
-            register_user(stream, &name, &name, remove_null);
-            send_message_spoof_auth(stream, &format!("{name}>  {message}"), remove_null);
-        }
-    }
-
-    Ok(())
 }
 
 /// Skip null bytes and return first non-null byte

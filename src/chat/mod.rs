@@ -2,12 +2,9 @@ use std::{
     error::Error, sync::Arc, thread, time::{Duration, SystemTime, UNIX_EPOCH}
 };
 
-use crate::{connect_rac, proto::{register_user, send_message_auth}};
+use crate::connect_rac;
 
-use super::{
-    proto::{connect, read_messages, send_message, send_message_spoof_auth}, 
-    util::sanitize_text
-};
+use super::proto::{connect, read_messages, send_message, send_message_spoof_auth, register_user, send_message_auth};
 
 use gui::{add_chat_message, clear_chat_messages};
 use lazy_static::lazy_static;
@@ -19,15 +16,18 @@ pub use gui::run_main_loop;
 
 
 lazy_static! {
-  pub static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
-  pub static ref IP_REGEX: Regex = Regex::new(r"\{(.*?)\} (.*)").unwrap();
+    static ref ANSI_REGEX: Regex = Regex::new(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])").unwrap();
+    static ref CONTROL_CHARS_REGEX: Regex = Regex::new(r"[\x00-\x1F\x7F]").unwrap();
 
-  pub static ref COLORED_USERNAMES: Vec<(Regex, String)> = vec![
-      (Regex::new(r"\u{B9AC}\u{3E70}<(.*?)> (.*)").unwrap(),         "green".to_string()),     // bRAC
-      (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), "red".to_string()),       // CRAB
-      (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(),         "magenta".to_string()),   // Mefidroniy
-      (Regex::new(r"<(.*?)> (.*)").unwrap(),                         "cyan".to_string()),      // clRAC
-  ];
+    pub static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
+    pub static ref IP_REGEX: Regex = Regex::new(r"\{(.*?)\} (.*)").unwrap();
+
+    pub static ref COLORED_USERNAMES: Vec<(Regex, String)> = vec![
+        (Regex::new(r"\u{B9AC}\u{3E70}<(.*?)> (.*)").unwrap(),         "green".to_string()),     // bRAC
+        (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), "red".to_string()),       // CRAB
+        (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(),         "magenta".to_string()),   // Mefidroniy
+        (Regex::new(r"<(.*?)> (.*)").unwrap(),                         "cyan".to_string()),      // clRAC
+    ];
 }
 
 
@@ -44,6 +44,11 @@ const HELP_MESSAGE: &str = "Help message:
 /spam n text - send message with text n times
 /ping - check server ping";
 
+pub fn sanitize_text(input: &str) -> String {
+    let without_ansi = ANSI_REGEX.replace_all(input, "");
+    let cleaned_text = CONTROL_CHARS_REGEX.replace_all(&without_ansi, "");
+    cleaned_text.into_owned()
+}
 
 pub fn add_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn Error>> {
     for i in message.split("\n")

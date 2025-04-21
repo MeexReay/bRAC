@@ -26,6 +26,7 @@ pub struct Config {
     #[serde(default = "default_true")] pub chunked_enabled: bool,
     #[serde(default = "default_true")] pub formatting_enabled: bool,
     #[serde(default = "default_true")] pub commands_enabled: bool,
+    #[serde(default)] pub wrac_enabled: bool,
     #[serde(default)] pub proxy: Option<String>,
     #[serde(default = "default_true")] pub notifications_enabled: bool,
 }
@@ -117,6 +118,7 @@ pub struct Args {
     #[arg(long)] pub formatting_enabled: Option<bool>,
     #[arg(long)] pub commands_enabled: Option<bool>,
     #[arg(long)] pub notifications_enabled: Option<bool>,
+    #[arg(long)] pub wrac_enabled: Option<bool>,
     #[arg(long)] pub proxy: Option<String>,
 }
 
@@ -136,5 +138,6 @@ impl Args {
         if let Some(v) = self.formatting_enabled { config.formatting_enabled = v }
         if let Some(v) = self.commands_enabled { config.commands_enabled = v }
         if let Some(v) = self.notifications_enabled { config.notifications_enabled = v }
+        if let Some(v) = self.wrac_enabled { config.wrac_enabled = v }
     }
 }

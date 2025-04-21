@@ -165,6 +165,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     let show_other_ip_entry = gui_checkbox_setting!("Show Other IP", show_other_ip, ctx, vbox);
     let auth_enabled_entry = gui_checkbox_setting!("Fake Auth Enabled", auth_enabled, ctx, vbox);
     let ssl_enabled_entry = gui_checkbox_setting!("SSL Enabled", ssl_enabled, ctx, vbox);
+    let wrac_enabled_entry = gui_checkbox_setting!("WRAC Enabled", wrac_enabled, ctx, vbox);
     let chunked_enabled_entry = gui_checkbox_setting!("Chunked Enabled", chunked_enabled, ctx, vbox);
     let formatting_enabled_entry = gui_checkbox_setting!("Formatting Enabled", formatting_enabled, ctx, vbox);
     let commands_enabled_entry = gui_checkbox_setting!("Commands Enabled", commands_enabled, ctx, vbox);
@@ -191,6 +192,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         #[weak] formatting_enabled_entry,
         #[weak] commands_enabled_entry,
         #[weak] notifications_enabled_entry,
+        #[weak] wrac_enabled_entry,
         #[weak] proxy_entry,
         move |_| {
             let config = Config {
@@ -231,6 +233,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 show_other_ip: show_other_ip_entry.is_active(),
                 auth_enabled: auth_enabled_entry.is_active(),
                 ssl_enabled: ssl_enabled_entry.is_active(),
+                wrac_enabled: wrac_enabled_entry.is_active(),
                 chunked_enabled: chunked_enabled_entry.is_active(),
                 formatting_enabled: formatting_enabled_entry.is_active(),
                 commands_enabled: commands_enabled_entry.is_active(),
@@ -267,6 +270,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         #[weak] show_other_ip_entry,
         #[weak] auth_enabled_entry,
         #[weak] ssl_enabled_entry,
+        #[weak] wrac_enabled_entry,
         #[weak] chunked_enabled_entry,
         #[weak] formatting_enabled_entry,
         #[weak] commands_enabled_entry,
@@ -286,6 +290,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
             show_other_ip_entry.set_active(config.show_other_ip);
             auth_enabled_entry.set_active(config.auth_enabled);
             ssl_enabled_entry.set_active(config.ssl_enabled);
+            wrac_enabled_entry.set_active(config.wrac_enabled);
             chunked_enabled_entry.set_active(config.chunked_enabled);
             formatting_enabled_entry.set_active(config.formatting_enabled);
             commands_enabled_entry.set_active(config.commands_enabled);
