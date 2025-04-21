@@ -100,7 +100,11 @@ pub fn connect(host: &str, ssl: bool, proxy: Option<String>, wrac: bool) -> Resu
     stream.set_write_timeout(Duration::from_secs(3));
 
     if wrac {
-        Ok(RacStream::WRAC(tungstenite::accept(stream)?))
+        let (client, _) = tungstenite::client(
+            &format!("ws{}://{host}", if ssl { "s" } else { "" }), 
+            stream
+        )?;
+        Ok(RacStream::WRAC(client))
     } else {
         Ok(RacStream::RAC(stream))
     }

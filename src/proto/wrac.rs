@@ -11,6 +11,7 @@ pub fn send_message(
     message: &str
 ) -> Result<(), Box<dyn Error>> {
     stream.write(Message::Binary(format!("\x01{message}").as_bytes().to_vec().into()))?;
+    stream.flush()?;
     Ok(())
 }
 
@@ -27,6 +28,7 @@ pub fn register_user(
     password: &str
 ) -> Result<bool, Box<dyn Error>> {
     stream.write(Message::Binary(format!("\x03{name}\n{password}").as_bytes().to_vec().into()))?;
+    stream.flush()?;
     if let Ok(msg) = stream.read() {
         Ok(!msg.is_binary() || msg.into_data().get(0).unwrap_or(&0) == &0)
     } else {
@@ -51,6 +53,7 @@ pub fn send_message_auth(
     message: &str
 ) -> Result<u8, Box<dyn Error>> {
     stream.write(Message::Binary(format!("\x02{name}\n{password}\n{message}").as_bytes().to_vec().into()))?;
+    stream.flush()?;
     if let Ok(msg) = stream.read() {
         if msg.is_binary() {
             Ok(0)
@@ -76,6 +79,7 @@ pub fn read_messages(
     chunked: bool
 ) -> Result<Option<(Vec<String>, usize)>, Box<dyn Error>> {
     stream.write(Message::Binary(vec![0x00].into()))?;
+    stream.flush()?;
 
     let packet_size = {
         let msg = stream.read()?;
@@ -100,6 +104,7 @@ pub fn read_messages(
         stream.write(Message::Binary(format!("\x00\x02{}", last_size).as_bytes().to_vec().into()))?;
         packet_size - last_size
     };
+    stream.flush()?;
 
     let msg = stream.read()?;
     if !msg.is_binary() {
