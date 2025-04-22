@@ -408,7 +408,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
     let server_list = ListBox::new();
 
-    for url in ["meex.lol:42666", "meex.lol:11234", "91.192.22.20:42666"] {
+    for url in ["rac://meex.lol", "rac://meex.lol:11234", "rac://91.192.22.20"] {
         let url = url.to_string();
 
         let label = Label::builder()

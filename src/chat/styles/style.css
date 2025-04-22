@@ -18,7 +18,7 @@
 
 .message-name { font-weight: bold; }
 
-.message-name-green { color: #16a516; }
-.message-name-red { color: #b91818; }
-.message-name-magenta { color: #b619b6; }
-.message-name-cyan { color: #19b1b1; }
+.message-name-green { color: #70fa7a; }
+.message-name-red { color: #fa7070; }
+.message-name-magenta { color: #da70fa; }
+.message-name-cyan { color: #70fadc; }

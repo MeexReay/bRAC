@@ -53,6 +53,61 @@ pub fn parse_socks5_url(url: &str) -> Option<(String, Option<(String, String)>)>
     }
 }
 
+/// url -> (host, ssl, wrac) \
+/// `127.0.0.1` -> `("127.0.0.1:42666", false, false)` \
+/// `127.0.0.1:12345` -> `("127.0.0.1:12345", false, false)` \
+/// `rac://127.0.0.1/` -> `("127.0.0.1:42666", false, false)` \
+/// `racs://127.0.0.1/` -> `("127.0.0.1:42667", true, false)` \
+/// `wrac://127.0.0.1/` -> `("127.0.0.1:52666", false, true)` \
+/// `wracs://127.0.0.1/` -> `(127.0.0.1:52667, true, true)` \
+pub fn parse_rac_url(url: &str) -> Option<(String, bool, bool)> {
+    let (scheme, url) = url.split_once("://").unwrap_or(("rac", url));
+    let (host, _) = url.split_once("/").unwrap_or((url, ""));
+    match scheme.to_lowercase().as_str() {
+        "rac" => {
+            Some((
+                if host.contains(":") { 
+                    host.to_string() 
+                } else { 
+                    format!("{host}:42666") 
+                }, 
+                false, false
+            ))
+        },
+        "racs" => {
+            Some((
+                if host.contains(":") { 
+                    host.to_string() 
+                } else { 
+                    format!("{host}:42667") 
+                }, 
+                true, false
+            ))
+        },
+        "wrac" => {
+            Some((
+                if host.contains(":") { 
+                    host.to_string() 
+                } else { 
+                    format!("{host}:52666") 
+                }, 
+                false, true
+            ))
+        },
+        "wracs" => {
+            Some((
+                if host.contains(":") { 
+                    host.to_string() 
+                } else { 
+                    format!("{host}:52667") 
+                }, 
+                true, true
+            ))
+        },
+        _ => None,
+    }
+}
+
 /// Create RAC connection (also you can just TcpStream::connect)
 ///
 /// host - host string, example: "example.com:12345", "example.com" (default port is 42666)
@@ -60,11 +115,8 @@ pub fn parse_socks5_url(url: &str) -> Option<(String, Option<(String, String)>)>
 /// proxy - socks5 proxy (host, (user, pass))
 /// wrac - to use wrac protocol
 pub fn connect(host: &str, ssl: bool, proxy: Option<String>, wrac: bool) -> Result<RacStream, Box<dyn Error>> {
-    let host = if host.contains(":") {
-        host.to_string()
-    } else {
-        format!("{host}:42666")
-    };
+    let (host, ssl_, wrac_) = parse_rac_url(host).ok_or::<Box<dyn Error>>("url parse error".into())?;
+    let (ssl, wrac) = (ssl_ || ssl, wrac_ || wrac);
 
     let stream: Box<dyn Stream> = if let Some(proxy) = proxy {
         if let Some((proxy, auth)) = parse_socks5_url(&proxy) {
