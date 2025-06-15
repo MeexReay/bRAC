@@ -1,4 +1,4 @@
-# ![logo](logo.gif)
+# ![logo](misc/logo.gif)
 <!--
 [<img src="https://github.com/user-attachments/assets/f2be5caa-6246-4a6a-9bee-2b53086f9afb" height="30">]()
 [<img src="https://github.com/user-attachments/assets/4d35191d-1dbc-4391-a761-6ae7f76ba7af" height="30">]()
@@ -20,7 +20,7 @@ better RAC client
 - RACS compatible (--enable-ssl or in --configure enable SSL)
 - chunked reading messages
 
-![screenshot](image.png)
+![screenshot](misc/image.png)
 
 ## how to run
 

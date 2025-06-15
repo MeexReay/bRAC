@@ -10,5 +10,5 @@ getent passwd | while IFS=: read -r name password uid gid gecos home shell; do
 done
 
 rm -f /bin/bRAC
-rm -f ru.themixray.bRAC.png /usr/share/pixmaps
-rm -f ru.themixray.bRAC.desktop /usr/share/applications
+rm -f /usr/share/pixmaps/ru.themixray.bRAC.png
+rm -f /usr/share/applications/ru.themixray.bRAC.desktop
