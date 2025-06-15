@@ -26,8 +26,10 @@ use gtk::{
     Justification, Label, ListBox, Orientation, Overlay, Picture, ScrolledWindow, Settings, Window
 };
 
+use crate::proto::parse_rac_url;
+
 use super::{config::{default_max_messages, default_update_time, get_config_path, save_config, Config}, 
-ctx::Context, on_send_message, parse_message, print_message, recv_tick, sanitize_message};
+ctx::Context, on_send_message, parse_message, print_message, recv_tick, sanitize_message, SERVER_LIST};
 
 struct UiModel {
     chat_box: GtkBox,
@@ -408,7 +410,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
     let server_list = ListBox::new();
 
-    for url in ["rac://meex.lol", "rac://meex.lol:11234", "rac://91.192.22.20"] {
+    for url in SERVER_LIST.iter() {
         let url = url.to_string();
 
         let label = Label::builder()
@@ -422,7 +424,11 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
             #[weak] ctx,
             move |_, _, _, _| {
                 let mut config = ctx.config.read().unwrap().clone();
-                config.host = url.clone();
+                if let Some((_, ssl, wrac)) = parse_rac_url(&url) {
+                    config.host = url.clone();
+                    config.wrac_enabled = wrac;
+                    config.ssl_enabled = ssl;
+                }
                 ctx.set_config(&config);
                 save_config(get_config_path(), &config);
             }

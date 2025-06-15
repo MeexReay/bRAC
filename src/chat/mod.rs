@@ -15,6 +15,14 @@ use ctx::Context;
 pub use gui::run_main_loop;
 
 
+const HELP_MESSAGE: &str = "Help message:
+/help - show help message
+/register password - register user
+/login password - login user
+/clear n - send empty message n times
+/spam n text - send message with text n times
+/ping - check server ping";
+
 lazy_static! {
     static ref ANSI_REGEX: Regex = Regex::new(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])").unwrap();
     static ref CONTROL_CHARS_REGEX: Regex = Regex::new(r"[\x00-\x1F\x7F]").unwrap();
@@ -28,21 +36,18 @@ lazy_static! {
         (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(),         "magenta".to_string()),   // Mefidroniy
         (Regex::new(r"<(.*?)> (.*)").unwrap(),                         "cyan".to_string()),      // clRAC
     ];
+
+    pub static ref SERVER_LIST: Vec<String> = vec![
+        "rac://meex.lol".to_string(), 
+        "rac://meex.lol:11234".to_string(), 
+        "rac://91.192.22.20".to_string()
+    ];
 }
 
 
 pub mod gui;
 pub mod config;
 pub mod ctx;
-
-
-const HELP_MESSAGE: &str = "Help message:
-/help - show help message
-/register password - register user
-/login password - login user
-/clear n - send empty message n times
-/spam n text - send message with text n times
-/ping - check server ping";
 
 pub fn sanitize_text(input: &str) -> String {
     let without_ansi = ANSI_REGEX.replace_all(input, "");
