@@ -24,6 +24,16 @@ better RAC client
 
 ## how to run
 
+### install (recommended)
+
+!!! ONLY ON LINUX !!!
+
+1. Install requirements: `gtk4-dev gtk4 make rust git openssl-dev openssl`
+
+2. Clone repository and run `make install`
+
+3. Now you are able to start bRAC with desktop icon
+
 ### download binary
 
 go to [releases](https://github.com/MeexReay/bRAC/releases/latest) and download file you need. its simple.
