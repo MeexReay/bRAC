@@ -9,8 +9,9 @@ better RAC client
 
 ## features
 
-- gtk4 GUI
+- gtk4 modern GUI
 - RACv1.99.x and RACv2.0 compatible
+- WRAC compatible (can be enabled in the settings)
 - chat commands (type /help)
 - no ip and date visible for anyone
 - uses TOR proxy server by default (meex.lol:11234)
