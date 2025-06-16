@@ -159,25 +159,35 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     vbox.set_margin_start(15);
     vbox.set_margin_end(15);
 
-    let host_entry = gui_entry_setting!("Host", host, ctx, vbox);
-    let name_entry = gui_option_entry_setting!("Name", name, ctx, vbox);
-    let message_format_entry = gui_entry_setting!("Message Format", message_format, ctx, vbox);
-    let proxy_entry = gui_option_entry_setting!("Socks5 proxy", proxy, ctx, vbox);
-    let update_time_entry = gui_usize_entry_setting!("Update Time", update_time, ctx, vbox);
-    let oof_update_time_entry = gui_usize_entry_setting!("Out-of-focus Update Time", oof_update_time, ctx, vbox);
-    let max_messages_entry = gui_usize_entry_setting!("Max Messages", max_messages, ctx, vbox);
-    let hide_my_ip_entry = gui_checkbox_setting!("Hide My IP", hide_my_ip, ctx, vbox);
-    let show_other_ip_entry = gui_checkbox_setting!("Show Other IP", show_other_ip, ctx, vbox);
-    let auth_enabled_entry = gui_checkbox_setting!("Fake Auth Enabled", auth_enabled, ctx, vbox);
-    let ssl_enabled_entry = gui_checkbox_setting!("SSL Enabled", ssl_enabled, ctx, vbox);
-    let wrac_enabled_entry = gui_checkbox_setting!("WRAC Enabled", wrac_enabled, ctx, vbox);
-    let chunked_enabled_entry = gui_checkbox_setting!("Chunked Enabled", chunked_enabled, ctx, vbox);
-    let formatting_enabled_entry = gui_checkbox_setting!("Formatting Enabled", formatting_enabled, ctx, vbox);
-    let commands_enabled_entry = gui_checkbox_setting!("Commands Enabled", commands_enabled, ctx, vbox);
-    let notifications_enabled_entry = gui_checkbox_setting!("Notifications Enabled", notifications_enabled, ctx, vbox);
-    let debug_logs_entry = gui_checkbox_setting!("Debug Logs", debug_logs, ctx, vbox);
-    let konata_size_entry = gui_usize_entry_setting!("Konata Size", konata_size, ctx, vbox);
-    let remove_gui_shit_entry = gui_checkbox_setting!("Remove Gui Shit", remove_gui_shit, ctx, vbox);
+    let settings_vbox = GtkBox::new(Orientation::Vertical, 10);
+
+    let host_entry = gui_entry_setting!("Host", host, ctx, settings_vbox);
+    let name_entry = gui_option_entry_setting!("Name", name, ctx, settings_vbox);
+    let message_format_entry = gui_entry_setting!("Message Format", message_format, ctx, settings_vbox);
+    let proxy_entry = gui_option_entry_setting!("Socks5 proxy", proxy, ctx, settings_vbox);
+    let update_time_entry = gui_usize_entry_setting!("Update Time", update_time, ctx, settings_vbox);
+    let oof_update_time_entry = gui_usize_entry_setting!("Out-of-focus Update Time", oof_update_time, ctx, settings_vbox);
+    let max_messages_entry = gui_usize_entry_setting!("Max Messages", max_messages, ctx, settings_vbox);
+    let hide_my_ip_entry = gui_checkbox_setting!("Hide My IP", hide_my_ip, ctx, settings_vbox);
+    let show_other_ip_entry = gui_checkbox_setting!("Show Other IP", show_other_ip, ctx, settings_vbox);
+    let auth_enabled_entry = gui_checkbox_setting!("Fake Auth Enabled", auth_enabled, ctx, settings_vbox);
+    let ssl_enabled_entry = gui_checkbox_setting!("SSL Enabled", ssl_enabled, ctx, settings_vbox);
+    let wrac_enabled_entry = gui_checkbox_setting!("WRAC Enabled", wrac_enabled, ctx, settings_vbox);
+    let chunked_enabled_entry = gui_checkbox_setting!("Chunked Enabled", chunked_enabled, ctx, settings_vbox);
+    let formatting_enabled_entry = gui_checkbox_setting!("Formatting Enabled", formatting_enabled, ctx, settings_vbox);
+    let commands_enabled_entry = gui_checkbox_setting!("Commands Enabled", commands_enabled, ctx, settings_vbox);
+    let notifications_enabled_entry = gui_checkbox_setting!("Notifications Enabled", notifications_enabled, ctx, settings_vbox);
+    let debug_logs_entry = gui_checkbox_setting!("Debug Logs", debug_logs, ctx, settings_vbox);
+    let konata_size_entry = gui_usize_entry_setting!("Konata Size", konata_size, ctx, settings_vbox);
+    let remove_gui_shit_entry = gui_checkbox_setting!("Remove Gui Shit", remove_gui_shit, ctx, settings_vbox);
+
+    let scrollable = ScrolledWindow::builder()
+        .child(&settings_vbox)
+        .vexpand(true)
+        .hexpand(true)
+        .build();
+
+    vbox.append(&scrollable);
 
     let save_button = Button::builder()
         .label("Save")
@@ -333,12 +343,12 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
             notifications_enabled_entry.set_active(config.notifications_enabled);
         }
     ));
-
     let window = Window::builder()
         .application(app)
         .title("Settings")
         .default_width(400)
         .default_height(500)
+        .resizable(true)
         .decorated(true)
         .child(&vbox)
         .build();
