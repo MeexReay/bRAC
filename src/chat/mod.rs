@@ -221,7 +221,7 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
         }
         _ => {}
     }
-    thread::sleep(Duration::from_millis(ctx.config(|o| o.update_time) as u64));
+
     Ok(())
 }
 

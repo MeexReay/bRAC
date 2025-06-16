@@ -8,7 +8,8 @@ const MESSAGE_FORMAT: &str = "\u{B9AC}\u{3E70}<{name}> {text}";
 
 fn default_true() -> bool { true }
 pub fn default_max_messages() -> usize { 200 }
-pub fn default_update_time() -> usize { 50 }
+pub fn default_update_time() -> usize { 100 }
+pub fn default_oof_update_time() -> usize { 10000 }
 pub fn default_host() -> String { "meex.lol:11234".to_string() }
 pub fn default_message_format() -> String { MESSAGE_FORMAT.to_string() }
 
@@ -18,6 +19,7 @@ pub struct Config {
     #[serde(default)] pub name: Option<String>,
     #[serde(default = "default_message_format")] pub message_format: String,
     #[serde(default = "default_update_time")] pub update_time: usize,
+    #[serde(default = "default_oof_update_time")] pub oof_update_time: usize,
     #[serde(default = "default_max_messages")] pub max_messages: usize,
     #[serde(default = "default_true")] pub hide_my_ip: bool,
     #[serde(default)] pub show_other_ip: bool,
@@ -110,6 +112,7 @@ pub struct Args {
     #[arg(short='n', long)] pub name: Option<String>,
     #[arg(long)] pub message_format: Option<String>,
     #[arg(long)] pub update_time: Option<usize>,
+    #[arg(long)] pub oof_update_time: Option<usize>,
     #[arg(long)] pub max_messages: Option<usize>,
     #[arg(long)] pub hide_my_ip: Option<bool>,
     #[arg(long)] pub show_other_ip: Option<bool>,
@@ -131,6 +134,7 @@ impl Args {
         if let Some(v) = self.proxy.clone() { config.proxy = Some(v) }
         if let Some(v) = self.message_format.clone() { config.message_format = v }
         if let Some(v) = self.update_time { config.update_time = v }
+        if let Some(v) = self.oof_update_time { config.oof_update_time = v }
         if let Some(v) = self.max_messages { config.max_messages = v }
         if let Some(v) = self.hide_my_ip { config.hide_my_ip = v }
         if let Some(v) = self.show_other_ip { config.show_other_ip = v }

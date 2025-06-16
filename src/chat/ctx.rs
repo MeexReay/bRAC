@@ -1,4 +1,4 @@
-use std::sync::{atomic::{AtomicUsize, Ordering}, mpsc::Sender, Arc, RwLock};
+use std::sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, mpsc::Sender, Arc, RwLock};
 
 use rand::random;
 
@@ -10,7 +10,8 @@ pub struct Context {
     pub sender: RwLock<Option<Arc<Sender<(String, bool)>>>>,
     pub messages: RwLock<Vec<String>>,
     pub packet_size: AtomicUsize,
-    pub name: RwLock<String>
+    pub name: RwLock<String>,
+    pub is_focused: AtomicBool
 }
 
 impl Context {
@@ -22,6 +23,7 @@ impl Context {
             messages: RwLock::new(Vec::new()),
             packet_size: AtomicUsize::default(),
             name: RwLock::new(config.name.clone().unwrap_or_else(|| format!("Anon#{:X}", random::<u16>()))),
+            is_focused: AtomicBool::new(true)
         }
     }
 

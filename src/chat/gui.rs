@@ -1,4 +1,4 @@
-use std::sync::{mpsc::{channel, Receiver}, Arc, RwLock};
+use std::sync::{atomic::Ordering, mpsc::{channel, Receiver}, Arc, RwLock};
 use std::cell::RefCell;
 use std::time::{Duration, SystemTime};
 use std::thread;
@@ -27,7 +27,7 @@ use gtk::{
     Justification, Label, ListBox, Orientation, Overlay, Picture, ScrolledWindow, Settings, Window
 };
 
-use crate::proto::parse_rac_url;
+use crate::{chat::config::default_oof_update_time, proto::parse_rac_url};
 
 use super::{config::{default_max_messages, default_update_time, get_config_path, save_config, Config}, 
 ctx::Context, on_send_message, parse_message, print_message, recv_tick, sanitize_message, SERVER_LIST};
@@ -164,6 +164,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     let message_format_entry = gui_entry_setting!("Message Format", message_format, ctx, vbox);
     let proxy_entry = gui_option_entry_setting!("Socks5 proxy", proxy, ctx, vbox);
     let update_time_entry = gui_usize_entry_setting!("Update Time", update_time, ctx, vbox);
+    let oof_update_time_entry = gui_usize_entry_setting!("Out-of-focus Update Time", oof_update_time, ctx, vbox);
     let max_messages_entry = gui_usize_entry_setting!("Max Messages", max_messages, ctx, vbox);
     let hide_my_ip_entry = gui_checkbox_setting!("Hide My IP", hide_my_ip, ctx, vbox);
     let show_other_ip_entry = gui_checkbox_setting!("Show Other IP", show_other_ip, ctx, vbox);
@@ -200,6 +201,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         #[weak] wrac_enabled_entry,
         #[weak] proxy_entry,
         #[weak] debug_logs_entry,
+        #[weak] oof_update_time_entry,
         move |_| {
             let config = Config {
                 host: host_entry.text().to_string(),
@@ -222,6 +224,17 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                         let update_time = default_update_time();
                         update_time_entry.set_text(&update_time.to_string());
                         update_time
+                    }
+                },
+                oof_update_time: {
+                    let oof_update_time = oof_update_time_entry.text();
+        
+                    if let Ok(oof_update_time) = oof_update_time.parse::<usize>() {
+                        oof_update_time
+                    } else {
+                        let oof_update_time = default_oof_update_time();
+                        oof_update_time_entry.set_text(&oof_update_time.to_string());
+                        oof_update_time
                     }
                 },
                 max_messages: {
@@ -481,11 +494,13 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     timeout_add_local(Duration::from_millis(30), {
         let logo = logo.clone();
         let logo_anim = logo_anim.clone();
+        let ctx = ctx.clone();
 
         move || {
-            logo.set_pixbuf(Some(&logo_anim.pixbuf()));
-            logo_anim.advance(SystemTime::now());
-
+            if ctx.is_focused.load(Ordering::SeqCst) {
+                logo.set_pixbuf(Some(&logo_anim.pixbuf()));
+                logo_anim.advance(SystemTime::now());
+            }
             ControlFlow::Continue
         }
     });
@@ -658,30 +673,31 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
     run_recv_loop(ctx.clone());
 
     let (tx, rx) = channel();
+    
+    ui.window.connect_notify(Some("is-active"), {
+        let ctx = ctx.clone();
 
-    #[cfg(feature = "libnotify")]
-    ui.window.connect_notify(Some("is-active"), move |a, _| {
-        if a.is_active() {
-            GLOBAL.with(|global| {
-                if let Some((ui, _)) = &*global.borrow() {
-                    for i in ui.notifications.read().unwrap().clone() {
-                        i.close().expect("libnotify close error");
-                    }
-                }
-            });
-        }
-    });
+        move |a, _| {
+            let is_focused = a.is_active();
 
-    #[cfg(not(feature = "libnotify"))]
-    ui.window.connect_notify(Some("is-active"), move |a, _| {
-        if a.is_active() {
-            GLOBAL.with(|global| {
-                if let Some((ui, _)) = &*global.borrow() {
-                    for i in ui.notifications.read().unwrap().clone() {
-                        ui.app.withdraw_notification(&i);
+            ctx.is_focused.store(is_focused, Ordering::SeqCst);
+
+            if is_focused {
+                make_recv_tick(ctx.clone());
+
+                GLOBAL.with(|global| {
+                    if let Some((ui, _)) = &*global.borrow() {
+                        #[cfg(feature = "libnotify")]
+                        for i in ui.notifications.read().unwrap().clone() {
+                            i.close().expect("libnotify close error");
+                        }
+                        #[cfg(not(feature = "libnotify"))]
+                        for i in ui.notifications.read().unwrap().clone() {
+                            ui.app.withdraw_notification(&i);
+                        }
                     }
-                }
-            });
+                });
+            }
         }
     });
 
@@ -704,7 +720,7 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
                                 }
                             }
                             let message: String = rx.recv().unwrap();
-                            on_add_message(ctx.clone(), &ui, message);
+                            on_add_message(ctx.clone(), &ui, message, !clear);
                         }
                     });
                 });
@@ -766,14 +782,14 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
     ui.notifications.write().unwrap().push(id);
 }
 
-fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
+fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool) {
     let Some(message) = sanitize_message(message) else { return; };
 
     if message.is_empty() {
         return;
     }
 
-    // TODO: caching these colors maybe??
+    // TODO: cache these colors maybe??
 
     let (ip_color, date_color, text_color) = if ui.is_dark_theme {
         (
@@ -803,13 +819,13 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
         if let Some((name, color)) = nick {
             label.push_str(&format!("<span font_weight=\"bold\" color=\"{}\">&lt;{}&gt;</span> ", color.to_uppercase(), glib::markup_escape_text(&name)));
 
-            if !ui.window.is_active() {
+            if notify && !ui.window.is_active() {
                 if ctx.config(|o| o.chunked_enabled) {
                     send_notification(ctx.clone(), ui, &format!("{}'s Message", &name), &glib::markup_escape_text(&content));
                 }
             }
         } else {
-            if !ui.window.is_active() {
+            if notify && !ui.window.is_active() {
                 if ctx.config(|o| o.chunked_enabled) {
                     send_notification(ctx.clone(), ui, "System Message", &content);
                 }
@@ -820,7 +836,7 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
     } else {
         label.push_str(&format!("<span color=\"{text_color}\">{}</span>", glib::markup_escape_text(&message)));
 
-        if !ui.window.is_active() {
+        if notify && !ui.window.is_active() {
             if ctx.config(|o| o.chunked_enabled) {
                 send_notification(ctx.clone(), ui, "Chat Message", &message);
             }
@@ -853,15 +869,27 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
     });
 }
 
+fn make_recv_tick(ctx: Arc<Context>) {
+    if let Err(e) = recv_tick(ctx.clone()) {
+        if ctx.config(|o| o.debug_logs) {
+            let _ = print_message(ctx.clone(), format!("Print messages error: {}", e.to_string()).to_string());
+        }
+        thread::sleep(Duration::from_secs(1));
+    }
+}
+
 fn run_recv_loop(ctx: Arc<Context>) {
     thread::spawn(move || {
         loop { 
-            if let Err(e) = recv_tick(ctx.clone()) {
-                if ctx.config(|o| o.debug_logs) {
-                    let _ = print_message(ctx.clone(), format!("Print messages error: {}", e.to_string()).to_string());
+            make_recv_tick(ctx.clone());
+
+            thread::sleep(Duration::from_millis(
+                if ctx.is_focused.load(Ordering::SeqCst) { 
+                    ctx.config(|o| o.update_time) as u64 
+                } else {
+                    ctx.config(|o| o.oof_update_time) as u64 
                 }
-                thread::sleep(Duration::from_secs(1));
-            }
+            ));
         }
     });
 }
