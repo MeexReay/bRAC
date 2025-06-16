@@ -151,14 +151,8 @@ pub fn prepare_message(ctx: Arc<Context>, message: &str) -> String {
         },
         message,
         if !ctx.config(|o| o.hide_my_ip) { 
-            let spaces = if ctx.config(|o| o.auth_enabled) {
-                39
-            } else {
-                54
-            };
-
-            if message.chars().count() < spaces { 
-                " ".repeat(spaces-message.chars().count()) 
+            if message.chars().count() < 54 { 
+                " ".repeat(54-message.chars().count()) 
             } else { 
                 String::new()
             }

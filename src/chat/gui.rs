@@ -149,6 +149,14 @@ macro_rules! gui_checkbox_setting {
     };
 }
 
+fn update_window_title(ctx: Arc<Context>) {
+    GLOBAL.with(|global| {
+        if let Some(ui) = &*global.borrow() {
+            ui.window.set_title(Some(&format!("bRAC - Connected to {} as {}", ctx.config(|o| o.host.clone()), &ctx.name())))
+        }
+    })
+}
+
 fn open_settings(ctx: Arc<Context>, app: &Application) {
     let vbox = GtkBox::new(Orientation::Vertical, 10);
 
@@ -288,6 +296,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
             };
             ctx.set_config(&config);
             save_config(get_config_path(), &config);
+            update_window_title(ctx.clone());
         }
     ));
 
@@ -471,6 +480,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
                 config.host = url.clone();
                 ctx.set_config(&config);
                 save_config(get_config_path(), &config);
+                update_window_title(ctx.clone());
             }
         ));
 

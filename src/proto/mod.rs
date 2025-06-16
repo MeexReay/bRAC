@@ -174,7 +174,7 @@ pub fn connect(host: &str, proxy: Option<String>) -> Result<RacStream, Box<dyn E
 pub fn send_message_spoof_auth(stream: &mut RacStream, message: &str) -> Result<(), Box<dyn Error>> {
     let Some((name, message)) = message.split_once("> ") else { return send_message(stream, message) };
 
-    if let Ok(f) = send_message_auth(stream, &name, &message, &message) {
+    if let Ok(f) = send_message_auth(stream, &name, &name, &message) {
         if f != 0 {
             let name = format!("\x1f{name}");
             register_user(stream, &name, &name)?;
@@ -213,10 +213,10 @@ pub fn register_user(
     name: &str, 
     password: &str
 ) -> Result<bool, Box<dyn Error>> {
-    match stream {
+    dbg!(match stream {
         RacStream::WRAC(websocket) => wrac::register_user(websocket, name, password),
         RacStream::RAC(stream) => rac::register_user(stream, name, password)
-    }
+    })
 }
 
 /// Send message with auth
@@ -236,10 +236,10 @@ pub fn send_message_auth(
     password: &str, 
     message: &str
 ) -> Result<u8, Box<dyn Error>> {
-    match stream {
+    dbg!(match stream {
         RacStream::WRAC(websocket) => wrac::send_message_auth(websocket, name, password, message),
         RacStream::RAC(stream) => rac::send_message_auth(stream, name, password, message)
-    }
+    })
 }
 
 /// Read messages
