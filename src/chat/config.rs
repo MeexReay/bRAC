@@ -29,6 +29,7 @@ pub struct Config {
     #[serde(default)] pub wrac_enabled: bool,
     #[serde(default)] pub proxy: Option<String>,
     #[serde(default = "default_true")] pub notifications_enabled: bool,
+    #[serde(default)] pub debug_logs: bool,
 }
 
 pub fn get_config_path() -> PathBuf {
@@ -120,6 +121,7 @@ pub struct Args {
     #[arg(long)] pub notifications_enabled: Option<bool>,
     #[arg(long)] pub wrac_enabled: Option<bool>,
     #[arg(long)] pub proxy: Option<String>,
+    #[arg(long)] pub debug_logs: bool,
 }
 
 impl Args {
@@ -139,5 +141,6 @@ impl Args {
         if let Some(v) = self.commands_enabled { config.commands_enabled = v }
         if let Some(v) = self.notifications_enabled { config.notifications_enabled = v }
         if let Some(v) = self.wrac_enabled { config.wrac_enabled = v }
+        if self.debug_logs { config.debug_logs = true }
     }
 }

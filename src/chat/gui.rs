@@ -173,6 +173,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     let formatting_enabled_entry = gui_checkbox_setting!("Formatting Enabled", formatting_enabled, ctx, vbox);
     let commands_enabled_entry = gui_checkbox_setting!("Commands Enabled", commands_enabled, ctx, vbox);
     let notifications_enabled_entry = gui_checkbox_setting!("Notifications Enabled", notifications_enabled, ctx, vbox);
+    let debug_logs_entry = gui_checkbox_setting!("Debug Logs", debug_logs, ctx, vbox);
 
     let save_button = Button::builder()
         .label("Save")
@@ -197,6 +198,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         #[weak] notifications_enabled_entry,
         #[weak] wrac_enabled_entry,
         #[weak] proxy_entry,
+        #[weak] debug_logs_entry,
         move |_| {
             let config = Config {
                 host: host_entry.text().to_string(),
@@ -241,6 +243,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 formatting_enabled: formatting_enabled_entry.is_active(),
                 commands_enabled: commands_enabled_entry.is_active(),
                 notifications_enabled: notifications_enabled_entry.is_active(),
+                debug_logs: debug_logs_entry.is_active(),
                 proxy: {
                     let proxy = proxy_entry.text().to_string();
         
@@ -554,8 +557,10 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
             ));
 
             if let Err(e) = on_send_message(ctx.clone(), &text_entry.text()) {
-                let msg = format!("Send message error: {}", e.to_string()).to_string();
-                add_chat_message(ctx.clone(), msg);
+                if ctx.config(|o| o.debug_logs) {
+                    let msg = format!("Send message error: {}", e.to_string()).to_string();
+                    add_chat_message(ctx.clone(), msg);
+                }
             }
         }
     ));
@@ -573,8 +578,10 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
             ));
 
             if let Err(e) = on_send_message(ctx.clone(), &text_entry.text()) {
-                let msg = format!("Send message error: {}", e.to_string()).to_string();
-                add_chat_message(ctx.clone(), msg);
+                if ctx.config(|o| o.debug_logs) {
+                    let msg = format!("Send message error: {}", e.to_string()).to_string();
+                    add_chat_message(ctx.clone(), msg);
+                }
             }
         }
     ));
@@ -873,7 +880,9 @@ fn run_recv_loop(ctx: Arc<Context>) {
     thread::spawn(move || {
         loop { 
             if let Err(e) = recv_tick(ctx.clone()) {
-                let _ = print_message(ctx.clone(), format!("Print messages error: {}", e.to_string()).to_string());
+                if ctx.config(|o| o.debug_logs) {
+                    let _ = print_message(ctx.clone(), format!("Print messages error: {}", e.to_string()).to_string());
+                }
                 thread::sleep(Duration::from_secs(1));
             }
         }

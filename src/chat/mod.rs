@@ -215,7 +215,9 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
             }
         },
         Err(e) => {
-            println!("Read messages error: {}", e.to_string())
+            if ctx.config(|o| o.debug_logs) {
+                add_chat_message(ctx.clone(), format!("Read messages error: {}", e.to_string()));
+            }
         }
         _ => {}
     }
