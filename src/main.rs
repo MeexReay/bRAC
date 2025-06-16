@@ -25,6 +25,8 @@ fn main() {
 
     let mut config = load_config(config_path);
 
+    args.patch_config(&mut config);
+
     if args.read_messages {
         let mut stream =
             connect(&config.host, config.proxy.clone()).expect("Error reading message");
@@ -50,8 +52,6 @@ fn main() {
     if args.send_message.is_some() || args.read_messages {
         return;
     }
-
-    args.patch_config(&mut config);
 
     let ctx = Arc::new(Context::new(&config));
 
