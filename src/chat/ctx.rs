@@ -7,7 +7,7 @@ use super::config::Config;
 pub struct Context {
     pub registered: RwLock<Option<String>>,
     pub config: RwLock<Config>,
-    pub sender: RwLock<Option<Arc<Sender<(String, bool)>>>>,
+    pub sender: RwLock<Option<Arc<Sender<(Vec<String>, bool)>>>>,
     pub messages: RwLock<Vec<String>>,
     pub packet_size: AtomicUsize,
     pub name: RwLock<String>,

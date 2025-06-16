@@ -6,7 +6,7 @@ use crate::connect_rac;
 
 use super::proto::{connect, read_messages, send_message, send_message_spoof_auth, register_user, send_message_auth};
 
-use gui::{add_chat_message, clear_chat_messages};
+use gui::{add_chat_messages, clear_chat_messages};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -171,7 +171,7 @@ pub fn prepare_message(ctx: Arc<Context>, message: &str) -> String {
 
 pub fn print_message(ctx: Arc<Context>, message: String) -> Result<(), Box<dyn Error>> {
     ctx.add_message(ctx.config(|o| o.max_messages), vec![message.clone()]);
-    add_chat_message(ctx.clone(), message);
+    add_chat_messages(ctx.clone(), vec![message]);
     Ok(())
 }
 
@@ -190,33 +190,19 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
                 ctx.add_messages_packet(ctx.config(|o| o.max_messages), messages.clone(), size);
                 if last_size == 0 {
                     if messages.len() >= 1 {
-                        clear_chat_messages(ctx.clone(), messages[0].clone());
-                        if messages.len() >= 2 {
-                            for msg in &messages[1..] {
-                                add_chat_message(ctx.clone(), msg.clone());
-                            }
-                        }
+                        clear_chat_messages(ctx.clone(), messages);
                     }
                 } else {
-                    for msg in messages {
-                        add_chat_message(ctx.clone(), msg.clone());
-                    }
+                    add_chat_messages(ctx.clone(), messages);
                 }
             } else {
                 ctx.put_messages_packet(ctx.config(|o| o.max_messages), messages.clone(), size);
-                if messages.len() >= 1 {
-                    clear_chat_messages(ctx.clone(), messages[0].clone());
-                    if messages.len() >= 2 {
-                        for msg in &messages[1..] {
-                            add_chat_message(ctx.clone(), msg.clone());
-                        }
-                    }
-                }
+                clear_chat_messages(ctx.clone(), messages);
             }
         },
         Err(e) => {
             if ctx.config(|o| o.debug_logs) {
-                add_chat_message(ctx.clone(), format!("Read messages error: {}", e.to_string()));
+                add_chat_messages(ctx.clone(), vec![format!("Read messages error: {}", e.to_string())]);
             }
         }
         _ => {}

@@ -1,4 +1,4 @@
-use std::sync::{atomic::Ordering, mpsc::{channel, Receiver}, Arc, RwLock};
+use std::sync::{atomic::Ordering, mpsc::channel, Arc, RwLock};
 use std::cell::RefCell;
 use std::time::{Duration, SystemTime};
 use std::thread;
@@ -6,7 +6,7 @@ use std::error::Error;
 
 use chrono::Local;
 
-use gtk4 as gtk;
+use gtk4::{self as gtk};
 
 use gtk::gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader};
 use gtk::prelude::*;
@@ -45,15 +45,15 @@ struct UiModel {
 }
 
 thread_local!(
-    static GLOBAL: RefCell<Option<(UiModel, Receiver<String>)>> = RefCell::new(None);
+    static GLOBAL: RefCell<Option<UiModel>> = RefCell::new(None);
 );
 
-pub fn clear_chat_messages(ctx: Arc<Context>, message: String) {
-    let _ = ctx.sender.read().unwrap().clone().unwrap().send((message, true));
+pub fn clear_chat_messages(ctx: Arc<Context>, messages: Vec<String>) {
+    let _ = ctx.sender.read().unwrap().clone().unwrap().send((messages, true));
 }
 
-pub fn add_chat_message(ctx: Arc<Context>, message: String) {
-    let _ = ctx.sender.read().unwrap().clone().unwrap().send((message, false));
+pub fn add_chat_messages(ctx: Arc<Context>, messages: Vec<String>) {
+    let _ = ctx.sender.read().unwrap().clone().unwrap().send((messages, false));
 }
 
 fn load_pixbuf(data: &[u8]) -> Result<Pixbuf, Box<dyn Error>> {
@@ -407,7 +407,7 @@ fn build_menu(ctx: Arc<Context>, app: &Application) {
                 move |_, _, _| {
                      AboutDialog::builder()
                         .application(&app)
-                        .authors(["TheMixRay", "MeexReay"])
+                        .authors(["MeexReay"])
                         .license("        DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
                     Version 2, December 2004 
 
@@ -619,7 +619,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
             if let Err(e) = on_send_message(ctx.clone(), &text_entry.text()) {
                 if ctx.config(|o| o.debug_logs) {
                     let msg = format!("Send message error: {}", e.to_string()).to_string();
-                    add_chat_message(ctx.clone(), msg);
+                    add_chat_messages(ctx.clone(), vec![msg]);
                 }
             }
         }
@@ -640,7 +640,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
             if let Err(e) = on_send_message(ctx.clone(), &text_entry.text()) {
                 if ctx.config(|o| o.debug_logs) {
                     let msg = format!("Send message error: {}", e.to_string()).to_string();
-                    add_chat_message(ctx.clone(), msg);
+                    add_chat_messages(ctx.clone(), vec![msg]);
                 }
             }
         }
@@ -707,8 +707,6 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
     *ctx.sender.write().unwrap() = Some(Arc::new(sender));
 
     run_recv_loop(ctx.clone());
-
-    let (tx, rx) = channel();
     
     ui.window.connect_notify(Some("is-active"), {
         let ctx = ctx.clone();
@@ -719,10 +717,15 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
             ctx.is_focused.store(is_focused, Ordering::SeqCst);
 
             if is_focused {
-                make_recv_tick(ctx.clone());
+                thread::spawn({
+                    let ctx = ctx.clone();
+                    move || {
+                        make_recv_tick(ctx.clone());
+                    }
+                });
 
                 GLOBAL.with(|global| {
-                    if let Some((ui, _)) = &*global.borrow() {
+                    if let Some(ui) = &*global.borrow() {
                         #[cfg(feature = "libnotify")]
                         for i in ui.notifications.read().unwrap().clone() {
                             i.close().expect("libnotify close error");
@@ -738,25 +741,25 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
     });
 
     GLOBAL.with(|global| {
-        *global.borrow_mut() = Some((ui, rx));
+        *global.borrow_mut() = Some(ui);
     });
 
     thread::spawn({
         let ctx = ctx.clone();
         move || {
-            while let Ok((message, clear)) = receiver.recv() {
-                let _ = tx.send(message.clone());
+            while let Ok((messages, clear)) = receiver.recv() {
                 let ctx = ctx.clone();
                 timeout_add_once(Duration::ZERO, move || {
                     GLOBAL.with(|global| {
-                        if let Some((ui, rx)) = &*global.borrow() {
+                        if let Some(ui) = &*global.borrow() {
                             if clear {
                                 while let Some(row) = ui.chat_box.last_child() {
                                     ui.chat_box.remove(&row);
                                 }
                             }
-                            let message: String = rx.recv().unwrap();
-                            on_add_message(ctx.clone(), &ui, message, !clear);
+                            for message in messages.iter() {
+                                on_add_message(ctx.clone(), &ui, message.to_string(), !clear);
+                            }
                         }
                     });
                 });
@@ -825,7 +828,7 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
         return;
     }
 
-    // TODO: cache these colors maybe??
+    // TODO: softcode these colors
 
     let (ip_color, date_color, text_color) = if ui.is_dark_theme {
         (
@@ -897,7 +900,7 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
 
     timeout_add_local_once(Duration::from_millis(1000), move || {
         GLOBAL.with(|global| {
-            if let Some((ui, _)) = &*global.borrow() {
+            if let Some(ui) = &*global.borrow() {
                 let o = &ui.chat_scrolled;
                 o.vadjustment().set_value(o.vadjustment().upper() - o.vadjustment().page_size());
             }
