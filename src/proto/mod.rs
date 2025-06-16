@@ -213,10 +213,10 @@ pub fn register_user(
     name: &str, 
     password: &str
 ) -> Result<bool, Box<dyn Error>> {
-    dbg!(match stream {
+    match stream {
         RacStream::WRAC(websocket) => wrac::register_user(websocket, name, password),
         RacStream::RAC(stream) => rac::register_user(stream, name, password)
-    })
+    }
 }
 
 /// Send message with auth
@@ -236,10 +236,10 @@ pub fn send_message_auth(
     password: &str, 
     message: &str
 ) -> Result<u8, Box<dyn Error>> {
-    dbg!(match stream {
+    match stream {
         RacStream::WRAC(websocket) => wrac::send_message_auth(websocket, name, password, message),
         RacStream::RAC(stream) => rac::send_message_auth(stream, name, password, message)
-    })
+    }
 }
 
 /// Read messages
