@@ -2,6 +2,7 @@ use std::sync::{mpsc::{channel, Receiver}, Arc, RwLock};
 use std::cell::RefCell;
 use std::time::{Duration, SystemTime};
 use std::thread;
+use std::error::Error;
 
 use chrono::Local;
 
@@ -54,11 +55,11 @@ pub fn add_chat_message(ctx: Arc<Context>, message: String) {
     let _ = ctx.sender.read().unwrap().clone().unwrap().send((message, false));
 }
 
-fn load_pixbuf(data: &[u8]) -> Pixbuf {
+fn load_pixbuf(data: &[u8]) -> Result<Pixbuf, Box<dyn Error>> {
     let loader = PixbufLoader::new();
-    loader.write(data).unwrap();
-    loader.close().unwrap();
-    loader.pixbuf().unwrap()
+    loader.write(data)?;
+    loader.close()?;
+    Ok(loader.pixbuf().ok_or("laod pixbuf error")?)
 }
 
 macro_rules! gui_entry_setting {
@@ -361,7 +362,7 @@ fn build_menu(ctx: Arc<Context>, app: &Application) {
             .activate(clone!(
                 #[weak] app,
                 move |_, _, _| {
-                    AboutDialog::builder()
+                     AboutDialog::builder()
                         .application(&app)
                         .authors(["TheMixRay", "MeexReay"])
                         .license("        DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
@@ -380,7 +381,7 @@ fn build_menu(ctx: Arc<Context>, app: &Application) {
                         .comments("better RAC client")
                         .website("https://github.com/MeexReay/bRAC")
                         .website_label("source code")
-                        .logo(&Texture::for_pixbuf(&load_pixbuf(include_bytes!("images/icon.png"))))
+                        .logo(&Texture::for_pixbuf(&load_pixbuf(include_bytes!("images/icon.png")).unwrap()))
                         .build()
                         .present();
                 }
@@ -448,14 +449,14 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     let fixed = Fixed::new();
     fixed.set_can_target(false);
 
-    let konata = Picture::for_pixbuf(&load_pixbuf(include_bytes!("images/konata.png")));
+    let konata = Picture::for_pixbuf(&load_pixbuf(include_bytes!("images/konata.png")).unwrap());
     konata.set_size_request(174, 127);
     
     fixed.put(&konata, 325.0, 4.0);
 
     let logo_gif = include_bytes!("images/logo.gif");
 
-    let logo = Picture::for_pixbuf(&load_pixbuf(logo_gif));
+    let logo = Picture::for_pixbuf(&load_pixbuf(logo_gif).unwrap());
     logo.set_size_request(152, 64);
 
     let logo_anim = PixbufAnimation::from_stream(
