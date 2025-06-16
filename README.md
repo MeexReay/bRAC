@@ -11,7 +11,7 @@ better RAC client
 
 - gtk4 modern GUI
 - RACv1.99.x and RACv2.0 compatible
-- WRAC compatible (can be enabled in the settings)
+- WRAC compatible ([docs](docs/wrac.md))
 - chat commands (type /help)
 - no ip and date visible for anyone
 - uses TOR proxy server by default (meex.lol:11234)
@@ -90,6 +90,7 @@ messages starting with a slash are sent to chat only if the `--disable-commands`
 ## see also
 
 - [RAC-Hub - all about RAC protocol](https://the-stratosphere-solutions.github.io/RAC-Hub/)
+- [WRAC protocol (v2.0)](docs/wrac.md)
 - [RAC protocol (v2.0)](https://gitea.bedohswe.eu.org/pixtaded/crab#rac-protocol)
 - [CRAB - client & server for RAC](https://gitea.bedohswe.eu.org/pixtaded/crab)
 - [Mefidroniy - client for RAC](https://github.com/OctoBanon-Main/mefedroniy-client)
