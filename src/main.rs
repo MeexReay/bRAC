@@ -1,15 +1,21 @@
 use std::sync::Arc;
 
+use bRAC::chat::{
+    config::{get_config_path, load_config, Args},
+    ctx::Context,
+    run_main_loop,
+};
 use bRAC::proto::{connect, read_messages, send_message};
-use bRAC::chat::{config::{get_config_path, load_config, Args}, ctx::Context, run_main_loop};
-use clap::Parser; 
+use clap::Parser;
 
 fn main() {
     #[cfg(feature = "winapi")]
-    unsafe { winapi::um::wincon::FreeConsole() };
+    unsafe {
+        winapi::um::wincon::FreeConsole()
+    };
 
     let args = Args::parse();
-    
+
     let config_path = get_config_path();
 
     if args.config_path {
@@ -20,26 +26,25 @@ fn main() {
     let mut config = load_config(config_path);
 
     if args.read_messages {
-        let mut stream = connect(&config.host, config.proxy.clone()).expect("Error reading message");
+        let mut stream =
+            connect(&config.host, config.proxy.clone()).expect("Error reading message");
 
-        print!("{}", read_messages(
-                &mut stream, 
-                config.max_messages, 
-                0,
-                false
-            )
-            .ok().flatten()
-            .expect("Error reading messages").0.join("\n")
+        print!(
+            "{}",
+            read_messages(&mut stream, config.max_messages, 0, false)
+                .ok()
+                .flatten()
+                .expect("Error reading messages")
+                .0
+                .join("\n")
         );
     }
 
     if let Some(message) = &args.send_message {
-        let mut stream = connect(&config.host, config.proxy.clone()).expect("Error sending message");
+        let mut stream =
+            connect(&config.host, config.proxy.clone()).expect("Error sending message");
 
-        send_message(
-            &mut stream, 
-            message
-        ).expect("Error sending message");
+        send_message(&mut stream, message).expect("Error sending message");
     }
 
     if args.send_message.is_some() || args.read_messages {
@@ -47,7 +52,7 @@ fn main() {
     }
 
     args.patch_config(&mut config);
-    
+
     let ctx = Arc::new(Context::new(&config));
 
     run_main_loop(ctx.clone());

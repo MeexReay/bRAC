@@ -1,4 +1,10 @@
-use std::{error::Error, fmt::Debug, io::{Read, Write}, net::{TcpStream, ToSocketAddrs}, time::Duration};
+use std::{
+    error::Error,
+    fmt::Debug,
+    io::{Read, Write},
+    net::{TcpStream, ToSocketAddrs},
+    time::Duration,
+};
 
 use native_tls::{TlsConnector, TlsStream};
 use socks::Socks5Stream;
@@ -13,28 +19,44 @@ pub trait Stream: Read + Write + Unpin + Send + Sync + Debug {
 }
 
 impl Stream for TcpStream {
-    fn set_read_timeout(&self, timeout: Duration) { let _ = TcpStream::set_read_timeout(&self, Some(timeout)); }
-    fn set_write_timeout(&self, timeout: Duration) { let _ = TcpStream::set_write_timeout(&self, Some(timeout)); }
+    fn set_read_timeout(&self, timeout: Duration) {
+        let _ = TcpStream::set_read_timeout(&self, Some(timeout));
+    }
+    fn set_write_timeout(&self, timeout: Duration) {
+        let _ = TcpStream::set_write_timeout(&self, Some(timeout));
+    }
 }
 
 impl Stream for Socks5Stream {
-    fn set_read_timeout(&self, timeout: Duration) { let _ = TcpStream::set_read_timeout(self.get_ref(), Some(timeout)); }
-    fn set_write_timeout(&self, timeout: Duration) { let _ = TcpStream::set_write_timeout(self.get_ref(), Some(timeout)); }
+    fn set_read_timeout(&self, timeout: Duration) {
+        let _ = TcpStream::set_read_timeout(self.get_ref(), Some(timeout));
+    }
+    fn set_write_timeout(&self, timeout: Duration) {
+        let _ = TcpStream::set_write_timeout(self.get_ref(), Some(timeout));
+    }
 }
 
 impl<T: Stream> Stream for TlsStream<T> {
-    fn set_read_timeout(&self, timeout: Duration) { self.get_ref().set_read_timeout(timeout); }
-    fn set_write_timeout(&self, timeout: Duration) { self.get_ref().set_write_timeout(timeout); }
+    fn set_read_timeout(&self, timeout: Duration) {
+        self.get_ref().set_read_timeout(timeout);
+    }
+    fn set_write_timeout(&self, timeout: Duration) {
+        self.get_ref().set_write_timeout(timeout);
+    }
 }
 
 impl Stream for TlsStream<Box<dyn Stream>> {
-    fn set_read_timeout(&self, timeout: Duration) { self.get_ref().set_read_timeout(timeout); }
-    fn set_write_timeout(&self, timeout: Duration) { self.get_ref().set_write_timeout(timeout); }
+    fn set_read_timeout(&self, timeout: Duration) {
+        self.get_ref().set_read_timeout(timeout);
+    }
+    fn set_write_timeout(&self, timeout: Duration) {
+        self.get_ref().set_write_timeout(timeout);
+    }
 }
 
 pub enum RacStream {
     WRAC(WebSocket<Box<dyn Stream>>),
-    RAC(Box<dyn Stream>)
+    RAC(Box<dyn Stream>),
 }
 
 /// `socks5://user:pass@127.0.0.1:12345/path -> ("127.0.0.1:12345", ("user", "pass"))` \
@@ -64,46 +86,42 @@ pub fn parse_rac_url(url: &str) -> Option<(String, bool, bool)> {
     let (scheme, url) = url.split_once("://").unwrap_or(("rac", url));
     let (host, _) = url.split_once("/").unwrap_or((url, ""));
     match scheme.to_lowercase().as_str() {
-        "rac" => {
-            Some((
-                if host.contains(":") { 
-                    host.to_string() 
-                } else { 
-                    format!("{host}:42666") 
-                }, 
-                false, false
-            ))
-        },
-        "racs" => {
-            Some((
-                if host.contains(":") { 
-                    host.to_string() 
-                } else { 
-                    format!("{host}:42667") 
-                }, 
-                true, false
-            ))
-        },
-        "wrac" => {
-            Some((
-                if host.contains(":") { 
-                    host.to_string() 
-                } else { 
-                    format!("{host}:52666") 
-                }, 
-                false, true
-            ))
-        },
-        "wracs" => {
-            Some((
-                if host.contains(":") { 
-                    host.to_string() 
-                } else { 
-                    format!("{host}:52667") 
-                }, 
-                true, true
-            ))
-        },
+        "rac" => Some((
+            if host.contains(":") {
+                host.to_string()
+            } else {
+                format!("{host}:42666")
+            },
+            false,
+            false,
+        )),
+        "racs" => Some((
+            if host.contains(":") {
+                host.to_string()
+            } else {
+                format!("{host}:42667")
+            },
+            true,
+            false,
+        )),
+        "wrac" => Some((
+            if host.contains(":") {
+                host.to_string()
+            } else {
+                format!("{host}:52666")
+            },
+            false,
+            true,
+        )),
+        "wracs" => Some((
+            if host.contains(":") {
+                host.to_string()
+            } else {
+                format!("{host}:52667")
+            },
+            true,
+            true,
+        )),
         _ => None,
     }
 }
@@ -115,12 +133,18 @@ pub fn parse_rac_url(url: &str) -> Option<(String, bool, bool)> {
 /// proxy - socks5 proxy (host, (user, pass))
 /// wrac - to use wrac protocol
 pub fn connect(host: &str, proxy: Option<String>) -> Result<RacStream, Box<dyn Error>> {
-    let (host, ssl, wrac) = parse_rac_url(host).ok_or::<Box<dyn Error>>("url parse error".into())?;
+    let (host, ssl, wrac) =
+        parse_rac_url(host).ok_or::<Box<dyn Error>>("url parse error".into())?;
 
     let stream: Box<dyn Stream> = if let Some(proxy) = proxy {
         if let Some((proxy, auth)) = parse_socks5_url(&proxy) {
             if let Some((user, pass)) = auth {
-                Box::new(Socks5Stream::connect_with_password(&proxy, host.as_str(), &user, &pass)?)
+                Box::new(Socks5Stream::connect_with_password(
+                    &proxy,
+                    host.as_str(),
+                    &user,
+                    &pass,
+                )?)
             } else {
                 Box::new(Socks5Stream::connect(&proxy, host.as_str())?)
             }
@@ -128,21 +152,27 @@ pub fn connect(host: &str, proxy: Option<String>) -> Result<RacStream, Box<dyn E
             return Err("proxy parse error".into());
         }
     } else {
-        let addr = host.to_socket_addrs()?.next().ok_or::<Box<dyn Error>>("addr parse error".into())?;
+        let addr = host
+            .to_socket_addrs()?
+            .next()
+            .ok_or::<Box<dyn Error>>("addr parse error".into())?;
 
         Box::new(TcpStream::connect(&addr)?)
     };
 
     let stream = if ssl {
-        let ip: String = host.split_once(":")
+        let ip: String = host
+            .split_once(":")
             .map(|o| o.0.to_string())
             .unwrap_or(host.clone());
 
-        Box::new(TlsConnector::builder()
-            .danger_accept_invalid_certs(true)
-            .danger_accept_invalid_hostnames(true)
-            .build()?
-            .connect(&ip, stream)?)
+        Box::new(
+            TlsConnector::builder()
+                .danger_accept_invalid_certs(true)
+                .danger_accept_invalid_hostnames(true)
+                .build()?
+                .connect(&ip, stream)?,
+        )
     } else {
         stream
     };
@@ -152,8 +182,8 @@ pub fn connect(host: &str, proxy: Option<String>) -> Result<RacStream, Box<dyn E
 
     if wrac {
         let (client, _) = tungstenite::client(
-            &format!("ws{}://{host}", if ssl { "s" } else { "" }), 
-            stream
+            &format!("ws{}://{host}", if ssl { "s" } else { "" }),
+            stream,
         )?;
         Ok(RacStream::WRAC(client))
     } else {
@@ -171,8 +201,13 @@ pub fn connect(host: &str, proxy: Option<String>) -> Result<RacStream, Box<dyn E
 ///     register_user(stream, name, name)
 ///     send_message_spoof_auth(stream, name + "> " + message)
 /// }
-pub fn send_message_spoof_auth(stream: &mut RacStream, message: &str) -> Result<(), Box<dyn Error>> {
-    let Some((name, message)) = message.split_once("> ") else { return send_message(stream, message) };
+pub fn send_message_spoof_auth(
+    stream: &mut RacStream,
+    message: &str,
+) -> Result<(), Box<dyn Error>> {
+    let Some((name, message)) = message.split_once("> ") else {
+        return send_message(stream, message);
+    };
 
     if let Ok(f) = send_message_auth(stream, &name, &name, &message) {
         if f != 0 {
@@ -185,18 +220,14 @@ pub fn send_message_spoof_auth(stream: &mut RacStream, message: &str) -> Result<
     Ok(())
 }
 
-
 /// Send message
 ///
 /// stream - any stream that can be written to
 /// message - message text
-pub fn send_message(
-    stream: &mut RacStream, 
-    message: &str
-) -> Result<(), Box<dyn Error>> {
+pub fn send_message(stream: &mut RacStream, message: &str) -> Result<(), Box<dyn Error>> {
     match stream {
         RacStream::WRAC(websocket) => wrac::send_message(websocket, message),
-        RacStream::RAC(stream) => rac::send_message(stream, message)
+        RacStream::RAC(stream) => rac::send_message(stream, message),
     }
 }
 
@@ -209,13 +240,13 @@ pub fn send_message(
 ///
 /// returns whether the user was registered
 pub fn register_user(
-    stream: &mut RacStream, 
-    name: &str, 
-    password: &str
+    stream: &mut RacStream,
+    name: &str,
+    password: &str,
 ) -> Result<bool, Box<dyn Error>> {
     match stream {
         RacStream::WRAC(websocket) => wrac::register_user(websocket, name, password),
-        RacStream::RAC(stream) => rac::register_user(stream, name, password)
+        RacStream::RAC(stream) => rac::register_user(stream, name, password),
     }
 }
 
@@ -231,14 +262,14 @@ pub fn register_user(
 /// returns 1 if the user does not exist
 /// returns 2 if the password is incorrect
 pub fn send_message_auth(
-    stream: &mut RacStream, 
-    name: &str, 
-    password: &str, 
-    message: &str
+    stream: &mut RacStream,
+    name: &str,
+    password: &str,
+    message: &str,
 ) -> Result<u8, Box<dyn Error>> {
     match stream {
         RacStream::WRAC(websocket) => wrac::send_message_auth(websocket, name, password, message),
-        RacStream::RAC(stream) => rac::send_message_auth(stream, name, password, message)
+        RacStream::RAC(stream) => rac::send_message_auth(stream, name, password, message),
     }
 }
 
@@ -251,13 +282,15 @@ pub fn send_message_auth(
 ///
 /// returns (messages, packet size)
 pub fn read_messages(
-    stream: &mut RacStream, 
-    max_messages: usize, 
+    stream: &mut RacStream,
+    max_messages: usize,
     last_size: usize,
-    chunked: bool
+    chunked: bool,
 ) -> Result<Option<(Vec<String>, usize)>, Box<dyn Error>> {
     match stream {
-        RacStream::WRAC(websocket) => wrac::read_messages(websocket, max_messages, last_size, chunked),
-        RacStream::RAC(stream) => rac::read_messages(stream, max_messages, last_size, chunked)
+        RacStream::WRAC(websocket) => {
+            wrac::read_messages(websocket, max_messages, last_size, chunked)
+        }
+        RacStream::RAC(stream) => rac::read_messages(stream, max_messages, last_size, chunked),
     }
 }

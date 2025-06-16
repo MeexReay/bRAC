@@ -1,4 +1,7 @@
-use std::{error::Error, io::{Read, Write}};
+use std::{
+    error::Error,
+    io::{Read, Write},
+};
 
 /// Send message
 ///
@@ -18,9 +21,9 @@ pub fn send_message(stream: &mut impl Write, message: &str) -> Result<(), Box<dy
 ///
 /// returns whether the user was registered
 pub fn register_user(
-    stream: &mut (impl Write + Read), 
-    name: &str, 
-    password: &str
+    stream: &mut (impl Write + Read),
+    name: &str,
+    password: &str,
 ) -> Result<bool, Box<dyn Error>> {
     stream.write_all(format!("\x03{name}\n{password}").as_bytes())?;
     if let Ok(out) = skip_null(stream) {
@@ -42,9 +45,9 @@ pub fn register_user(
 /// returns 1 if the user does not exist
 /// returns 2 if the password is incorrect
 pub fn send_message_auth(
-    stream: &mut (impl Write + Read), 
-    name: &str, 
-    password: &str, 
+    stream: &mut (impl Write + Read),
+    name: &str,
+    password: &str,
     message: &str,
 ) -> Result<u8, Box<dyn Error>> {
     stream.write_all(format!("\x02{name}\n{password}\n{message}").as_bytes())?;
@@ -61,7 +64,7 @@ pub fn skip_null(stream: &mut impl Read) -> Result<Vec<u8>, Box<dyn Error>> {
         let mut buf = vec![0; 1];
         stream.read_exact(&mut buf)?;
         if buf[0] != 0 {
-            break Ok(buf)
+            break Ok(buf);
         }
     }
 }
@@ -69,7 +72,7 @@ pub fn skip_null(stream: &mut impl Read) -> Result<Vec<u8>, Box<dyn Error>> {
 /// remove trailing null bytes in vector
 pub fn remove_trailing_null(vec: &mut Vec<u8>) -> Result<(), Box<dyn Error>> {
     while vec.ends_with(&[0]) {
-        vec.remove(vec.len()-1);
+        vec.remove(vec.len() - 1);
     }
     Ok(())
 }
@@ -83,10 +86,10 @@ pub fn remove_trailing_null(vec: &mut Vec<u8>) -> Result<(), Box<dyn Error>> {
 ///
 /// returns (messages, packet size)
 pub fn read_messages(
-    stream: &mut (impl Read + Write), 
-    max_messages: usize, 
-    last_size: usize, 
-    chunked: bool
+    stream: &mut (impl Read + Write),
+    max_messages: usize,
+    last_size: usize,
+    chunked: bool,
 ) -> Result<Option<(Vec<String>, usize)>, Box<dyn Error>> {
     stream.write_all(&[0x00])?;
 
@@ -123,8 +126,14 @@ pub fn read_messages(
     let packet_data = String::from_utf8_lossy(&packet_data).to_string();
 
     let lines: Vec<&str> = packet_data.split("\n").collect();
-    let lines: Vec<String> = lines.clone().into_iter()
-        .skip(if lines.len() >= max_messages { lines.len() - max_messages } else { 0 })
+    let lines: Vec<String> = lines
+        .clone()
+        .into_iter()
+        .skip(if lines.len() >= max_messages {
+            lines.len() - max_messages
+        } else {
+            0
+        })
         .map(|o| o.to_string())
         .collect();
 

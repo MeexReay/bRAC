@@ -1,34 +1,37 @@
-use std::sync::{atomic::Ordering, mpsc::channel, Arc, RwLock};
 use std::cell::RefCell;
-use std::time::{Duration, SystemTime};
-use std::thread;
 use std::error::Error;
+use std::sync::{atomic::Ordering, mpsc::channel, Arc, RwLock};
+use std::thread;
+use std::time::{Duration, SystemTime};
 
 use chrono::Local;
 
 use gtk4::{self as gtk};
 
-use gtk::gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader};
-use gtk::prelude::*;
 use gtk::gdk::{Cursor, Display, Texture};
+use gtk::gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader};
 use gtk::gio::{self, ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
 use gtk::glib::clone;
 use gtk::glib::{
-    self, clone::Downgrade, 
-    timeout_add_local, 
-    source::timeout_add_local_once,
+    self, clone::Downgrade, source::timeout_add_local_once, timeout_add_local, timeout_add_once,
     ControlFlow,
-    timeout_add_once
 };
 use gtk::pango::WrapMode;
+use gtk::prelude::*;
 use gtk::{
-    AboutDialog, Align, Application, ApplicationWindow, Box as GtkBox, 
-    Button, Calendar, CheckButton, CssProvider, Entry, Fixed, GestureClick, 
-    Justification, Label, ListBox, Orientation, Overlay, Picture, ScrolledWindow, Settings, Window
+    AboutDialog, Align, Application, ApplicationWindow, Box as GtkBox, Button, Calendar,
+    CheckButton, CssProvider, Entry, Fixed, GestureClick, Justification, Label, ListBox,
+    Orientation, Overlay, Picture, ScrolledWindow, Settings, Window,
 };
 
-use super::{config::{default_max_messages, default_update_time, default_konata_size, default_oof_update_time, get_config_path, save_config, Config}, 
-ctx::Context, on_send_message, parse_message, print_message, recv_tick, sanitize_message, SERVER_LIST};
+use super::{
+    config::{
+        default_konata_size, default_max_messages, default_oof_update_time, default_update_time,
+        get_config_path, save_config, Config,
+    },
+    ctx::Context,
+    on_send_message, parse_message, print_message, recv_tick, sanitize_message, SERVER_LIST,
+};
 
 struct UiModel {
     is_dark_theme: bool,
@@ -39,7 +42,7 @@ struct UiModel {
     #[cfg(feature = "libnotify")]
     notifications: Arc<RwLock<Vec<libnotify::Notification>>>,
     #[cfg(not(feature = "libnotify"))]
-    notifications: Arc<RwLock<Vec<String>>>
+    notifications: Arc<RwLock<Vec<String>>>,
 }
 
 thread_local!(
@@ -47,11 +50,23 @@ thread_local!(
 );
 
 pub fn clear_chat_messages(ctx: Arc<Context>, messages: Vec<String>) {
-    let _ = ctx.sender.read().unwrap().clone().unwrap().send((messages, true));
+    let _ = ctx
+        .sender
+        .read()
+        .unwrap()
+        .clone()
+        .unwrap()
+        .send((messages, true));
 }
 
 pub fn add_chat_messages(ctx: Arc<Context>, messages: Vec<String>) {
-    let _ = ctx.sender.read().unwrap().clone().unwrap().send((messages, false));
+    let _ = ctx
+        .sender
+        .read()
+        .unwrap()
+        .clone()
+        .unwrap()
+        .send((messages, false));
 }
 
 fn load_pixbuf(data: &[u8]) -> Result<Pixbuf, Box<dyn Error>> {
@@ -62,97 +77,83 @@ fn load_pixbuf(data: &[u8]) -> Result<Pixbuf, Box<dyn Error>> {
 }
 
 macro_rules! gui_entry_setting {
-    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {
-        {
-            let hbox = GtkBox::new(Orientation::Horizontal, 5);
+    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {{
+        let hbox = GtkBox::new(Orientation::Horizontal, 5);
 
-            hbox.append(&Label::builder()
-                .label($e)
-                .build());
+        hbox.append(&Label::builder().label($e).build());
 
-            let entry = Entry::builder()
-                .text(&$ctx.config(|o| o.$i.clone()))
-                .build();
+        let entry = Entry::builder()
+            .text(&$ctx.config(|o| o.$i.clone()))
+            .build();
 
-            hbox.append(&entry);
+        hbox.append(&entry);
 
-            $vbox.append(&hbox);
+        $vbox.append(&hbox);
 
-            entry
-        }
-    };
+        entry
+    }};
 }
 
 macro_rules! gui_usize_entry_setting {
-    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {
-        {
-            let hbox = GtkBox::new(Orientation::Horizontal, 5);
+    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {{
+        let hbox = GtkBox::new(Orientation::Horizontal, 5);
 
-            hbox.append(&Label::builder()
-                .label($e)
-                .build());
+        hbox.append(&Label::builder().label($e).build());
 
-            let entry = Entry::builder()
-                .text(&$ctx.config(|o| o.$i.to_string()))
-                .build();
+        let entry = Entry::builder()
+            .text(&$ctx.config(|o| o.$i.to_string()))
+            .build();
 
-            hbox.append(&entry);
+        hbox.append(&entry);
 
-            $vbox.append(&hbox);
+        $vbox.append(&hbox);
 
-            entry
-        }
-    };
+        entry
+    }};
 }
 
 macro_rules! gui_option_entry_setting {
-    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {
-        {
-            let hbox = GtkBox::new(Orientation::Horizontal, 5);
+    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {{
+        let hbox = GtkBox::new(Orientation::Horizontal, 5);
 
-            hbox.append(&Label::builder()
-                .label($e)
-                .build());
+        hbox.append(&Label::builder().label($e).build());
 
-            let entry = Entry::builder()
-                .text(&$ctx.config(|o| o.$i.clone()).unwrap_or_default())
-                .build();
+        let entry = Entry::builder()
+            .text(&$ctx.config(|o| o.$i.clone()).unwrap_or_default())
+            .build();
 
-            hbox.append(&entry);
+        hbox.append(&entry);
 
-            $vbox.append(&hbox);
+        $vbox.append(&hbox);
 
-            entry
-        }
-    };
+        entry
+    }};
 }
 
 macro_rules! gui_checkbox_setting {
-    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {
-        {
-            let hbox = GtkBox::new(Orientation::Horizontal, 5);
+    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {{
+        let hbox = GtkBox::new(Orientation::Horizontal, 5);
 
-            hbox.append(&Label::builder()
-                .label($e)
-                .build());
+        hbox.append(&Label::builder().label($e).build());
 
-            let entry = CheckButton::builder()
-                .active($ctx.config(|o| o.$i))
-                .build();
+        let entry = CheckButton::builder().active($ctx.config(|o| o.$i)).build();
 
-            hbox.append(&entry);
+        hbox.append(&entry);
 
-            $vbox.append(&hbox);
+        $vbox.append(&hbox);
 
-            entry
-        }
-    };
+        entry
+    }};
 }
 
 fn update_window_title(ctx: Arc<Context>) {
     GLOBAL.with(|global| {
         if let Some(ui) = &*global.borrow() {
-            ui.window.set_title(Some(&format!("bRAC - Connected to {} as {}", ctx.config(|o| o.host.clone()), &ctx.name())))
+            ui.window.set_title(Some(&format!(
+                "bRAC - Connected to {} as {}",
+                ctx.config(|o| o.host.clone()),
+                &ctx.name()
+            )))
         }
     })
 }
@@ -169,21 +170,41 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
 
     let host_entry = gui_entry_setting!("Host", host, ctx, settings_vbox);
     let name_entry = gui_option_entry_setting!("Name", name, ctx, settings_vbox);
-    let message_format_entry = gui_entry_setting!("Message Format", message_format, ctx, settings_vbox);
+    let message_format_entry =
+        gui_entry_setting!("Message Format", message_format, ctx, settings_vbox);
     let proxy_entry = gui_option_entry_setting!("Socks5 proxy", proxy, ctx, settings_vbox);
-    let update_time_entry = gui_usize_entry_setting!("Update Time", update_time, ctx, settings_vbox);
-    let oof_update_time_entry = gui_usize_entry_setting!("Out-of-focus Update Time", oof_update_time, ctx, settings_vbox);
-    let max_messages_entry = gui_usize_entry_setting!("Max Messages", max_messages, ctx, settings_vbox);
+    let update_time_entry =
+        gui_usize_entry_setting!("Update Time", update_time, ctx, settings_vbox);
+    let oof_update_time_entry = gui_usize_entry_setting!(
+        "Out-of-focus Update Time",
+        oof_update_time,
+        ctx,
+        settings_vbox
+    );
+    let max_messages_entry =
+        gui_usize_entry_setting!("Max Messages", max_messages, ctx, settings_vbox);
     let hide_my_ip_entry = gui_checkbox_setting!("Hide My IP", hide_my_ip, ctx, settings_vbox);
-    let show_other_ip_entry = gui_checkbox_setting!("Show Other IP", show_other_ip, ctx, settings_vbox);
-    let auth_enabled_entry = gui_checkbox_setting!("Fake Auth Enabled", auth_enabled, ctx, settings_vbox);
-    let chunked_enabled_entry = gui_checkbox_setting!("Chunked Enabled", chunked_enabled, ctx, settings_vbox);
-    let formatting_enabled_entry = gui_checkbox_setting!("Formatting Enabled", formatting_enabled, ctx, settings_vbox);
-    let commands_enabled_entry = gui_checkbox_setting!("Commands Enabled", commands_enabled, ctx, settings_vbox);
-    let notifications_enabled_entry = gui_checkbox_setting!("Notifications Enabled", notifications_enabled, ctx, settings_vbox);
+    let show_other_ip_entry =
+        gui_checkbox_setting!("Show Other IP", show_other_ip, ctx, settings_vbox);
+    let auth_enabled_entry =
+        gui_checkbox_setting!("Fake Auth Enabled", auth_enabled, ctx, settings_vbox);
+    let chunked_enabled_entry =
+        gui_checkbox_setting!("Chunked Enabled", chunked_enabled, ctx, settings_vbox);
+    let formatting_enabled_entry =
+        gui_checkbox_setting!("Formatting Enabled", formatting_enabled, ctx, settings_vbox);
+    let commands_enabled_entry =
+        gui_checkbox_setting!("Commands Enabled", commands_enabled, ctx, settings_vbox);
+    let notifications_enabled_entry = gui_checkbox_setting!(
+        "Notifications Enabled",
+        notifications_enabled,
+        ctx,
+        settings_vbox
+    );
     let debug_logs_entry = gui_checkbox_setting!("Debug Logs", debug_logs, ctx, settings_vbox);
-    let konata_size_entry = gui_usize_entry_setting!("Konata Size", konata_size, ctx, settings_vbox);
-    let remove_gui_shit_entry = gui_checkbox_setting!("Remove Gui Shit", remove_gui_shit, ctx, settings_vbox);
+    let konata_size_entry =
+        gui_usize_entry_setting!("Konata Size", konata_size, ctx, settings_vbox);
+    let remove_gui_shit_entry =
+        gui_checkbox_setting!("Remove Gui Shit", remove_gui_shit, ctx, settings_vbox);
 
     let scrollable = ScrolledWindow::builder()
         .child(&settings_vbox)
@@ -193,37 +214,53 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
 
     vbox.append(&scrollable);
 
-    let save_button = Button::builder()
-        .label("Save")
-        .build();
+    let save_button = Button::builder().label("Save").build();
 
     vbox.append(&save_button);
 
     save_button.connect_clicked(clone!(
-        #[weak] ctx,
-        #[weak] host_entry,
-        #[weak] name_entry,
-        #[weak] message_format_entry,
-        #[weak] update_time_entry,
-        #[weak] max_messages_entry,
-        #[weak] hide_my_ip_entry,
-        #[weak] show_other_ip_entry,
-        #[weak] auth_enabled_entry,
-        #[weak] chunked_enabled_entry,
-        #[weak] formatting_enabled_entry,
-        #[weak] commands_enabled_entry,
-        #[weak] notifications_enabled_entry,
-        #[weak] proxy_entry,
-        #[weak] debug_logs_entry,
-        #[weak] oof_update_time_entry,
-        #[weak] konata_size_entry,
-        #[weak] remove_gui_shit_entry,
+        #[weak]
+        ctx,
+        #[weak]
+        host_entry,
+        #[weak]
+        name_entry,
+        #[weak]
+        message_format_entry,
+        #[weak]
+        update_time_entry,
+        #[weak]
+        max_messages_entry,
+        #[weak]
+        hide_my_ip_entry,
+        #[weak]
+        show_other_ip_entry,
+        #[weak]
+        auth_enabled_entry,
+        #[weak]
+        chunked_enabled_entry,
+        #[weak]
+        formatting_enabled_entry,
+        #[weak]
+        commands_enabled_entry,
+        #[weak]
+        notifications_enabled_entry,
+        #[weak]
+        proxy_entry,
+        #[weak]
+        debug_logs_entry,
+        #[weak]
+        oof_update_time_entry,
+        #[weak]
+        konata_size_entry,
+        #[weak]
+        remove_gui_shit_entry,
         move |_| {
             let config = Config {
                 host: host_entry.text().to_string(),
                 name: {
                     let name = name_entry.text().to_string();
-        
+
                     if name.is_empty() {
                         None
                     } else {
@@ -233,7 +270,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 message_format: message_format_entry.text().to_string(),
                 update_time: {
                     let update_time = update_time_entry.text();
-        
+
                     if let Ok(update_time) = update_time.parse::<usize>() {
                         update_time
                     } else {
@@ -244,7 +281,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 },
                 oof_update_time: {
                     let oof_update_time = oof_update_time_entry.text();
-        
+
                     if let Ok(oof_update_time) = oof_update_time.parse::<usize>() {
                         oof_update_time
                     } else {
@@ -255,7 +292,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 },
                 konata_size: {
                     let konata_size = konata_size_entry.text();
-        
+
                     if let Ok(konata_size) = konata_size.parse::<usize>() {
                         konata_size.max(0).min(200)
                     } else {
@@ -266,7 +303,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 },
                 max_messages: {
                     let max_messages = max_messages_entry.text();
-        
+
                     if let Ok(max_messages) = max_messages.parse::<usize>() {
                         max_messages
                     } else {
@@ -286,13 +323,13 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 debug_logs: debug_logs_entry.is_active(),
                 proxy: {
                     let proxy = proxy_entry.text().to_string();
-        
+
                     if proxy.is_empty() {
                         None
                     } else {
                         Some(proxy)
                     }
-                }
+                },
             };
             ctx.set_config(&config);
             save_config(get_config_path(), &config);
@@ -300,27 +337,39 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         }
     ));
 
-    let reset_button = Button::builder()
-        .label("Reset all")
-        .build();
+    let reset_button = Button::builder().label("Reset all").build();
 
     vbox.append(&reset_button);
 
     reset_button.connect_clicked(clone!(
-        #[weak] ctx,
-        #[weak] host_entry,
-        #[weak] name_entry,
-        #[weak] message_format_entry,
-        #[weak] update_time_entry,
-        #[weak] max_messages_entry,
-        #[weak] hide_my_ip_entry,
-        #[weak] show_other_ip_entry,
-        #[weak] auth_enabled_entry,
-        #[weak] chunked_enabled_entry,
-        #[weak] formatting_enabled_entry,
-        #[weak] commands_enabled_entry,
-        #[weak] notifications_enabled_entry,
-        #[weak] proxy_entry,
+        #[weak]
+        ctx,
+        #[weak]
+        host_entry,
+        #[weak]
+        name_entry,
+        #[weak]
+        message_format_entry,
+        #[weak]
+        update_time_entry,
+        #[weak]
+        max_messages_entry,
+        #[weak]
+        hide_my_ip_entry,
+        #[weak]
+        show_other_ip_entry,
+        #[weak]
+        auth_enabled_entry,
+        #[weak]
+        chunked_enabled_entry,
+        #[weak]
+        formatting_enabled_entry,
+        #[weak]
+        commands_enabled_entry,
+        #[weak]
+        notifications_enabled_entry,
+        #[weak]
+        proxy_entry,
         move |_| {
             let config = Config::default();
             ctx.set_config(&config);
@@ -365,7 +414,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     });
 
     window.add_controller(controller);
-    
+
     window.present();
 }
 
@@ -387,7 +436,8 @@ fn build_menu(ctx: Arc<Context>, app: &Application) {
     app.add_action_entries([
         ActionEntry::builder("settings")
             .activate(clone!(
-                #[weak] ctx,
+                #[weak]
+                ctx,
                 move |a: &Application, _, _| {
                     open_settings(ctx, a);
                 }
@@ -400,12 +450,14 @@ fn build_menu(ctx: Arc<Context>, app: &Application) {
             .build(),
         ActionEntry::builder("about")
             .activate(clone!(
-                #[weak] app,
+                #[weak]
+                app,
                 move |_, _, _| {
-                     AboutDialog::builder()
+                    AboutDialog::builder()
                         .application(&app)
                         .authors(["MeexReay"])
-                        .license("        DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
+                        .license(
+                            "        DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
                     Version 2, December 2004 
 
  Copyright (C) 2004 Sam Hocevar <sam@hocevar.net> 
@@ -417,24 +469,29 @@ fn build_menu(ctx: Arc<Context>, app: &Application) {
             DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
    TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION 
 
-  0. You just DO WHAT THE FUCK YOU WANT TO.")
+  0. You just DO WHAT THE FUCK YOU WANT TO.",
+                        )
                         .comments("better RAC client")
                         .website("https://github.com/MeexReay/bRAC")
                         .website_label("source code")
-                        .logo(&Texture::for_pixbuf(&load_pixbuf(include_bytes!("images/icon.png")).unwrap()))
+                        .logo(&Texture::for_pixbuf(
+                            &load_pixbuf(include_bytes!("images/icon.png")).unwrap(),
+                        ))
                         .build()
                         .present();
                 }
             ))
-            .build()
+            .build(),
     ]);
 }
 
 fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     let is_dark_theme = if let Some(settings) = Settings::default() {
-        settings.is_gtk_application_prefer_dark_theme() || settings.gtk_theme_name()
-            .map(|o| o.to_lowercase().contains("dark"))
-            .unwrap_or_default()
+        settings.is_gtk_application_prefer_dark_theme()
+            || settings
+                .gtk_theme_name()
+                .map(|o| o.to_lowercase().contains("dark"))
+                .unwrap_or_default()
     } else {
         false
     };
@@ -452,11 +509,13 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     let remove_gui_shit = ctx.config(|c| c.remove_gui_shit);
 
     if !remove_gui_shit {
-        widget_box.append(&Calendar::builder()
-            .css_classes(["calendar"])
-            .show_heading(false)
-            .can_target(false)
-            .build());
+        widget_box.append(
+            &Calendar::builder()
+                .css_classes(["calendar"])
+                .show_heading(false)
+                .can_target(false)
+                .build(),
+        );
     }
 
     let server_list_vbox = GtkBox::new(Orientation::Vertical, 5);
@@ -466,15 +525,13 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     for url in SERVER_LIST.iter() {
         let url = url.to_string();
 
-        let label = Label::builder()
-            .label(&url)
-            .halign(Align::Start)
-            .build();
+        let label = Label::builder().label(&url).halign(Align::Start).build();
 
         let click = GestureClick::new();
 
         click.connect_pressed(clone!(
-            #[weak] ctx,
+            #[weak]
+            ctx,
             move |_, _, _, _| {
                 let mut config = ctx.config.read().unwrap().clone();
                 config.host = url.clone();
@@ -501,10 +558,15 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
         let konata_size = ctx.config(|c| c.konata_size) as i32;
 
-        let konata = Picture::for_pixbuf(&load_pixbuf(include_bytes!("images/konata.png")).unwrap());
+        let konata =
+            Picture::for_pixbuf(&load_pixbuf(include_bytes!("images/konata.png")).unwrap());
         konata.set_size_request(174 * konata_size / 100, 127 * konata_size / 100);
-        
-        fixed.put(&konata, (499 - 174 * konata_size / 100) as f64, (131 - 127 * konata_size / 100) as f64);
+
+        fixed.put(
+            &konata,
+            (499 - 174 * konata_size / 100) as f64,
+            (131 - 127 * konata_size / 100) as f64,
+        );
 
         let logo_gif = include_bytes!("images/logo.gif");
 
@@ -512,11 +574,11 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         logo.set_size_request(152 * konata_size / 100, 64 * konata_size / 100);
 
         let logo_anim = PixbufAnimation::from_stream(
-            &MemoryInputStream::from_bytes(
-                &glib::Bytes::from(logo_gif)
-            ),
-            None::<&gio::Cancellable>
-        ).unwrap().iter(Some(SystemTime::now()));
+            &MemoryInputStream::from_bytes(&glib::Bytes::from(logo_gif)),
+            None::<&gio::Cancellable>,
+        )
+        .unwrap()
+        .iter(Some(SystemTime::now()));
 
         timeout_add_local(Duration::from_millis(30), {
             let logo = logo.clone();
@@ -531,9 +593,13 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
                 ControlFlow::Continue
             }
         });
-        
+
         // 262, 4
-        fixed.put(&logo, (436 - 174 * konata_size / 100) as f64, (131 - 127 * konata_size / 100) as f64);
+        fixed.put(
+            &logo,
+            (436 - 174 * konata_size / 100) as f64,
+            (131 - 127 * konata_size / 100) as f64,
+        );
 
         let time = Label::builder()
             .label(&Local::now().format("%H:%M").to_string())
@@ -555,7 +621,6 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         fixed.set_halign(Align::End);
 
         widget_box_overlay.add_overlay(&fixed);
-
     }
 
     widget_box_overlay.set_child(Some(&widget_box));
@@ -599,16 +664,24 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         .build();
 
     send_btn.connect_clicked(clone!(
-        #[weak] text_entry,
-        #[weak] ctx,
+        #[weak]
+        text_entry,
+        #[weak]
+        ctx,
         move |_| {
-            if text_entry.text().is_empty() { return; }
-            timeout_add_local_once(Duration::ZERO, clone!(
-                #[weak] text_entry,
-                move || {
-                    text_entry.set_text("");
-                }
-            ));
+            if text_entry.text().is_empty() {
+                return;
+            }
+            timeout_add_local_once(
+                Duration::ZERO,
+                clone!(
+                    #[weak]
+                    text_entry,
+                    move || {
+                        text_entry.set_text("");
+                    }
+                ),
+            );
 
             if let Err(e) = on_send_message(ctx.clone(), &text_entry.text()) {
                 if ctx.config(|o| o.debug_logs) {
@@ -620,16 +693,24 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     ));
 
     text_entry.connect_activate(clone!(
-        #[weak] text_entry,
-        #[weak] ctx,
+        #[weak]
+        text_entry,
+        #[weak]
+        ctx,
         move |_| {
-            if text_entry.text().is_empty() { return; }
-            timeout_add_local_once(Duration::ZERO, clone!(
-                #[weak] text_entry,
-                move || {
-                    text_entry.set_text("");
-                }
-            ));
+            if text_entry.text().is_empty() {
+                return;
+            }
+            timeout_add_local_once(
+                Duration::ZERO,
+                clone!(
+                    #[weak]
+                    text_entry,
+                    move || {
+                        text_entry.set_text("");
+                    }
+                ),
+            );
 
             if let Err(e) = on_send_message(ctx.clone(), &text_entry.text()) {
                 if ctx.config(|o| o.debug_logs) {
@@ -648,17 +729,22 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
     timeout_add_local_once(Duration::ZERO, {
         let scrolled_window_weak = scrolled_window_weak.clone();
-        
+
         move || {
             if let Some(o) = scrolled_window_weak.upgrade() {
-                o.vadjustment().set_value(o.vadjustment().upper() - o.vadjustment().page_size());
+                o.vadjustment()
+                    .set_value(o.vadjustment().upper() - o.vadjustment().page_size());
             }
         }
     });
 
     let window = ApplicationWindow::builder()
         .application(app)
-        .title(format!("bRAC - Connected to {} as {}", ctx.config(|o| o.host.clone()), &ctx.name()))
+        .title(format!(
+            "bRAC - Connected to {} as {}",
+            ctx.config(|o| o.host.clone()),
+            &ctx.name()
+        ))
         .default_width(500)
         .default_height(500)
         .resizable(true)
@@ -674,7 +760,8 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
             let scrolled_window_weak = scrolled_window_weak.clone();
             timeout_add_local_once(Duration::ZERO, move || {
                 if let Some(o) = scrolled_window_weak.upgrade() {
-                    o.vadjustment().set_value(o.vadjustment().upper() - o.vadjustment().page_size());
+                    o.vadjustment()
+                        .set_value(o.vadjustment().upper() - o.vadjustment().page_size());
                 }
             });
         }
@@ -701,7 +788,7 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
     *ctx.sender.write().unwrap() = Some(Arc::new(sender));
 
     run_recv_loop(ctx.clone());
-    
+
     ui.window.connect_notify(Some("is-active"), {
         let ctx = ctx.clone();
 
@@ -765,7 +852,7 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
 fn load_css(is_dark_theme: bool) {
     let provider = CssProvider::new();
     provider.load_from_data(&format!(
-        "{}\n{}", 
+        "{}\n{}",
         if is_dark_theme {
             include_str!("styles/dark.css")
         } else {
@@ -788,7 +875,9 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
     let notification = Notification::new(title, message, None);
     notification.set_app_name("bRAC");
     let pixbuf_loader = gdk_pixbuf::PixbufLoader::new();
-    pixbuf_loader.loader_write(include_bytes!("images/icon.png")).unwrap();
+    pixbuf_loader
+        .loader_write(include_bytes!("images/icon.png"))
+        .unwrap();
     pixbuf_loader.close().unwrap();
     notification.set_image_from_pixbuf(&pixbuf_loader.get_pixbuf().unwrap());
     notification.show().expect("libnotify send error");
@@ -798,7 +887,10 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
 
 #[cfg(not(feature = "libnotify"))]
 fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) {
-    use std::{hash::{DefaultHasher, Hasher}, time::UNIX_EPOCH};
+    use std::{
+        hash::{DefaultHasher, Hasher},
+        time::UNIX_EPOCH,
+    };
 
     use gtk4::gio::Notification;
 
@@ -806,7 +898,14 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
     hash.write(title.as_bytes());
     hash.write(message.as_bytes());
 
-    let id = format!("bRAC-{}-{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis(), hash.finish());
+    let id = format!(
+        "bRAC-{}-{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+        hash.finish()
+    );
 
     let notif = Notification::new(title);
     notif.set_body(Some(&message));
@@ -816,7 +915,9 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
 }
 
 fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool) {
-    let Some(message) = sanitize_message(message) else { return; };
+    let Some(message) = sanitize_message(message) else {
+        return;
+    };
 
     if message.is_empty() {
         return;
@@ -825,17 +926,9 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
     // TODO: softcode these colors
 
     let (ip_color, date_color, text_color) = if ui.is_dark_theme {
-        (
-            "#494949",
-            "#929292",
-            "#FFFFFF"
-        )
+        ("#494949", "#929292", "#FFFFFF")
     } else {
-        (
-            "#585858",
-            "#292929",
-            "#000000"
-        )
+        ("#585858", "#292929", "#000000")
     };
 
     let mut label = String::new();
@@ -843,18 +936,33 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
     if let Some((date, ip, content, nick)) = parse_message(message.clone()) {
         if let Some(ip) = ip {
             if ctx.config(|o| o.show_other_ip) {
-                label.push_str(&format!("<span color=\"{ip_color}\">{}</span> ", glib::markup_escape_text(&ip)));
+                label.push_str(&format!(
+                    "<span color=\"{ip_color}\">{}</span> ",
+                    glib::markup_escape_text(&ip)
+                ));
             }
         }
 
-        label.push_str(&format!("<span color=\"{date_color}\">[{}]</span> ", glib::markup_escape_text(&date)));
+        label.push_str(&format!(
+            "<span color=\"{date_color}\">[{}]</span> ",
+            glib::markup_escape_text(&date)
+        ));
 
         if let Some((name, color)) = nick {
-            label.push_str(&format!("<span font_weight=\"bold\" color=\"{}\">&lt;{}&gt;</span> ", color.to_uppercase(), glib::markup_escape_text(&name)));
+            label.push_str(&format!(
+                "<span font_weight=\"bold\" color=\"{}\">&lt;{}&gt;</span> ",
+                color.to_uppercase(),
+                glib::markup_escape_text(&name)
+            ));
 
             if notify && !ui.window.is_active() {
                 if ctx.config(|o| o.chunked_enabled) {
-                    send_notification(ctx.clone(), ui, &format!("{}'s Message", &name), &glib::markup_escape_text(&content));
+                    send_notification(
+                        ctx.clone(),
+                        ui,
+                        &format!("{}'s Message", &name),
+                        &glib::markup_escape_text(&content),
+                    );
                 }
             }
         } else {
@@ -865,9 +973,15 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
             }
         }
 
-        label.push_str(&format!("<span color=\"{text_color}\">{}</span>", glib::markup_escape_text(&content)));
+        label.push_str(&format!(
+            "<span color=\"{text_color}\">{}</span>",
+            glib::markup_escape_text(&content)
+        ));
     } else {
-        label.push_str(&format!("<span color=\"{text_color}\">{}</span>", glib::markup_escape_text(&message)));
+        label.push_str(&format!(
+            "<span color=\"{text_color}\">{}</span>",
+            glib::markup_escape_text(&message)
+        ));
 
         if notify && !ui.window.is_active() {
             if ctx.config(|o| o.chunked_enabled) {
@@ -875,18 +989,20 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
             }
         }
     }
-    
+
     let hbox = GtkBox::new(Orientation::Horizontal, 2);
 
-    hbox.append(&Label::builder()
-        .label(&label)
-        .halign(Align::Start)
-        .valign(Align::Start)
-        .selectable(true)
-        .wrap(true)
-        .wrap_mode(WrapMode::WordChar)
-        .use_markup(true)
-        .build());
+    hbox.append(
+        &Label::builder()
+            .label(&label)
+            .halign(Align::Start)
+            .valign(Align::Start)
+            .selectable(true)
+            .wrap(true)
+            .wrap_mode(WrapMode::WordChar)
+            .use_markup(true)
+            .build(),
+    );
 
     hbox.set_hexpand(true);
 
@@ -896,7 +1012,8 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
         GLOBAL.with(|global| {
             if let Some(ui) = &*global.borrow() {
                 let o = &ui.chat_scrolled;
-                o.vadjustment().set_value(o.vadjustment().upper() - o.vadjustment().page_size());
+                o.vadjustment()
+                    .set_value(o.vadjustment().upper() - o.vadjustment().page_size());
             }
         });
     });
@@ -905,25 +1022,26 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
 fn make_recv_tick(ctx: Arc<Context>) {
     if let Err(e) = recv_tick(ctx.clone()) {
         if ctx.config(|o| o.debug_logs) {
-            let _ = print_message(ctx.clone(), format!("Print messages error: {}", e.to_string()).to_string());
+            let _ = print_message(
+                ctx.clone(),
+                format!("Print messages error: {}", e.to_string()).to_string(),
+            );
         }
         thread::sleep(Duration::from_secs(1));
     }
 }
 
 fn run_recv_loop(ctx: Arc<Context>) {
-    thread::spawn(move || {
-        loop { 
-            make_recv_tick(ctx.clone());
+    thread::spawn(move || loop {
+        make_recv_tick(ctx.clone());
 
-            thread::sleep(Duration::from_millis(
-                if ctx.is_focused.load(Ordering::SeqCst) { 
-                    ctx.config(|o| o.update_time) as u64 
-                } else {
-                    ctx.config(|o| o.oof_update_time) as u64 
-                }
-            ));
-        }
+        thread::sleep(Duration::from_millis(
+            if ctx.is_focused.load(Ordering::SeqCst) {
+                ctx.config(|o| o.update_time) as u64
+            } else {
+                ctx.config(|o| o.oof_update_time) as u64
+            },
+        ));
     });
 }
 
