@@ -33,6 +33,7 @@ use super::{config::{default_max_messages, default_update_time, get_config_path,
 ctx::Context, on_send_message, parse_message, print_message, recv_tick, sanitize_message, SERVER_LIST};
 
 struct UiModel {
+    is_dark_theme: bool,
     chat_box: GtkBox,
     chat_scrolled: ScrolledWindow,
     app: Application,
@@ -394,6 +395,14 @@ fn build_menu(ctx: Arc<Context>, app: &Application) {
 }
 
 fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
+    let is_dark_theme = if let Some(settings) = Settings::default() {
+        settings.is_gtk_application_prefer_dark_theme() || settings.gtk_theme_name()
+            .map(|o| o.to_lowercase().contains("dark"))
+            .unwrap_or_default()
+    } else {
+        false
+    };
+
     let main_box = GtkBox::new(Orientation::Vertical, 5);
 
     main_box.set_css_classes(&["main-box"]);
@@ -629,6 +638,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     window.present();
 
     UiModel {
+        is_dark_theme,
         chat_scrolled,
         chat_box,
         app: app.clone(),
@@ -703,15 +713,7 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
     });
 }
 
-fn load_css() {
-    let is_dark_theme = if let Some(settings) = Settings::default() {
-        settings.is_gtk_application_prefer_dark_theme() || settings.gtk_theme_name()
-            .map(|o| o.to_lowercase().contains("dark"))
-            .unwrap_or_default()
-    } else {
-        false
-    };
-
+fn load_css(is_dark_theme: bool) {
     let provider = CssProvider::new();
     provider.load_from_data(&format!(
         "{}\n{}", 
@@ -771,98 +773,73 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String) {
         return;
     }
 
-    let hbox = GtkBox::new(Orientation::Horizontal, 2);
+    // TODO: caching these colors maybe??
+
+    let (ip_color, date_color, text_color) = if ui.is_dark_theme {
+        (
+            "#494949",
+            "#929292",
+            "#FFFFFF"
+        )
+    } else {
+        (
+            "#585858",
+            "#292929",
+            "#000000"
+        )
+    };
+
+    let mut label = String::new();
 
     if let Some((date, ip, content, nick)) = parse_message(message.clone()) {
         if let Some(ip) = ip {
             if ctx.config(|o| o.show_other_ip) {
-                let ip_label = Label::builder()
-                    .label(&ip)
-                    .margin_end(10)
-                    .halign(Align::Start)
-                    .valign(Align::Start)
-                    .css_classes(["message-ip"])
-                    .selectable(true)
-                    .build();
-
-                hbox.append(&ip_label);
+                label.push_str(&format!("<span color=\"{ip_color}\">{}</span> ", glib::markup_escape_text(&ip)));
             }
         }
 
-        let date_label = Label::builder()
-            .label(format!("[{date}]"))
-            .halign(Align::Start)
-            .valign(Align::Start)
-            .css_classes(["message-date"])
-            .selectable(true)
-            .build();
-
-        hbox.append(&date_label);
+        label.push_str(&format!("<span color=\"{date_color}\">[{}]</span> ", glib::markup_escape_text(&date)));
 
         if let Some((name, color)) = nick {
-            let name_label = Label::builder()
-                .label(format!("<{name}>"))
-                .halign(Align::Start)
-                .valign(Align::Start)
-                .css_classes(["message-name", &format!("message-name-{}", color)])
-                .selectable(true)
-                .build();
-
-            hbox.append(&name_label);
+            label.push_str(&format!("<span font_weight=\"bold\" color=\"{}\">&lt;{}&gt;</span> ", color.to_uppercase(), glib::markup_escape_text(&name)));
 
             if !ui.window.is_active() {
                 if ctx.config(|o| o.chunked_enabled) {
-                    send_notification(ctx.clone(), ui, &format!("{}'s Message", &name), &content);
-                    // let notif = Notification::new(&format!("{}'s Message", &name));
-                    // notif.set_body(Some(&content));
-                    // app.send_notification(Some("user-message"), &notif);
+                    send_notification(ctx.clone(), ui, &format!("{}'s Message", &name), &glib::markup_escape_text(&content));
                 }
             }
         } else {
             if !ui.window.is_active() {
                 if ctx.config(|o| o.chunked_enabled) {
                     send_notification(ctx.clone(), ui, "System Message", &content);
-                    // let notif = Notification::new("System Message");
-                    // notif.set_body(Some(&content));
-                    // app.send_notification(Some("system-message"), &notif);
                 }
             }
         }
 
-        let content_label = Label::builder()
-            .label(&content)
-            .halign(Align::Start)
-            .valign(Align::Start)
-            .css_classes(["message-content"])
-            .selectable(true)
-            .wrap(true)
-            .wrap_mode(WrapMode::Char)
-            .build();
-
-        hbox.append(&content_label);
-
+        label.push_str(&format!("<span color=\"{text_color}\">{}</span>", glib::markup_escape_text(&content)));
     } else {
-        let content_label = Label::builder()
-            .label(&message)
-            .halign(Align::Start)
-            .valign(Align::Start)
-            .css_classes(["message-content"])
-            .selectable(true)
-            .wrap(true)
-            .wrap_mode(WrapMode::Char)
-            .build();
-
-        hbox.append(&content_label);
+        label.push_str(&format!("<span color=\"{text_color}\">{}</span>", glib::markup_escape_text(&message)));
 
         if !ui.window.is_active() {
             if ctx.config(|o| o.chunked_enabled) {
                 send_notification(ctx.clone(), ui, "Chat Message", &message);
-                // let notif = Notification::new("Chat Message");
-                // notif.set_body(Some(&message));
-                // app.send_notification(Some("chat-message"), &notif);
             }
         }
     }
+    
+    let hbox = GtkBox::new(Orientation::Horizontal, 2);
+
+    hbox.append(&Label::builder()
+        .label(&label)
+        .halign(Align::Start)
+        .valign(Align::Start)
+        .selectable(true)
+        .wrap(true)
+        .wrap_mode(WrapMode::WordChar)
+        .use_markup(true)
+        .build());
+
+    hbox.set_hexpand(true);
 
     ui.chat_box.append(&hbox);
 
@@ -905,8 +882,8 @@ pub fn run_main_loop(ctx: Arc<Context>) {
 
         move |app| {
             let ui = build_ui(ctx.clone(), app);
+            load_css(ui.is_dark_theme);
             setup(app, ctx.clone(), ui);
-            load_css();
         }
     });
 
