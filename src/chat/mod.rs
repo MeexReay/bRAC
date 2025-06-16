@@ -1,5 +1,5 @@
 use std::{
-    error::Error, sync::Arc, thread, time::{Duration, SystemTime, UNIX_EPOCH}
+    error::Error, sync::Arc, time::{SystemTime, UNIX_EPOCH}
 };
 
 use crate::connect_rac;

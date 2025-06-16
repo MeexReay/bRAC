@@ -10,6 +10,7 @@ fn default_true() -> bool { true }
 pub fn default_max_messages() -> usize { 200 }
 pub fn default_update_time() -> usize { 100 }
 pub fn default_oof_update_time() -> usize { 10000 }
+pub fn default_konata_size() -> usize { 100 }
 pub fn default_host() -> String { "meex.lol:11234".to_string() }
 pub fn default_message_format() -> String { MESSAGE_FORMAT.to_string() }
 
@@ -21,6 +22,8 @@ pub struct Config {
     #[serde(default = "default_update_time")] pub update_time: usize,
     #[serde(default = "default_oof_update_time")] pub oof_update_time: usize,
     #[serde(default = "default_max_messages")] pub max_messages: usize,
+    #[serde(default = "default_konata_size")] pub konata_size: usize,
+    #[serde(default)] pub remove_gui_shit: bool,
     #[serde(default = "default_true")] pub hide_my_ip: bool,
     #[serde(default)] pub show_other_ip: bool,
     #[serde(default)] pub auth_enabled: bool,
@@ -114,10 +117,12 @@ pub struct Args {
     #[arg(long)] pub update_time: Option<usize>,
     #[arg(long)] pub oof_update_time: Option<usize>,
     #[arg(long)] pub max_messages: Option<usize>,
+    #[arg(long)] pub konata_size: Option<usize>,
     #[arg(long)] pub hide_my_ip: Option<bool>,
     #[arg(long)] pub show_other_ip: Option<bool>,
     #[arg(long)] pub auth_enabled:Option <bool>,
     #[arg(long)] pub ssl_enabled: Option<bool>,
+    #[arg(long)] pub remove_gui_shit: Option<bool>,
     #[arg(long)] pub chunked_enabled: Option<bool>,
     #[arg(long)] pub formatting_enabled: Option<bool>,
     #[arg(long)] pub commands_enabled: Option<bool>,
@@ -136,8 +141,10 @@ impl Args {
         if let Some(v) = self.update_time { config.update_time = v }
         if let Some(v) = self.oof_update_time { config.oof_update_time = v }
         if let Some(v) = self.max_messages { config.max_messages = v }
+        if let Some(v) = self.konata_size { config.konata_size = v }
         if let Some(v) = self.hide_my_ip { config.hide_my_ip = v }
         if let Some(v) = self.show_other_ip { config.show_other_ip = v }
+        if let Some(v) = self.remove_gui_shit { config.remove_gui_shit = v }
         if let Some(v) = self.auth_enabled { config.auth_enabled = v }
         if let Some(v) = self.ssl_enabled { config.ssl_enabled = v }
         if let Some(v) = self.chunked_enabled { config.chunked_enabled = v }

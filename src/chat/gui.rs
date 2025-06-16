@@ -27,7 +27,7 @@ use gtk::{
     Justification, Label, ListBox, Orientation, Overlay, Picture, ScrolledWindow, Settings, Window
 };
 
-use crate::{chat::config::default_oof_update_time, proto::parse_rac_url};
+use crate::{chat::config::{default_konata_size, default_oof_update_time}, proto::parse_rac_url};
 
 use super::{config::{default_max_messages, default_update_time, get_config_path, save_config, Config}, 
 ctx::Context, on_send_message, parse_message, print_message, recv_tick, sanitize_message, SERVER_LIST};
@@ -176,6 +176,8 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     let commands_enabled_entry = gui_checkbox_setting!("Commands Enabled", commands_enabled, ctx, vbox);
     let notifications_enabled_entry = gui_checkbox_setting!("Notifications Enabled", notifications_enabled, ctx, vbox);
     let debug_logs_entry = gui_checkbox_setting!("Debug Logs", debug_logs, ctx, vbox);
+    let konata_size_entry = gui_usize_entry_setting!("Konata Size", konata_size, ctx, vbox);
+    let remove_gui_shit_entry = gui_checkbox_setting!("Remove Gui Shit", remove_gui_shit, ctx, vbox);
 
     let save_button = Button::builder()
         .label("Save")
@@ -202,6 +204,8 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         #[weak] proxy_entry,
         #[weak] debug_logs_entry,
         #[weak] oof_update_time_entry,
+        #[weak] konata_size_entry,
+        #[weak] remove_gui_shit_entry,
         move |_| {
             let config = Config {
                 host: host_entry.text().to_string(),
@@ -237,6 +241,17 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                         oof_update_time
                     }
                 },
+                konata_size: {
+                    let konata_size = konata_size_entry.text();
+        
+                    if let Ok(konata_size) = konata_size.parse::<usize>() {
+                        konata_size.max(0).min(200)
+                    } else {
+                        let konata_size = default_konata_size();
+                        konata_size_entry.set_text(&konata_size.to_string());
+                        konata_size
+                    }
+                },
                 max_messages: {
                     let max_messages = max_messages_entry.text();
         
@@ -249,6 +264,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                     }
                 },
                 hide_my_ip: hide_my_ip_entry.is_active(),
+                remove_gui_shit: remove_gui_shit_entry.is_active(),
                 show_other_ip: show_other_ip_entry.is_active(),
                 auth_enabled: auth_enabled_entry.is_active(),
                 ssl_enabled: ssl_enabled_entry.is_active(),
@@ -426,11 +442,15 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
     widget_box.set_css_classes(&["widget_box"]);
 
-    widget_box.append(&Calendar::builder()
-        .css_classes(["calendar"])
-        .show_heading(false)
-        .can_target(false)
-        .build());
+    let remove_gui_shit = ctx.config(|c| c.remove_gui_shit);
+
+    if !remove_gui_shit {
+        widget_box.append(&Calendar::builder()
+            .css_classes(["calendar"])
+            .show_heading(false)
+            .can_target(false)
+            .build());
+    }
 
     let server_list_vbox = GtkBox::new(Orientation::Vertical, 5);
 
@@ -471,62 +491,68 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
     widget_box.append(&server_list_vbox);
 
-    let fixed = Fixed::new();
-    fixed.set_can_target(false);
+    if !remove_gui_shit {
+        let fixed = Fixed::new();
+        fixed.set_can_target(false);
 
-    let konata = Picture::for_pixbuf(&load_pixbuf(include_bytes!("images/konata.png")).unwrap());
-    konata.set_size_request(174, 127);
-    
-    fixed.put(&konata, 325.0, 4.0);
+        let konata_size = ctx.config(|c| c.konata_size) as i32;
 
-    let logo_gif = include_bytes!("images/logo.gif");
+        let konata = Picture::for_pixbuf(&load_pixbuf(include_bytes!("images/konata.png")).unwrap());
+        konata.set_size_request(174 * konata_size / 100, 127 * konata_size / 100);
+        
+        fixed.put(&konata, (499 - 174 * konata_size / 100) as f64, (131 - 127 * konata_size / 100) as f64);
 
-    let logo = Picture::for_pixbuf(&load_pixbuf(logo_gif).unwrap());
-    logo.set_size_request(152, 64);
+        let logo_gif = include_bytes!("images/logo.gif");
 
-    let logo_anim = PixbufAnimation::from_stream(
-        &MemoryInputStream::from_bytes(
-            &glib::Bytes::from(logo_gif)
-        ),
-        None::<&gio::Cancellable>
-    ).unwrap().iter(Some(SystemTime::now()));
+        let logo = Picture::for_pixbuf(&load_pixbuf(logo_gif).unwrap());
+        logo.set_size_request(152 * konata_size / 100, 64 * konata_size / 100);
 
-    timeout_add_local(Duration::from_millis(30), {
-        let logo = logo.clone();
-        let logo_anim = logo_anim.clone();
-        let ctx = ctx.clone();
+        let logo_anim = PixbufAnimation::from_stream(
+            &MemoryInputStream::from_bytes(
+                &glib::Bytes::from(logo_gif)
+            ),
+            None::<&gio::Cancellable>
+        ).unwrap().iter(Some(SystemTime::now()));
 
-        move || {
-            if ctx.is_focused.load(Ordering::SeqCst) {
-                logo.set_pixbuf(Some(&logo_anim.pixbuf()));
-                logo_anim.advance(SystemTime::now());
+        timeout_add_local(Duration::from_millis(30), {
+            let logo = logo.clone();
+            let logo_anim = logo_anim.clone();
+            let ctx = ctx.clone();
+
+            move || {
+                if ctx.is_focused.load(Ordering::SeqCst) {
+                    logo.set_pixbuf(Some(&logo_anim.pixbuf()));
+                    logo_anim.advance(SystemTime::now());
+                }
+                ControlFlow::Continue
             }
-            ControlFlow::Continue
-        }
-    });
-    
-    fixed.put(&logo, 262.0, 4.0);
+        });
+        
+        // 262, 4
+        fixed.put(&logo, (436 - 174 * konata_size / 100) as f64, (131 - 127 * konata_size / 100) as f64);
 
-    let time = Label::builder()
-        .label(&Local::now().format("%H:%M").to_string())
-        .justify(Justification::Right)
-        .css_classes(["time"])
-        .build();
+        let time = Label::builder()
+            .label(&Local::now().format("%H:%M").to_string())
+            .justify(Justification::Right)
+            .css_classes(["time"])
+            .build();
 
-    timeout_add_local(Duration::from_secs(1), {
-        let time = time.clone();
+        timeout_add_local(Duration::from_secs(1), {
+            let time = time.clone();
 
-        move || {
-            time.set_label(&Local::now().format("%H:%M").to_string());
+            move || {
+                time.set_label(&Local::now().format("%H:%M").to_string());
 
-            ControlFlow::Continue
-        }
-    });
+                ControlFlow::Continue
+            }
+        });
 
-    fixed.put(&time, 432.0, 4.0);
-    fixed.set_halign(Align::End);
+        fixed.put(&time, 432.0, 4.0);
+        fixed.set_halign(Align::End);
 
-    widget_box_overlay.add_overlay(&fixed);
+        widget_box_overlay.add_overlay(&fixed);
+
+    }
 
     widget_box_overlay.set_child(Some(&widget_box));
 
