@@ -89,7 +89,7 @@ pub fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>
             return Ok(()) 
         };
 
-        match register_user(connect_rac!(ctx), &ctx.name(), pass, !ctx.config(|o| o.ssl_enabled)) {
+        match register_user(connect_rac!(ctx), &ctx.name(), pass) {
             Ok(true) => {
                 add_message(ctx.clone(), "you was registered successfully bro")?;
                 *ctx.registered.write().unwrap() = Some(pass.to_string());
@@ -118,7 +118,6 @@ pub fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>
                 connect_rac!(ctx), 
                 ctx.config(|o| o.max_messages), 
                 before, 
-                !ctx.config(|o| o.ssl_enabled),
                 ctx.config(|o| o.chunked_enabled)
             ).ok().flatten();
 
@@ -182,7 +181,6 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
         connect_rac!(ctx), 
         ctx.config(|o| o.max_messages), 
         ctx.packet_size(), 
-        !ctx.config(|o| o.ssl_enabled),
         ctx.config(|o| o.chunked_enabled)
     ) {
         Ok(Some((messages, size))) => {
@@ -223,9 +221,9 @@ pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn E
         );
 
         if let Some(password) = ctx.registered.read().unwrap().clone() {
-            send_message_auth(connect_rac!(ctx), &ctx.name(), &password, &message, !ctx.config(|o| o.ssl_enabled))?;
+            send_message_auth(connect_rac!(ctx), &ctx.name(), &password, &message)?;
         } else if ctx.config(|o| o.auth_enabled) {
-            send_message_spoof_auth(connect_rac!(ctx), &message, !ctx.config(|o| o.ssl_enabled))?;
+            send_message_spoof_auth(connect_rac!(ctx), &message)?;
         } else {
             send_message(connect_rac!(ctx), &message)?;
         }

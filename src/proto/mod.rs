@@ -114,9 +114,8 @@ pub fn parse_rac_url(url: &str) -> Option<(String, bool, bool)> {
 /// ssl - wrap with ssl client, write false if you dont know what it is
 /// proxy - socks5 proxy (host, (user, pass))
 /// wrac - to use wrac protocol
-pub fn connect(host: &str, ssl: bool, proxy: Option<String>, wrac: bool) -> Result<RacStream, Box<dyn Error>> {
-    let (host, ssl_, wrac_) = parse_rac_url(host).ok_or::<Box<dyn Error>>("url parse error".into())?;
-    let (ssl, wrac) = (ssl_ || ssl, wrac_ || wrac);
+pub fn connect(host: &str, proxy: Option<String>) -> Result<RacStream, Box<dyn Error>> {
+    let (host, ssl, wrac) = parse_rac_url(host).ok_or::<Box<dyn Error>>("url parse error".into())?;
 
     let stream: Box<dyn Stream> = if let Some(proxy) = proxy {
         if let Some((proxy, auth)) = parse_socks5_url(&proxy) {
@@ -172,14 +171,14 @@ pub fn connect(host: &str, ssl: bool, proxy: Option<String>, wrac: bool) -> Resu
 ///     register_user(stream, name, name)
 ///     send_message_spoof_auth(stream, name + "> " + message)
 /// }
-pub fn send_message_spoof_auth(stream: &mut RacStream, message: &str, remove_null: bool) -> Result<(), Box<dyn Error>> {
+pub fn send_message_spoof_auth(stream: &mut RacStream, message: &str) -> Result<(), Box<dyn Error>> {
     let Some((name, message)) = message.split_once("> ") else { return send_message(stream, message) };
 
-    if let Ok(f) = send_message_auth(stream, &name, &message, &message, remove_null) {
+    if let Ok(f) = send_message_auth(stream, &name, &message, &message) {
         if f != 0 {
             let name = format!("\x1f{name}");
-            register_user(stream, &name, &name, remove_null)?;
-            send_message_spoof_auth(stream, &format!("{name}>  {message}"), remove_null)?;
+            register_user(stream, &name, &name)?;
+            send_message_spoof_auth(stream, &format!("{name}>  {message}"))?;
         }
     }
 
@@ -212,12 +211,11 @@ pub fn send_message(
 pub fn register_user(
     stream: &mut RacStream, 
     name: &str, 
-    password: &str, 
-    remove_null: bool
+    password: &str
 ) -> Result<bool, Box<dyn Error>> {
     match stream {
         RacStream::WRAC(websocket) => wrac::register_user(websocket, name, password),
-        RacStream::RAC(stream) => rac::register_user(stream, name, password, remove_null)
+        RacStream::RAC(stream) => rac::register_user(stream, name, password)
     }
 }
 
@@ -236,12 +234,11 @@ pub fn send_message_auth(
     stream: &mut RacStream, 
     name: &str, 
     password: &str, 
-    message: &str, 
-    remove_null: bool
+    message: &str
 ) -> Result<u8, Box<dyn Error>> {
     match stream {
         RacStream::WRAC(websocket) => wrac::send_message_auth(websocket, name, password, message),
-        RacStream::RAC(stream) => rac::send_message_auth(stream, name, password, message, remove_null)
+        RacStream::RAC(stream) => rac::send_message_auth(stream, name, password, message)
     }
 }
 
@@ -256,12 +253,11 @@ pub fn send_message_auth(
 pub fn read_messages(
     stream: &mut RacStream, 
     max_messages: usize, 
-    last_size: usize, 
-    remove_null: bool, 
+    last_size: usize,
     chunked: bool
 ) -> Result<Option<(Vec<String>, usize)>, Box<dyn Error>> {
     match stream {
         RacStream::WRAC(websocket) => wrac::read_messages(websocket, max_messages, last_size, chunked),
-        RacStream::RAC(stream) => rac::read_messages(stream, max_messages, last_size, remove_null, chunked)
+        RacStream::RAC(stream) => rac::read_messages(stream, max_messages, last_size, chunked)
     }
 }

@@ -27,11 +27,9 @@ pub struct Config {
     #[serde(default = "default_true")] pub hide_my_ip: bool,
     #[serde(default)] pub show_other_ip: bool,
     #[serde(default)] pub auth_enabled: bool,
-    #[serde(default)] pub ssl_enabled: bool,
     #[serde(default = "default_true")] pub chunked_enabled: bool,
     #[serde(default = "default_true")] pub formatting_enabled: bool,
     #[serde(default = "default_true")] pub commands_enabled: bool,
-    #[serde(default)] pub wrac_enabled: bool,
     #[serde(default)] pub proxy: Option<String>,
     #[serde(default = "default_true")] pub notifications_enabled: bool,
     #[serde(default)] pub debug_logs: bool,
@@ -121,13 +119,11 @@ pub struct Args {
     #[arg(long)] pub hide_my_ip: Option<bool>,
     #[arg(long)] pub show_other_ip: Option<bool>,
     #[arg(long)] pub auth_enabled:Option <bool>,
-    #[arg(long)] pub ssl_enabled: Option<bool>,
     #[arg(long)] pub remove_gui_shit: Option<bool>,
     #[arg(long)] pub chunked_enabled: Option<bool>,
     #[arg(long)] pub formatting_enabled: Option<bool>,
     #[arg(long)] pub commands_enabled: Option<bool>,
     #[arg(long)] pub notifications_enabled: Option<bool>,
-    #[arg(long)] pub wrac_enabled: Option<bool>,
     #[arg(long)] pub proxy: Option<String>,
     #[arg(long)] pub debug_logs: bool,
 }
@@ -146,12 +142,10 @@ impl Args {
         if let Some(v) = self.show_other_ip { config.show_other_ip = v }
         if let Some(v) = self.remove_gui_shit { config.remove_gui_shit = v }
         if let Some(v) = self.auth_enabled { config.auth_enabled = v }
-        if let Some(v) = self.ssl_enabled { config.ssl_enabled = v }
         if let Some(v) = self.chunked_enabled { config.chunked_enabled = v }
         if let Some(v) = self.formatting_enabled { config.formatting_enabled = v }
         if let Some(v) = self.commands_enabled { config.commands_enabled = v }
         if let Some(v) = self.notifications_enabled { config.notifications_enabled = v }
-        if let Some(v) = self.wrac_enabled { config.wrac_enabled = v }
         if self.debug_logs { config.debug_logs = true }
     }
 }

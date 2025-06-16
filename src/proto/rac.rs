@@ -20,23 +20,13 @@ pub fn send_message(stream: &mut impl Write, message: &str) -> Result<(), Box<dy
 pub fn register_user(
     stream: &mut (impl Write + Read), 
     name: &str, 
-    password: &str, 
-    remove_null: bool
+    password: &str
 ) -> Result<bool, Box<dyn Error>> {
     stream.write_all(format!("\x03{name}\n{password}").as_bytes())?;
-    if remove_null {
-        if let Ok(out) = skip_null(stream) {
-            Ok(out[0] == 0)
-        } else {
-            Ok(true)
-        }
+    if let Ok(out) = skip_null(stream) {
+        Ok(out[0] == 0)
     } else {
-        let mut buf = vec![0];
-        if let Ok(1) = stream.read(&mut buf) {
-            Ok(buf[0] == 0)
-        } else {
-            Ok(true)
-        }
+        Ok(true)
     }
 }
 
@@ -55,24 +45,13 @@ pub fn send_message_auth(
     stream: &mut (impl Write + Read), 
     name: &str, 
     password: &str, 
-    message: &str, 
-    remove_null: bool
+    message: &str,
 ) -> Result<u8, Box<dyn Error>> {
     stream.write_all(format!("\x02{name}\n{password}\n{message}").as_bytes())?;
-
-    if remove_null {
-        if let Ok(out) = skip_null(stream) {
-            Ok(out[0])
-        } else {
-            Ok(0)
-        }
+    if let Ok(out) = skip_null(stream) {
+        Ok(out[0])
     } else {
-        let mut buf = vec![0];
-        if let Ok(1) = stream.read(&mut buf) {
-            Ok(buf[0])
-        } else {
-            Ok(0)
-        }
+        Ok(0)
     }
 }
 
@@ -107,26 +86,17 @@ pub fn read_messages(
     stream: &mut (impl Read + Write), 
     max_messages: usize, 
     last_size: usize, 
-    remove_null: bool, 
     chunked: bool
 ) -> Result<Option<(Vec<String>, usize)>, Box<dyn Error>> {
     stream.write_all(&[0x00])?;
 
     let packet_size = {
-        let data = if remove_null {
-            let mut data = skip_null(stream)?;
-            let mut buf = vec![0; 10];
-            let len = stream.read(&mut buf)?;
-            buf.truncate(len);
-            data.append(&mut buf);
-            remove_trailing_null(&mut data)?;
-            data
-        } else {
-            let mut data = vec![0; 10];
-            let len = stream.read(&mut data)?;
-            data.truncate(len);
-            data
-        };
+        let mut data = skip_null(stream)?;
+        let mut buf = vec![0; 10];
+        let len = stream.read(&mut buf)?;
+        buf.truncate(len);
+        data.append(&mut buf);
+        remove_trailing_null(&mut data)?;
 
         String::from_utf8(data)?
             .trim_matches(char::from(0))
@@ -145,17 +115,10 @@ pub fn read_messages(
         packet_size - last_size
     };
 
-    let packet_data = if remove_null {
-        let mut data = skip_null(stream)?;
-        let mut buf = vec![0; to_read - 1];
-        stream.read_exact(&mut buf)?;
-        data.append(&mut buf);
-        data
-    } else {
-        let mut data = vec![0; to_read];
-        stream.read_exact(&mut data)?;
-        data
-    };
+    let mut packet_data = skip_null(stream)?;
+    let mut buf = vec![0; to_read - 1];
+    stream.read_exact(&mut buf)?;
+    packet_data.append(&mut buf);
 
     let packet_data = String::from_utf8_lossy(&packet_data).to_string();
 

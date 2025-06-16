@@ -27,9 +27,7 @@ use gtk::{
     Justification, Label, ListBox, Orientation, Overlay, Picture, ScrolledWindow, Settings, Window
 };
 
-use crate::{chat::config::{default_konata_size, default_oof_update_time}, proto::parse_rac_url};
-
-use super::{config::{default_max_messages, default_update_time, get_config_path, save_config, Config}, 
+use super::{config::{default_max_messages, default_update_time, default_konata_size, default_oof_update_time, get_config_path, save_config, Config}, 
 ctx::Context, on_send_message, parse_message, print_message, recv_tick, sanitize_message, SERVER_LIST};
 
 struct UiModel {
@@ -171,8 +169,6 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     let hide_my_ip_entry = gui_checkbox_setting!("Hide My IP", hide_my_ip, ctx, settings_vbox);
     let show_other_ip_entry = gui_checkbox_setting!("Show Other IP", show_other_ip, ctx, settings_vbox);
     let auth_enabled_entry = gui_checkbox_setting!("Fake Auth Enabled", auth_enabled, ctx, settings_vbox);
-    let ssl_enabled_entry = gui_checkbox_setting!("SSL Enabled", ssl_enabled, ctx, settings_vbox);
-    let wrac_enabled_entry = gui_checkbox_setting!("WRAC Enabled", wrac_enabled, ctx, settings_vbox);
     let chunked_enabled_entry = gui_checkbox_setting!("Chunked Enabled", chunked_enabled, ctx, settings_vbox);
     let formatting_enabled_entry = gui_checkbox_setting!("Formatting Enabled", formatting_enabled, ctx, settings_vbox);
     let commands_enabled_entry = gui_checkbox_setting!("Commands Enabled", commands_enabled, ctx, settings_vbox);
@@ -205,12 +201,10 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         #[weak] hide_my_ip_entry,
         #[weak] show_other_ip_entry,
         #[weak] auth_enabled_entry,
-        #[weak] ssl_enabled_entry,
         #[weak] chunked_enabled_entry,
         #[weak] formatting_enabled_entry,
         #[weak] commands_enabled_entry,
         #[weak] notifications_enabled_entry,
-        #[weak] wrac_enabled_entry,
         #[weak] proxy_entry,
         #[weak] debug_logs_entry,
         #[weak] oof_update_time_entry,
@@ -277,8 +271,6 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 remove_gui_shit: remove_gui_shit_entry.is_active(),
                 show_other_ip: show_other_ip_entry.is_active(),
                 auth_enabled: auth_enabled_entry.is_active(),
-                ssl_enabled: ssl_enabled_entry.is_active(),
-                wrac_enabled: wrac_enabled_entry.is_active(),
                 chunked_enabled: chunked_enabled_entry.is_active(),
                 formatting_enabled: formatting_enabled_entry.is_active(),
                 commands_enabled: commands_enabled_entry.is_active(),
@@ -315,8 +307,6 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         #[weak] hide_my_ip_entry,
         #[weak] show_other_ip_entry,
         #[weak] auth_enabled_entry,
-        #[weak] ssl_enabled_entry,
-        #[weak] wrac_enabled_entry,
         #[weak] chunked_enabled_entry,
         #[weak] formatting_enabled_entry,
         #[weak] commands_enabled_entry,
@@ -335,8 +325,6 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
             hide_my_ip_entry.set_active(config.hide_my_ip);
             show_other_ip_entry.set_active(config.show_other_ip);
             auth_enabled_entry.set_active(config.auth_enabled);
-            ssl_enabled_entry.set_active(config.ssl_enabled);
-            wrac_enabled_entry.set_active(config.wrac_enabled);
             chunked_enabled_entry.set_active(config.chunked_enabled);
             formatting_enabled_entry.set_active(config.formatting_enabled);
             commands_enabled_entry.set_active(config.commands_enabled);
@@ -480,11 +468,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
             #[weak] ctx,
             move |_, _, _, _| {
                 let mut config = ctx.config.read().unwrap().clone();
-                if let Some((_, ssl, wrac)) = parse_rac_url(&url) {
-                    config.host = url.clone();
-                    config.wrac_enabled = wrac;
-                    config.ssl_enabled = ssl;
-                }
+                config.host = url.clone();
                 ctx.set_config(&config);
                 save_config(get_config_path(), &config);
             }

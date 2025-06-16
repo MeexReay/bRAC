@@ -78,9 +78,7 @@ macro_rules! connect_rac {
     ($ctx:ident) => { 
         &mut connect(
             &$ctx.config(|o| o.host.clone()), 
-            $ctx.config(|o| o.ssl_enabled), 
-            $ctx.config(|o| o.proxy.clone()), 
-            $ctx.config(|o| o.wrac_enabled)
+            $ctx.config(|o| o.proxy.clone())
         )? 
     };
 }
