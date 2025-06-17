@@ -25,7 +25,7 @@
 
 # Troubleshooting
 
-## Windows / MacOS
+## Windows
 
 ### Black frame around the window
 
@@ -36,9 +36,11 @@ Black frame appears on connecting to the server or when bRAC just freezes. Be pa
 As GNotifications dont work on Windows, we need to send notifications through winapi. 
 Development of this feature is active, you can participate in it by making a pull requests.
 
-### Doesnt compile / doesnt work
+## MacOS
 
-Write a new issue here and dont google anything!!1
+### Notifications dont work
+
+Switch to `libnotify` by adding the feature to cargo: `cargo build -r -F libnotify`
 
 ## Linux
 
