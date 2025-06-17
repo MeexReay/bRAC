@@ -4,7 +4,7 @@
 
 1. Install [rustup](https://rustup.rs/)
 2. Install [MSVC](https://visualstudio.microsoft.com/visual-cpp-build-tools/) and run `rustup default stable-msvc`
-3. Extract [GTK4 from gvsbuild](https://github.com/wingtk/gvsbuild/releases/tag/latest) to `C:\gtk` 
+3. Extract [GTK4 from gvsbuild](https://github.com/wingtk/gvsbuild/releases/latest) to `C:\gtk` 
 4. Update environment variables:
     - Go to Start
     - Search for 'Advanced system settings'
