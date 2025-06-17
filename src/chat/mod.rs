@@ -42,7 +42,7 @@ lazy_static! {
 
     pub static ref SERVER_LIST: Vec<String> = vec![
         "rac://meex.lol".to_string(),
-        "rac://meex.lol:11234".to_string(),
+        "wracs://meex.lol".to_string(),
         "rac://91.192.22.20".to_string()
     ];
 }
