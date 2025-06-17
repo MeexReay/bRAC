@@ -39,6 +39,8 @@ better RAC client
 
 NO SOLUTION
 
+Read [compiling docs](docs/compiling.md) to build it manually.
+
 ### download binary
 
 go to [releases](https://github.com/MeexReay/bRAC/releases/latest) and download file you need. its simple.
@@ -58,6 +60,8 @@ cd bRAC
 cargo build -r # build release (target/release/bRAC) 
 cargo run -r # build and run
 ```
+
+Read more about that on the [compiling docs](docs/compiling.md).
 
 ### nix package
 
@@ -82,6 +86,7 @@ messages starting with a slash are sent to chat only if the `--disable-commands`
 
 ## docs
 
+- [Compiling](docs/compiling.md)
 - [Message formats](docs/message_formats.md)
 - [Authenticated mode](docs/auth_mode.md)
 - [WRAC protocol (v2.0)](docs/wrac.md)
