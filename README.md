@@ -84,13 +84,12 @@ messages starting with a slash are sent to chat only if the `--disable-commands`
 
 - [Message formats](docs/message_formats.md)
 - [Authenticated mode](docs/auth_mode.md)
-- [Cross compile](docs/cross_compile.md)
+- [WRAC protocol (v2.0)](docs/wrac.md)
 - [FAQ](docs/faq.md)
 
 ## see also
 
 - [RAC-Hub - all about RAC protocol](https://the-stratosphere-solutions.github.io/RAC-Hub/)
-- [WRAC protocol (v2.0)](docs/wrac.md)
 - [RAC protocol (v2.0)](https://gitea.bedohswe.eu.org/pixtaded/crab#rac-protocol)
 - [CRAB - client & server for RAC](https://gitea.bedohswe.eu.org/pixtaded/crab)
 - [Mefidroniy - client for RAC](https://github.com/OctoBanon-Main/mefedroniy-client)
