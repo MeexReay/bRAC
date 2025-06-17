@@ -14,7 +14,7 @@
     - Add `C:\gtk\lib` to the Lib variable
     - Save and exit
 5. Open the repository directory in console (download it from github or with `git clone https://github.com/MeexReay/bRAC.git`)
-6. Run `cargo build -r -F libnotify winapi`
+6. Run `cargo build -r -F libnotify,winapi`
 7. Done! Your finished binary is in the `target/release` folder.
 
 ## Linux / MacOS
@@ -41,7 +41,7 @@ There are Two solutions:
 - Switch to `libnotify`:
 
 Just add the new feature to cargo: `cargo build -r -F libnotify` \
-Libnotify sucks in many situations, but its cross-compiling and always work
+Libnotify sucks in many situations, but it always work
 
 - Make a desktop file:
 
