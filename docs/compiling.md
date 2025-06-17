@@ -6,15 +6,14 @@
 2. Install [MSVC](https://visualstudio.microsoft.com/visual-cpp-build-tools/) and run `rustup default stable-msvc`
 3. Extract [GTK4 from gvsbuild](https://github.com/wingtk/gvsbuild/releases/latest) to `C:\gtk` 
 4. Update environment variables:
-    - Go to Start
-    - Search for 'Advanced system settings'
+    - Go to Start, search for 'Advanced system settings' (or click on Properties of My Computer in the Explorer, then you'll find 'Advanced system settings')
     - Click 'Environment Variables...'
-    - Add `C:\gtk\lib\pkgconfig` to the PKG_CONFIG_PATH variable
-    - Add `C:\gtk\bin` to the PATH variable
-    - Add `C:\gtk\lib` to the Lib variable
-    - Save and exit
+    - Add `C:\gtk\lib\pkgconfig` to the PKG_CONFIG_PATH variable (or create one if doesnt exist)
+    - Add `C:\gtk\bin` to the PATH variable (or create one if doesnt exist)
+    - Add `C:\gtk\lib` to the Lib variable (or create one if doesnt exist)
+    - Apply and close the window (maybe restart PC)
 5. Open the repository directory in console (download it from github or with `git clone https://github.com/MeexReay/bRAC.git`)
-6. Run `cargo build -r -F libnotify,winapi`
+6. Run `cargo build -r -F winapi`
 7. Done! Your finished binary is in the `target/release` folder.
 
 ## Linux / MacOS
@@ -27,6 +26,15 @@
 # Troubleshooting
 
 ## Windows / MacOS
+
+### Black frame around the window
+
+Black frame appears on connecting to the server or when bRAC just freezes. Be patient.
+
+### Notifications dont work
+
+As GNotifications dont work on Windows, we need to send notifications through winapi. 
+Development of this feature is active, you can participate in it by making a pull requests.
 
 ### Doesnt compile / doesnt work
 
