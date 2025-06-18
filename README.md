@@ -89,6 +89,7 @@ messages starting with a slash are sent to chat only if the `--disable-commands`
 - [User agents](docs/user_agents.md)
 - [Authenticated mode](docs/auth_mode.md)
 - [WRAC protocol (v2.0)](docs/wrac.md)
+- [About RAC URL](docs/url.md)
 - [FAQ](docs/faq.md)
 
 ## see also
