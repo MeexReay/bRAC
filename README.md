@@ -13,12 +13,12 @@ better RAC client
 - RACv1.99.x and RACv2.0 compatible
 - WRAC compatible ([docs](docs/wrac.md))
 - chat commands (type /help)
-- no ip and date visible for anyone
-- coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc)
-- many command-line options (--help)
-- rich configuration (--config-path to get file path and --configure to edit)
-- RACS compatible (--enable-ssl or in --configure enable SSL)
-- chunked reading messages
+- no ip and date visible for anyone (almost)
+- coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc.)
+- many command-line options (see --help)
+- rich configuration (--config-path to get file path)
+- RACS/WRACS compatible (ex: wracs://meex.lol)
+- reading messages chunked (less traffic usage)
 
 ![screenshot](misc/image.png)
 
