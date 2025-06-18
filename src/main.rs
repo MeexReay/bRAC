@@ -3,7 +3,6 @@ use std::sync::Arc;
 use bRAC::chat::{
     config::{get_config_path, load_config, Args},
     ctx::Context,
-    run_main_loop,
 };
 use bRAC::proto::{connect, read_messages, send_message};
 use clap::Parser;
@@ -53,7 +52,11 @@ fn main() {
         return;
     }
 
-    let ctx = Arc::new(Context::new(&config));
+    #[cfg(feature = "gtk")]
+    {
+        let ctx = Arc::new(Context::new(&config));
 
-    run_main_loop(ctx.clone());
+        use bRAC::chat::run_main_loop;
+        run_main_loop(ctx.clone());
+    }
 }

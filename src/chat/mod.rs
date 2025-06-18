@@ -10,13 +10,17 @@ use super::proto::{
     connect, read_messages, register_user, send_message, send_message_auth, send_message_spoof_auth,
 };
 
-use gui::{add_chat_messages, clear_chat_messages};
 use lazy_static::lazy_static;
 use regex::Regex;
 
 use ctx::Context;
 
+#[cfg(feature = "gtk")]
+pub mod gui;
+#[cfg(feature = "gtk")]
 pub use gui::run_main_loop;
+#[cfg(feature = "gtk")]
+use gui::{add_chat_messages, clear_chat_messages};
 
 const HELP_MESSAGE: &str = "Help message:
 /help - show help message
@@ -49,7 +53,6 @@ lazy_static! {
 
 pub mod config;
 pub mod ctx;
-pub mod gui;
 
 pub fn sanitize_text(input: &str) -> String {
     let without_ansi = ANSI_REGEX.replace_all(input, "");
@@ -57,6 +60,7 @@ pub fn sanitize_text(input: &str) -> String {
     cleaned_text.into_owned()
 }
 
+#[cfg(feature = "gtk")]
 pub fn add_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn Error>> {
     for i in message.split("\n").map(|o| o.to_string()) {
         print_message(ctx.clone(), i)?;
@@ -64,6 +68,7 @@ pub fn add_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn Error
     Ok(())
 }
 
+#[cfg(feature = "gtk")]
 pub fn on_command(ctx: Arc<Context>, command: &str) -> Result<(), Box<dyn Error>> {
     let command = command.trim_start_matches("/");
     let (command, args) = command.split_once(" ").unwrap_or((&command, ""));
@@ -176,12 +181,14 @@ pub fn prepare_message(ctx: Arc<Context>, message: &str) -> String {
     )
 }
 
+#[cfg(feature = "gtk")]
 pub fn print_message(ctx: Arc<Context>, message: String) -> Result<(), Box<dyn Error>> {
     ctx.add_message(ctx.config(|o| o.max_messages), vec![message.clone()]);
     add_chat_messages(ctx.clone(), vec![message]);
     Ok(())
 }
 
+#[cfg(feature = "gtk")]
 pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     let last_size = ctx.packet_size();
 
@@ -218,6 +225,7 @@ pub fn recv_tick(ctx: Arc<Context>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[cfg(feature = "gtk")]
 pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn Error>> {
     if message.starts_with("/") && ctx.config(|o| o.commands_enabled) {
         on_command(ctx.clone(), &message)?;
