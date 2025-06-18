@@ -41,7 +41,7 @@ struct UiModel {
     window: ApplicationWindow,
     #[cfg(feature = "libnotify")]
     notifications: Arc<RwLock<Vec<libnotify::Notification>>>,
-    #[cfg(not(feature = "libnotify"))]
+    #[cfg(all(not(feature = "libnotify"), not(feature = "notify-rust")))]
     notifications: Arc<RwLock<Vec<String>>>,
 }
 
@@ -777,7 +777,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         window: window.clone(),
         #[cfg(feature = "libnotify")]
         notifications: Arc::new(RwLock::new(Vec::<libnotify::Notification>::new())),
-        #[cfg(not(feature = "libnotify"))]
+        #[cfg(all(not(feature = "libnotify"), not(feature = "notify-rust")))]
         notifications: Arc::new(RwLock::new(Vec::<String>::new())),
     }
 }
@@ -805,6 +805,7 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
                     }
                 });
 
+                #[cfg(not(feature = "notify-rust"))]
                 GLOBAL.with(|global| {
                     if let Some(ui) = &*global.borrow() {
                         #[cfg(feature = "libnotify")]
@@ -868,6 +869,20 @@ fn load_css(is_dark_theme: bool) {
     );
 }
 
+#[cfg(feature = "notify-rust")]
+fn send_notification(_: Arc<Context>, _: &UiModel, title: &str, message: &str) {
+    use notify_rust::{Notification, Timeout};
+
+    Notification::new()
+        .summary(title)
+        .body(message)
+        .auto_icon()
+        .appname("bRAC")
+        .timeout(Timeout::Default) // this however is
+        .show()
+        .expect("notify-rust send error");
+}
+
 #[cfg(feature = "libnotify")]
 fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) {
     use libnotify::Notification;
@@ -885,7 +900,7 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
     ui.notifications.write().unwrap().push(notification);
 }
 
-#[cfg(not(feature = "libnotify"))]
+#[cfg(all(not(feature = "libnotify"), not(feature = "notify-rust")))]
 fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) {
     use std::{
         hash::{DefaultHasher, Hasher},
@@ -915,7 +930,13 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
 }
 
 fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool) {
-    let Some(message) = sanitize_message(message) else {
+    let formatting_enabled = ctx.config(|c| c.formatting_enabled);
+
+    let Some(message) = (if formatting_enabled {
+        sanitize_message(message)
+    } else {
+        Some(message)
+    }) else {
         return;
     };
 
@@ -933,7 +954,9 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
 
     let mut label = String::new();
 
-    if let Some((date, ip, content, nick)) = parse_message(message.clone()) {
+    if let (true, Some((date, ip, content, nick))) =
+        (formatting_enabled, parse_message(message.clone()))
+    {
         if let Some(ip) = ip {
             if ctx.config(|o| o.show_other_ip) {
                 label.push_str(&format!(

@@ -13,7 +13,7 @@
     - Add `C:\gtk\lib` to the Lib variable (or create one if doesnt exist)
     - Apply and close the window (maybe restart PC)
 5. Open the repository directory in console (download it from github or with `git clone https://github.com/MeexReay/bRAC.git`)
-6. Run `cargo build -r -F winapi`
+6. Run `cargo build -r -F winapi,notify-rust`
 7. Done! Your finished binary is in the `target/release` folder.
 
 ## Linux / MacOS
@@ -31,22 +31,25 @@
 
 Black frame appears on connecting to the server or when bRAC just freezes. Be patient.
 
-### Notifications dont work
-
-As GNotifications dont work on Windows, we need to send notifications through winapi. 
-Development of this feature is active, you can participate in it by making a pull requests.
-
 ## MacOS
 
 ### Notifications dont work
 
-Switch to `libnotify` by adding the feature to cargo: `cargo build -r -F libnotify`
+There are two solutions:
+
+- Switch to `libnotify`:
+
+Add the feature `libnotify` to cargo: `cargo build -r -F libnotify`
+
+- Switch to `notify-rust`:
+
+Add the feature `notify-rust` to cargo: `cargo build -r -F notify-rust`
 
 ## Linux
 
 ### Notifications dont work
 
-There are Two solutions:
+There are two solutions:
 
 - Switch to `libnotify`:
 
