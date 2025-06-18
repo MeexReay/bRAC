@@ -930,6 +930,8 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
 }
 
 fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool) {
+    let notify = notify && ctx.config(|c| c.notifications_enabled);
+
     let formatting_enabled = ctx.config(|c| c.formatting_enabled);
 
     let Some(message) = (if formatting_enabled {
