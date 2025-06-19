@@ -11,6 +11,7 @@ Here are listed the most common clients, and their name colors in the chat.
 | [bRAC](https://github.com/MeexReay/bRAC) | 리㹰<{name}> {text} | `\uB9AC\u3E70<(.*?)> (.*)` | green
 | [CRAB](https://gitea.bedohswe.eu.org/pixtaded/crab) | ═══<{name}> {text} | `\u2550\u2550\u2550<(.*?)> (.*)` | light red
 | [Mefidroniy](https://github.com/OctoBanon-Main/mefedroniy-client) | °ʘ<{name}> {text} | `\u00B0\u0298<(.*?)> (.*)` | light magenta
+| [cRACk](https://github.com/pansangg/cRACk) | ⁂<{name}> {text} | `\u2042<(.*?)> (.*)` | gold
 | clRAC | <{name}> {text} | `<(.*?)> (.*)` | cyan
 
 ## developer notes
