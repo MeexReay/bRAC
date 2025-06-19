@@ -8,7 +8,7 @@ use std::{
 
 use native_tls::{TlsConnector, TlsStream};
 use socks::Socks5Stream;
-use tungstenite::WebSocket;
+use tungstenite::{client::client_with_config, protocol::WebSocketConfig, WebSocket};
 
 pub mod rac;
 pub mod wrac;
@@ -177,13 +177,14 @@ pub fn connect(host: &str, proxy: Option<String>) -> Result<RacStream, Box<dyn E
         stream
     };
 
-    stream.set_read_timeout(Duration::from_secs(15)); // TODO: make this value changing from settings
+    stream.set_read_timeout(Duration::from_secs(15)); // TODO: softcode this
     stream.set_write_timeout(Duration::from_secs(15));
 
     if wrac {
-        let (client, _) = tungstenite::client(
+        let (client, _) = client_with_config(
             &format!("ws{}://{host}", if ssl { "s" } else { "" }),
             stream,
+            Some(WebSocketConfig::default().max_message_size(Some(512 * 1024 * 1024))), // TODO: softcode this
         )?;
         Ok(RacStream::WRAC(client))
     } else {
