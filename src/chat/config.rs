@@ -21,7 +21,7 @@ pub fn default_konata_size() -> usize {
     100
 }
 pub fn default_host() -> String {
-    "wracs://meex.lol".to_string()
+    "wracs://meex.lol:11234".to_string()
 }
 pub fn default_message_format() -> String {
     MESSAGE_FORMAT.to_string()
