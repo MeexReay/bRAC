@@ -177,8 +177,8 @@ pub fn connect(host: &str, proxy: Option<String>) -> Result<RacStream, Box<dyn E
         stream
     };
 
-    stream.set_read_timeout(Duration::from_secs(3));
-    stream.set_write_timeout(Duration::from_secs(3));
+    stream.set_read_timeout(Duration::from_secs(15)); // TODO: make this value changing from settings
+    stream.set_write_timeout(Duration::from_secs(15));
 
     if wrac {
         let (client, _) = tungstenite::client(
