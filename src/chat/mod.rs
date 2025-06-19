@@ -39,10 +39,10 @@ lazy_static! {
 
     pub static ref COLORED_USERNAMES: Vec<(Regex, String)> = vec![
         (Regex::new(r"\u{B9AC}\u{3E70}<(.*?)> (.*)").unwrap(),         "#70fa7a".to_string()),     // bRAC
-        (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), "#fa7070".to_string()),       // CRAB
-        (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(),         "#da70fa".to_string()),   // Mefidroniy
-        (Regex::new(r"\u{2042}<(.*?)> (.*)").unwrap(),                 "#f5f543".to_string()),   // cRACk
-        (Regex::new(r"<(.*?)> (.*)").unwrap(),                         "#70fadc".to_string()),      // clRAC
+        (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), "#fa7070".to_string()),     // CRAB
+        (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(),         "#da70fa".to_string()),     // Mefidroniy
+        (Regex::new(r"\u{2042}<(.*?)> (.*)").unwrap(),                 "#f5f543".to_string()),     // cRACk
+        (Regex::new(r"<(.*?)> (.*)").unwrap(),                         "#70fadc".to_string()),     // clRAC
     ];
 
     pub static ref SERVER_LIST: Vec<String> = vec![
