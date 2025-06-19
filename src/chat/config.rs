@@ -1,7 +1,6 @@
 use clap::Parser;
 use serde_default::DefaultFromSerde;
 use serde_yml;
-use std::str::FromStr;
 use std::{fs, path::PathBuf};
 
 const MESSAGE_FORMAT: &str = "\u{B9AC}\u{3E70}<{name}> {text}";
