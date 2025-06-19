@@ -66,44 +66,25 @@ pub struct Config {
     pub debug_logs: bool,
 }
 
+#[cfg(target_os = "windows")]
 pub fn get_config_path() -> PathBuf {
-    let mut config_dir = PathBuf::from_str(".").unwrap();
+    use std::env;
+    env::var("APPDATA")
+        .ok()
+        .and_then(|o| Some(PathBuf::from_str(&o).ok()?.join("bRAC")))
+        .unwrap_or("bRAC/config.yml".into())
+}
 
-    #[cfg(not(target_os = "windows"))]
-    if let Some(dir) = {
-        let home_dir = {
-            use homedir::my_home;
-            my_home().ok().flatten()
-        };
-
-        #[cfg(target_os = "linux")]
-        let config_dir = {
-            let home_dir = home_dir.map(|o| o.join("bRAC"));
-            home_dir.map(|o| o.join(".config"))
-        };
-
-        #[cfg(target_os = "macos")]
-        let config_dir = {
-            let home_dir = home_dir.map(|o| o.join("bRAC"));
-            home_dir.map(|o| o.join(".config"))
-        };
-
-        config_dir
-    } {
-        config_dir = dir;
-    }
-
-    #[cfg(target_os = "windows")]
-    if let Some(dir) = {
-        use std::env;
-        env::var("APPDATA")
-            .ok()
-            .and_then(|o| Some(PathBuf::from_str(&o).ok()?.join("bRAC")))
-    } {
-        config_dir = dir;
-    }
-
-    config_dir.join("config.yml")
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+pub fn get_config_path() -> PathBuf {
+    use homedir::my_home;
+    my_home()
+        .ok()
+        .flatten()
+        .map(|o| o.join(".config"))
+        .map(|o| o.join("bRAC"))
+        .unwrap_or("bRAC".into())
+        .join("config.yml")
 }
 
 pub fn load_config(path: PathBuf) -> Config {
