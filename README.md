@@ -96,7 +96,7 @@ messages starting with a slash are sent to chat only if the `--disable-commands`
 
 ## see also
 
-- [RAC-Hub - all about RAC protocol](https://the-stratosphere-solutions.github.io/RAC-Hub/)
+- [RAC-Hub - all about RAC protocol](https://meexreay.github.io/RAC-Hub/)
 - [RAC protocol (v2.0)](https://gitea.bedohswe.eu.org/pixtaded/crab#rac-protocol)
 - [CRAB - client & server for RAC](https://gitea.bedohswe.eu.org/pixtaded/crab)
 - [Mefidroniy - TUI client for RAC](https://github.com/OctoBanon-Main/mefedroniy-client)
