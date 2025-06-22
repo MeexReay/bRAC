@@ -182,7 +182,7 @@ pub fn connect(host: &str, proxy: Option<String>) -> Result<RacStream, Box<dyn E
 
     if wrac {
         let (client, _) = client_with_config(
-            &format!("ws{}://{host}", if ssl { "s" } else { "" }),
+            &format!("ws://{host}"),
             stream,
             Some(WebSocketConfig::default().max_message_size(Some(512 * 1024 * 1024))), // TODO: softcode this
         )?;
