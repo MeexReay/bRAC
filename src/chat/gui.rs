@@ -696,26 +696,24 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         #[weak]
         ctx,
         move |_| {
-            if text_entry.text().is_empty() {
+            let text = text_entry.text().clone();
+
+            if text.is_empty() {
                 return;
             }
-            timeout_add_local_once(
-                Duration::ZERO,
-                clone!(
-                    #[weak]
-                    text_entry,
-                    move || {
-                        text_entry.set_text("");
-                    }
-                ),
-            );
 
-            if let Err(e) = on_send_message(ctx.clone(), &text_entry.text()) {
-                if ctx.config(|o| o.debug_logs) {
-                    let msg = format!("Send message error: {}", e.to_string()).to_string();
-                    add_chat_messages(ctx.clone(), vec![msg]);
+            text_entry.set_text("");
+
+            thread::spawn({
+                move || {
+                    if let Err(e) = on_send_message(ctx.clone(), &text) {
+                        if ctx.config(|o| o.debug_logs) {
+                            let msg = format!("Send message error: {}", e.to_string()).to_string();
+                            add_chat_messages(ctx.clone(), vec![msg]);
+                        }
+                    }
                 }
-            }
+            });
         }
     ));
 
