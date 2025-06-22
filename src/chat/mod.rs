@@ -42,6 +42,7 @@ lazy_static! {
         (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), "#fa7070".to_string()),     // CRAB
         (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(),         "#da70fa".to_string()),     // Mefidroniy
         (Regex::new(r"\u{2042}<(.*?)> (.*)").unwrap(),                 "#f5f543".to_string()),     // cRACk
+        (Regex::new(r"\u{0D9E}<(.*?)> (.*)").unwrap(),                 "#aeff00".to_string()),     // Snowdrop
         (Regex::new(r"<(.*?)> (.*)").unwrap(),                         "#70fadc".to_string()),     // clRAC
     ];
 
@@ -253,9 +254,7 @@ pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn E
 
 pub fn sanitize_message(message: String) -> Option<String> {
     let message = sanitize_text(&message);
-
     let message = message.trim().to_string();
-
     Some(message)
 }
 
