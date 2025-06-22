@@ -28,6 +28,7 @@ build_windows() {
     chmod +x misc/mslink.sh
     curl https://github.com/wingtk/gvsbuild/releases/download/2025.5.0/GTK4_Gvsbuild_2025.5.0_x64.zip -o build/gvsbuild.zip
     unzip build/gvsbuild.zip "bin/*" -d build/windows-x86_64
+    rm build/gvsbuild.zip
     cross build --target x86_64-pc-windows-gnu -r
     cp target/release/bRAC.exe build/windows-x86_64/bin
     ./misc/mslink.sh -l bin\\bRAC.exe -o build/windows-x86_64/bRAC.lnk
