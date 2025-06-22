@@ -68,6 +68,7 @@ pub struct Config {
 #[cfg(target_os = "windows")]
 pub fn get_config_path() -> PathBuf {
     use std::env;
+    use std::str::FromStr;
     env::var("APPDATA")
         .ok()
         .and_then(|o| Some(PathBuf::from_str(&o).ok()?.join("bRAC")))

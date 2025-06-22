@@ -12,7 +12,7 @@ homedir = "0.3.4"
 native-tls = "0.2.14"
 clap = { version = "4.5.36", features = ["derive"] }
 serde = { version = "1.0.219", features = ["serde_derive"] }
-gtk4 = { version = "0.9.6", features = [ "v4_10" ], optional = true }
+gtk4 = { version = "0.9.6", features = [ "v4_12" ], optional = true }
 chrono = "0.4.40"
 serde_default = "0.2.0"
 socks = "0.3.4"
@@ -33,4 +33,4 @@ notify-rust = ["dep:notify-rust"]
 winapi = ["dep:winapi", "dep:winresource"]
 
 [workspace.metadata.cross.target.x86_64-pc-windows-gnu]
-image = "mglolenstine/gtk4-cross:rust-gtk-4.8"
+image = "mglolenstine/gtk4-cross:rust-gtk-4.12"
