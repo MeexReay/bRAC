@@ -31,6 +31,3 @@ gtk = ["dep:gtk4"]
 libnotify = ["dep:libnotify", "dep:gdk-pixbuf"]
 notify-rust = ["dep:notify-rust"]
 winapi = ["dep:winapi", "dep:winresource"]
-
-[workspace.metadata.cross.target.x86_64-pc-windows-gnu]
-image = "mglolenstine/gtk4-cross:rust-gtk-4.12"

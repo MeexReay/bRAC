@@ -63,3 +63,23 @@ You'll get a desktop file contents, just edit paths here and write it to a new f
 All of these, with adding icons and other, makes this command: `make install` (using `gnumake` package) \
 But make sure, that you have `.local/bin` in the `PATH` variable, otherwise it won't work. \
 Now, if you'll run with the desktop file, GNotifications will work perfectly.
+
+# Cross-compiling
+
+## From Linux to Windows
+
+```bash
+./misc/build.sh
+```
+
+## From NixOS to Windows
+
+```bash
+nix-shell -p rustup gcc cargo-cross
+rustup toolchain install stable
+./misc/build.sh
+```
+
+## From Windows to Linux
+
+That's your problem
