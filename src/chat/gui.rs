@@ -186,8 +186,6 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     let hide_my_ip_entry = gui_checkbox_setting!("Hide My IP", hide_my_ip, ctx, settings_vbox);
     let show_other_ip_entry =
         gui_checkbox_setting!("Show Other IP", show_other_ip, ctx, settings_vbox);
-    let auth_enabled_entry =
-        gui_checkbox_setting!("Fake Auth Enabled", auth_enabled, ctx, settings_vbox);
     let chunked_enabled_entry =
         gui_checkbox_setting!("Chunked Enabled", chunked_enabled, ctx, settings_vbox);
     let formatting_enabled_entry =
@@ -235,8 +233,6 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         hide_my_ip_entry,
         #[weak]
         show_other_ip_entry,
-        #[weak]
-        auth_enabled_entry,
         #[weak]
         chunked_enabled_entry,
         #[weak]
@@ -315,7 +311,6 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 hide_my_ip: hide_my_ip_entry.is_active(),
                 remove_gui_shit: remove_gui_shit_entry.is_active(),
                 show_other_ip: show_other_ip_entry.is_active(),
-                auth_enabled: auth_enabled_entry.is_active(),
                 chunked_enabled: chunked_enabled_entry.is_active(),
                 formatting_enabled: formatting_enabled_entry.is_active(),
                 commands_enabled: commands_enabled_entry.is_active(),
@@ -359,8 +354,6 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         #[weak]
         show_other_ip_entry,
         #[weak]
-        auth_enabled_entry,
-        #[weak]
         chunked_enabled_entry,
         #[weak]
         formatting_enabled_entry,
@@ -370,6 +363,14 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         notifications_enabled_entry,
         #[weak]
         proxy_entry,
+        #[weak]
+        debug_logs_entry,
+        #[weak]
+        oof_update_time_entry,
+        #[weak]
+        konata_size_entry,
+        #[weak]
+        remove_gui_shit_entry,
         move |_| {
             let config = Config::default();
             ctx.set_config(&config);
@@ -382,11 +383,14 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
             max_messages_entry.set_text(&config.max_messages.to_string());
             hide_my_ip_entry.set_active(config.hide_my_ip);
             show_other_ip_entry.set_active(config.show_other_ip);
-            auth_enabled_entry.set_active(config.auth_enabled);
             chunked_enabled_entry.set_active(config.chunked_enabled);
             formatting_enabled_entry.set_active(config.formatting_enabled);
             commands_enabled_entry.set_active(config.commands_enabled);
             notifications_enabled_entry.set_active(config.notifications_enabled);
+            debug_logs_entry.set_active(config.debug_logs);
+            oof_update_time_entry.set_text(&config.oof_update_time.to_string());
+            konata_size_entry.set_text(&config.konata_size.to_string());
+            remove_gui_shit_entry.set_active(config.remove_gui_shit);
         }
     ));
     let window = Window::builder()

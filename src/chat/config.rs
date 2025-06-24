@@ -49,8 +49,6 @@ pub struct Config {
     pub hide_my_ip: bool,
     #[serde(default)]
     pub show_other_ip: bool,
-    #[serde(default)]
-    pub auth_enabled: bool,
     #[serde(default = "default_true")]
     pub chunked_enabled: bool,
     #[serde(default = "default_true")]
@@ -140,8 +138,6 @@ pub struct Args {
     #[arg(long)]
     pub show_other_ip: Option<bool>,
     #[arg(long)]
-    pub auth_enabled: Option<bool>,
-    #[arg(long)]
     pub remove_gui_shit: Option<bool>,
     #[arg(long)]
     pub chunked_enabled: Option<bool>,
@@ -191,9 +187,6 @@ impl Args {
         }
         if let Some(v) = self.remove_gui_shit {
             config.remove_gui_shit = v
-        }
-        if let Some(v) = self.auth_enabled {
-            config.auth_enabled = v
         }
         if let Some(v) = self.chunked_enabled {
             config.chunked_enabled = v

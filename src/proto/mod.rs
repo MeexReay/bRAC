@@ -192,35 +192,6 @@ pub fn connect(host: &str, proxy: Option<String>) -> Result<RacStream, Box<dyn E
     }
 }
 
-/// Send message with fake auth
-///
-/// Explaination:
-///
-/// let (name, message) = message.split("> ") else { return send_message(stream, message) }
-/// if send_message_auth(name, name, message) != 0 {
-///     let name = "\x1f" + name
-///     register_user(stream, name, name)
-///     send_message_spoof_auth(stream, name + "> " + message)
-/// }
-pub fn send_message_spoof_auth(
-    stream: &mut RacStream,
-    message: &str,
-) -> Result<(), Box<dyn Error>> {
-    let Some((name, message)) = message.split_once("> ") else {
-        return send_message(stream, message);
-    };
-
-    if let Ok(f) = send_message_auth(stream, &name, &name, &message) {
-        if f != 0 {
-            let name = format!("\x1f{name}");
-            register_user(stream, &name, &name)?;
-            send_message_spoof_auth(stream, &format!("{name}>  {message}"))?;
-        }
-    }
-
-    Ok(())
-}
-
 /// Send message
 ///
 /// stream - any stream that can be written to

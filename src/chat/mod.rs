@@ -7,7 +7,7 @@ use std::{
 use crate::connect_rac;
 
 use super::proto::{
-    connect, read_messages, register_user, send_message, send_message_auth, send_message_spoof_auth,
+    connect, read_messages, register_user, send_message, send_message_auth,
 };
 
 use lazy_static::lazy_static;
@@ -242,8 +242,6 @@ pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn E
 
         if let Some(password) = ctx.registered.read().unwrap().clone() {
             send_message_auth(connect_rac!(ctx), &ctx.name(), &password, &message)?;
-        } else if ctx.config(|o| o.auth_enabled) {
-            send_message_spoof_auth(connect_rac!(ctx), &message)?;
         } else {
             send_message(connect_rac!(ctx), &message)?;
         }
