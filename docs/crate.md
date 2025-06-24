@@ -34,7 +34,12 @@ use bRAC::proto::*;
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut conn = connect("rac://meex.lol", None)?; // read docs/url.md
+    let mut conn = connect("wracs://meex.lol", None)?; 
+    // read docs/url.md
+    
+    // this keep-alive way with only one connection
+    // works only for WRAC, for a regular RAC,
+    // you have to connect to the server on each request
 
     send_message(&mut conn, "<dude> hi RAC-loving kikes!")?;
     register_user(&mut conn, "dude", "password")?;
