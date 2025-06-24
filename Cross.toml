@@ -1,2 +1,2 @@
 [target.x86_64-pc-windows-gnu]
-image = "mglolenstine/gtk4-cross:rust-gtk-4.12"
+image = "mglolenstine/gtk4-cross:rust-gtk-latest"

@@ -75,7 +75,7 @@ Now, if you'll run with the desktop file, GNotifications will work perfectly.
 ## From NixOS to Windows
 
 ```bash
-nix-shell -p rustup gcc cargo-cross
+nix-shell -p rustup gcc cargo-cross zip unzip curl
 rustup toolchain install stable
 ./misc/build.sh
 ```
