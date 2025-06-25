@@ -1,5 +1,6 @@
-/target
-/result
-/build
+/target/
+/result/
+/build/
 /config.yml
 /bRAC
+/.direnv/
