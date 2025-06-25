@@ -1,6 +1,6 @@
 # avatars
 
-Client just adds this to the end of every message:
+Client just adds this to the end of each message:
 ```
 \x06!!AR!!<avatar url>
 ```
