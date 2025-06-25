@@ -34,7 +34,7 @@ lazy_static! {
 
     pub static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
     pub static ref IP_REGEX: Regex = Regex::new(r"\{(.*?)\} (.*)").unwrap();
-    pub static ref AVATAR_REGEX: Regex = Regex::new(r"(.*) !!AR!!(.*)").unwrap();
+    pub static ref AVATAR_REGEX: Regex = Regex::new(r"(.*) \x06!!AR!!(.*)").unwrap();
 
     pub static ref DEFAULT_USER_AGENT: Regex = Regex::new(r"<(.*?)> (.*)").unwrap();
 
@@ -271,6 +271,17 @@ pub fn parse_message(
         return None;
     }
 
+    let (message, avatar) = if let Some(message) = AVATAR_REGEX.captures(&message) {
+        (
+            message.get(1)?.as_str().to_string(),
+            Some(message.get(2)?.as_str().to_string()),
+        )
+    } else {
+        (message, None)
+    };
+
+    let message = sanitize_message(message)?;
+
     let date = DATE_REGEX.captures(&message)?;
     let (date, message) = (
         date.get(1)?.as_str().to_string(),
@@ -300,15 +311,6 @@ pub fn parse_message(
         (message, Some((nick, color)))
     } else if let Some((nick, message, color)) = parse_user_agent(&message) {
         (message, Some((nick, color)))
-    } else {
-        (message, None)
-    };
-
-    let (message, avatar) = if let Some(message) = AVATAR_REGEX.captures(&message) {
-        (
-            message.get(1)?.as_str().to_string(),
-            Some(message.get(2)?.as_str().to_string()),
-        )
     } else {
         (message, None)
     };

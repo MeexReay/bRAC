@@ -86,6 +86,7 @@ messages starting with a slash are sent to chat only if the `--disable-commands`
 ## docs
 
 - [Compiling](docs/compiling.md)
+- [Avatars](docs/avatars.md)
 - [User agents](docs/user_agents.md)
 - [Using as crate](docs/crate.md)
 - [Authenticated mode](docs/auth_mode.md)

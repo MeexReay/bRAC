@@ -934,15 +934,15 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
 
     let formatting_enabled = ctx.config(|c| c.formatting_enabled);
 
-    let Some(message) = (if formatting_enabled {
-        sanitize_message(message)
+    let Some(sanitized) = (if formatting_enabled {
+        sanitize_message(message.clone())
     } else {
-        Some(message)
+        Some(message.clone())
     }) else {
         return;
     };
 
-    if message.is_empty() {
+    if sanitized.is_empty() {
         return;
     }
 
