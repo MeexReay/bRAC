@@ -13,7 +13,6 @@ better RAC client
 - RACv1.99.x and RACv2.0 compatible
 - WRAC compatible ([docs](docs/wrac.md))
 - chat commands (type /help)
-- uses tor proxy as default (wracs://meex.lol:11234)
 - no ip and date visible for anyone (almost)
 - coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc.)
 - many command-line options (see --help)
