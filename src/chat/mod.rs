@@ -6,9 +6,7 @@ use std::{
 
 use crate::connect_rac;
 
-use super::proto::{
-    connect, read_messages, register_user, send_message, send_message_auth,
-};
+use super::proto::{connect, read_messages, register_user, send_message, send_message_auth};
 
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -37,7 +35,9 @@ lazy_static! {
     pub static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
     pub static ref IP_REGEX: Regex = Regex::new(r"\{(.*?)\} (.*)").unwrap();
 
-    pub static ref COLORED_USERNAMES: Vec<(Regex, String)> = vec![
+    pub static ref DEFAULT_USER_AGENT: Regex = Regex::new(r"<(.*?)> (.*)").unwrap();
+
+    pub static ref USER_AGENTS: Vec<(Regex, String)> = vec![
         (Regex::new(r"\u{B9AC}\u{3E70}<(.*?)> (.*)").unwrap(),         "#70fa7a".to_string()),     // bRAC
         (Regex::new(r"\u{2550}\u{2550}\u{2550}<(.*?)> (.*)").unwrap(), "#fa7070".to_string()),     // CRAB
         (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(),         "#da70fa".to_string()),     // Mefidroniy
@@ -286,17 +286,23 @@ pub fn parse_message(
         (None, message)
     };
 
-    let (message, nick) = match find_username_color(&message) {
-        Some((name, content, color)) => (content, Some((name, color))),
-        None => (message, None),
+    let (message, nick) = if let Some((nick, message, color)) = DEFAULT_USER_AGENT
+        .captures(&message)
+        .and_then(|o| parse_user_agent(&o[2].to_string()))
+    {
+        (message, Some((nick, color)))
+    } else if let Some((nick, message, color)) = parse_user_agent(&message) {
+        (message, Some((nick, color)))
+    } else {
+        (message, None)
     };
 
     Some((date, ip, message, nick))
 }
 
 // message -> (nick, content, color)
-pub fn find_username_color(message: &str) -> Option<(String, String, String)> {
-    for (re, color) in COLORED_USERNAMES.iter() {
+pub fn parse_user_agent(message: &str) -> Option<(String, String, String)> {
+    for (re, color) in USER_AGENTS.iter() {
         if let Some(captures) = re.captures(message) {
             return Some((
                 captures[1].to_string(),
