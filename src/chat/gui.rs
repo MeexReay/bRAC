@@ -956,7 +956,7 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
 
     let mut label = String::new();
 
-    if let (true, Some((date, ip, content, nick))) =
+    if let (true, Some((date, ip, content, nick, avatar))) =
         (formatting_enabled, parse_message(message.clone()))
     {
         if let Some(ip) = ip {

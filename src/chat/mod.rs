@@ -34,6 +34,7 @@ lazy_static! {
 
     pub static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
     pub static ref IP_REGEX: Regex = Regex::new(r"\{(.*?)\} (.*)").unwrap();
+    pub static ref AVATAR_REGEX: Regex = Regex::new(r"(.*) !!AR!!(.*)").unwrap();
 
     pub static ref DEFAULT_USER_AGENT: Regex = Regex::new(r"<(.*?)> (.*)").unwrap();
 
@@ -256,10 +257,16 @@ pub fn sanitize_message(message: String) -> Option<String> {
     Some(message)
 }
 
-/// message -> (date, ip, text, (name, color))
+/// message -> (date, ip, text, (name, color), avatar)
 pub fn parse_message(
     message: String,
-) -> Option<(String, Option<String>, String, Option<(String, String)>)> {
+) -> Option<(
+    String,
+    Option<String>,
+    String,
+    Option<(String, String)>,
+    Option<String>,
+)> {
     if message.is_empty() {
         return None;
     }
@@ -297,7 +304,16 @@ pub fn parse_message(
         (message, None)
     };
 
-    Some((date, ip, message, nick))
+    let (message, avatar) = if let Some(message) = AVATAR_REGEX.captures(&message) {
+        (
+            message.get(1)?.as_str().to_string(),
+            Some(message.get(2)?.as_str().to_string()),
+        )
+    } else {
+        (message, None)
+    };
+
+    Some((date, ip, message, nick, avatar))
 }
 
 // message -> (nick, content, color)
