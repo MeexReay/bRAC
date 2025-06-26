@@ -14,11 +14,15 @@
     font-weight: bold;
 }
 
+.message-avatar { 
+    border-radius: 64px; 
+}
+
 /* Now made with GTK Pango Markup */
 
-/* .message-name { font-weight: bold; }
+.message-name { font-weight: bold; }
 
-.message-name-green { color: #70fa7a; }
+/* .message-name-green { color: #70fa7a; }
 .message-name-red { color: #fa7070; }
 .message-name-magenta { color: #da70fa; }
 .message-name-cyan { color: #70fadc; } */

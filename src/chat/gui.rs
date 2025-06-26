@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::error::Error;
 use std::sync::{atomic::Ordering, mpsc::channel, Arc, RwLock};
 use std::thread;
@@ -6,7 +7,8 @@ use std::time::{Duration, SystemTime};
 
 use chrono::Local;
 
-use gtk4::{self as gtk};
+use gtk4::ffi::GtkGrid;
+use gtk4 as gtk;
 
 use gtk::gdk::{Cursor, Display, Texture};
 use gtk::gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader};
@@ -43,6 +45,8 @@ struct UiModel {
     notifications: Arc<RwLock<Vec<libnotify::Notification>>>,
     #[cfg(all(not(feature = "libnotify"), not(feature = "notify-rust")))]
     notifications: Arc<RwLock<Vec<String>>>,
+    default_avatar: Pixbuf,
+    avatars: Arc<RwLock<HashMap<u64, Pixbuf>>>,
 }
 
 thread_local!(
@@ -203,6 +207,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         gui_usize_entry_setting!("Konata Size", konata_size, ctx, settings_vbox);
     let remove_gui_shit_entry =
         gui_checkbox_setting!("Remove Gui Shit", remove_gui_shit, ctx, settings_vbox);
+    let new_ui_enabled_entry = gui_checkbox_setting!("New UI", new_ui_enabled, ctx, settings_vbox);
 
     let scrollable = ScrolledWindow::builder()
         .child(&settings_vbox)
@@ -251,6 +256,8 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         konata_size_entry,
         #[weak]
         remove_gui_shit_entry,
+        #[weak]
+        new_ui_enabled_entry,
         move |_| {
             let config = Config {
                 host: host_entry.text().to_string(),
@@ -315,6 +322,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 formatting_enabled: formatting_enabled_entry.is_active(),
                 commands_enabled: commands_enabled_entry.is_active(),
                 notifications_enabled: notifications_enabled_entry.is_active(),
+                new_ui_enabled: new_ui_enabled_entry.is_active(),
                 debug_logs: debug_logs_entry.is_active(),
                 proxy: {
                     let proxy = proxy_entry.text().to_string();
@@ -371,6 +379,8 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         konata_size_entry,
         #[weak]
         remove_gui_shit_entry,
+        #[weak]
+        new_ui_enabled_entry,
         move |_| {
             let config = Config::default();
             ctx.set_config(&config);
@@ -391,6 +401,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
             oof_update_time_entry.set_text(&config.oof_update_time.to_string());
             konata_size_entry.set_text(&config.konata_size.to_string());
             remove_gui_shit_entry.set_active(config.remove_gui_shit);
+            new_ui_enabled_entry.set_active(config.new_ui_enabled);
         }
     ));
     let window = Window::builder()
@@ -779,6 +790,8 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         notifications: Arc::new(RwLock::new(Vec::<libnotify::Notification>::new())),
         #[cfg(all(not(feature = "libnotify"), not(feature = "notify-rust")))]
         notifications: Arc::new(RwLock::new(Vec::<String>::new())),
+        default_avatar: load_pixbuf(include_bytes!("images/avatar.png")).unwrap(),
+        avatars: Arc::new(RwLock::new(HashMap::new())),
     }
 }
 
@@ -929,23 +942,13 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
     ui.notifications.write().unwrap().push(id);
 }
 
-fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool) {
-    let notify = notify && ctx.config(|c| c.notifications_enabled);
-
-    let formatting_enabled = ctx.config(|c| c.formatting_enabled);
-
-    let Some(sanitized) = (if formatting_enabled {
-        sanitize_message(message.clone())
-    } else {
-        Some(message.clone())
-    }) else {
-        return;
-    };
-
-    if sanitized.is_empty() {
-        return;
-    }
-
+fn get_message_box(
+    ctx: Arc<Context>,
+    ui: &UiModel,
+    message: String,
+    notify: bool,
+    formatting_enabled: bool,
+) -> GtkBox {
     // TODO: softcode these colors
 
     let (ip_color, date_color, text_color) = if ui.is_dark_theme {
@@ -956,7 +959,7 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
 
     let mut label = String::new();
 
-    if let (true, Some((date, ip, content, nick, avatar))) =
+    if let (true, Some((date, ip, content, nick, _))) =
         (formatting_enabled, parse_message(message.clone()))
     {
         if let Some(ip) = ip {
@@ -1031,7 +1034,133 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
 
     hbox.set_hexpand(true);
 
-    ui.chat_box.append(&hbox);
+    hbox
+}
+
+fn load_avatar(ui: &UiModel, url: &str) -> Option<Pixbuf> {
+    Some(ui.default_avatar.clone())
+}
+
+fn get_new_message_box(
+    ctx: Arc<Context>,
+    ui: &UiModel,
+    message: String,
+    notify: bool,
+    formatting_enabled: bool,
+) -> GtkBox {
+    // TODO: softcode these colors
+
+    let (ip_color, date_color, text_color) = if ui.is_dark_theme {
+        ("#494949", "#929292", "#FFFFFF")
+    } else {
+        ("#585858", "#292929", "#000000")
+    };
+
+    let (date, ip, content, name, color, avatar) =
+        if let (true, Some((date, ip, content, nick, avatar))) =
+            (formatting_enabled, parse_message(message.clone()))
+        {
+            (
+                date,
+                ip,
+                content,
+                nick.as_ref()
+                    .map(|o| o.0.to_string())
+                    .unwrap_or("System".to_string()),
+                nick.as_ref()
+                    .map(|o| o.1.to_string())
+                    .unwrap_or("#DDDDDD".to_string()),
+                avatar
+                    .and_then(|o| load_avatar(ui, &o))
+                    .unwrap_or(ui.default_avatar.clone()),
+            )
+        } else {
+            (
+                Local::now().format("%d.%m.%Y %H:%M").to_string(),
+                None,
+                message,
+                "System".to_string(),
+                "#DDDDDD".to_string(),
+                ui.default_avatar.clone(),
+            )
+        };
+
+    let hbox = GtkBox::new(Orientation::Horizontal, 2);
+
+    let avatar_picture = Picture::for_pixbuf(&avatar);
+    avatar_picture.set_css_classes(&["message-avatar"]);
+    avatar_picture.set_size_request(32, 32);
+    avatar_picture.set_vexpand(false);
+    avatar_picture.set_hexpand(false);
+    avatar_picture.set_valign(Align::Start);
+    avatar_picture.set_halign(Align::Start);
+
+    hbox.append(&avatar_picture);
+
+    let vbox = GtkBox::new(Orientation::Vertical, 2);
+
+    vbox.append(&Label::builder()
+        .label(format!(
+            "<span color=\"{color}\">{}</span> <span color=\"{date_color}\">{}</span> <span color=\"{ip_color}\">{}</span>", 
+            glib::markup_escape_text(&name), 
+            glib::markup_escape_text(&date),
+            glib::markup_escape_text(&ip.unwrap_or_default()),
+        ))
+        .halign(Align::Start)
+        .valign(Align::Start)
+        .selectable(true)
+        .wrap(true)
+        .wrap_mode(WrapMode::WordChar)
+        .use_markup(true)
+        .vexpand(true)
+        .build());
+
+    vbox.append(&Label::builder()
+        .label(format!(
+            "<span color=\"{text_color}\">{}</span>", 
+            glib::markup_escape_text(&content)
+        ))
+        .halign(Align::Start)
+        .valign(Align::Start)
+        .selectable(true)
+        .wrap(true)
+        .wrap_mode(WrapMode::WordChar)
+        .use_markup(true)
+        .vexpand(true)
+        .build());
+
+    vbox.set_valign(Align::Fill);
+    vbox.set_halign(Align::Fill);
+    vbox.set_vexpand(true);
+    vbox.set_hexpand(true);
+
+    hbox.append(&vbox);
+
+    hbox
+}
+
+fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool) {
+    let notify = notify && ctx.config(|c| c.notifications_enabled);
+
+    let formatting_enabled = ctx.config(|c| c.formatting_enabled);
+
+    let Some(sanitized) = (if formatting_enabled {
+        sanitize_message(message.clone())
+    } else {
+        Some(message.clone())
+    }) else {
+        return;
+    };
+
+    if sanitized.is_empty() {
+        return;
+    }
+
+    if ctx.config(|o| o.new_ui_enabled) {
+        ui.chat_box.append(&get_new_message_box(ctx.clone(), ui, message, notify, formatting_enabled));
+    } else {
+        ui.chat_box.append(&get_message_box(ctx.clone(), ui, message, notify, formatting_enabled));
+    }
 
     timeout_add_local_once(Duration::from_millis(1000), move || {
         GLOBAL.with(|global| {

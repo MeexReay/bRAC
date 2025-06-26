@@ -59,6 +59,8 @@ pub struct Config {
     pub proxy: Option<String>,
     #[serde(default = "default_true")]
     pub notifications_enabled: bool,
+    #[serde(default = "default_true")]
+    pub new_ui_enabled: bool,
     #[serde(default)]
     pub debug_logs: bool,
 }
@@ -148,6 +150,8 @@ pub struct Args {
     #[arg(long)]
     pub notifications_enabled: Option<bool>,
     #[arg(long)]
+    pub new_ui_enabled: Option<bool>,
+    #[arg(long)]
     pub proxy: Option<String>,
     #[arg(long)]
     pub debug_logs: bool,
@@ -199,6 +203,9 @@ impl Args {
         }
         if let Some(v) = self.notifications_enabled {
             config.notifications_enabled = v
+        }
+        if let Some(v) = self.new_ui_enabled {
+            config.new_ui_enabled = v
         }
         if self.debug_logs {
             config.debug_logs = true

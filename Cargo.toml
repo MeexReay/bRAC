@@ -21,6 +21,7 @@ notify-rust = { version = "4.11.7", optional = true }
 gdk-pixbuf = { version = "0.3.0", optional = true } # DO NOT UPDATE
 winapi = { version = "0.3.9", optional = true, features = ["wincon", "winuser"] }
 tungstenite = "0.27.0"
+reqwest = "0.12.20"
 
 [build-dependencies]
 winresource = { version = "0.1.20", optional = true }
