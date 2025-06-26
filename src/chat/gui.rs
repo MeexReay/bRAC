@@ -1130,9 +1130,7 @@ fn get_new_message_box(
         .build());
 
     vbox.set_valign(Align::Fill);
-    vbox.set_halign(Align::Fill);
     vbox.set_vexpand(true);
-    vbox.set_hexpand(true);
 
     hbox.append(&vbox);
 
