@@ -7,7 +7,6 @@ use std::time::{Duration, SystemTime};
 
 use chrono::Local;
 
-use gtk4::ffi::GtkGrid;
 use gtk4 as gtk;
 
 use gtk::gdk::{Cursor, Display, Texture};
@@ -1047,7 +1046,7 @@ fn get_new_message_box(
     message: String,
     notify: bool,
     formatting_enabled: bool,
-) -> GtkBox {
+) -> Overlay {
     // TODO: softcode these colors
 
     let (ip_color, date_color, text_color) = if ui.is_dark_theme {
@@ -1084,18 +1083,22 @@ fn get_new_message_box(
                 ui.default_avatar.clone(),
             )
         };
+        
+    let overlay = Overlay::new();
 
-    let hbox = GtkBox::new(Orientation::Horizontal, 2);
+    let fixed = Fixed::new();
 
     let avatar_picture = Picture::for_pixbuf(&avatar);
     avatar_picture.set_css_classes(&["message-avatar"]);
-    avatar_picture.set_size_request(32, 32);
     avatar_picture.set_vexpand(false);
     avatar_picture.set_hexpand(false);
     avatar_picture.set_valign(Align::Start);
     avatar_picture.set_halign(Align::Start);
+    avatar_picture.set_size_request(32, 32);
 
-    hbox.append(&avatar_picture);
+    fixed.put(&avatar_picture, 0.0, 4.0);
+
+    overlay.add_overlay(&fixed);
 
     let vbox = GtkBox::new(Orientation::Vertical, 2);
 
@@ -1121,7 +1124,7 @@ fn get_new_message_box(
             glib::markup_escape_text(&content)
         ))
         .halign(Align::Start)
-        .valign(Align::Start)
+        .hexpand(true)
         .selectable(true)
         .wrap(true)
         .wrap_mode(WrapMode::WordChar)
@@ -1131,10 +1134,13 @@ fn get_new_message_box(
 
     vbox.set_valign(Align::Fill);
     vbox.set_vexpand(true);
+    vbox.set_margin_start(37);
 
-    hbox.append(&vbox);
+    overlay.set_child(Some(&vbox));
 
-    hbox
+    overlay.set_margin_top(7);
+
+    overlay
 }
 
 fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool) {
