@@ -63,6 +63,8 @@ pub struct Config {
     pub new_ui_enabled: bool,
     #[serde(default)]
     pub debug_logs: bool,
+    #[serde(default)]
+    pub avatar: Option<String>,
 }
 
 #[cfg(target_os = "windows")]
@@ -154,6 +156,8 @@ pub struct Args {
     #[arg(long)]
     pub proxy: Option<String>,
     #[arg(long)]
+    pub avatar: Option<String>,
+    #[arg(long)]
     pub debug_logs: bool,
 }
 
@@ -206,6 +210,9 @@ impl Args {
         }
         if let Some(v) = self.new_ui_enabled {
             config.new_ui_enabled = v
+        }
+        if let Some(v) = self.avatar.clone() {
+            config.avatar = Some(v)
         }
         if self.debug_logs {
             config.debug_logs = true

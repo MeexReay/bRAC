@@ -1,6 +1,11 @@
+// TODO: REFACTOR THIS SHIT!!!!!!!!!!!!!!!
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::error::Error;
+use std::hash::{DefaultHasher, Hasher};
+use std::sync::atomic::AtomicU64;
+use std::sync::RwLockWriteGuard;
 use std::sync::{atomic::Ordering, mpsc::channel, Arc, RwLock};
 use std::thread;
 use std::time::{Duration, SystemTime};
@@ -25,6 +30,8 @@ use gtk::{
     Orientation, Overlay, Picture, ScrolledWindow, Settings, Window,
 };
 
+use crate::chat::grab_avatar;
+
 use super::{
     config::{
         default_konata_size, default_max_messages, default_oof_update_time, default_update_time,
@@ -46,6 +53,7 @@ struct UiModel {
     notifications: Arc<RwLock<Vec<String>>>,
     default_avatar: Pixbuf,
     avatars: Arc<RwLock<HashMap<u64, Pixbuf>>>,
+    latest_sign: Arc<AtomicU64>
 }
 
 thread_local!(
@@ -176,6 +184,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     let message_format_entry =
         gui_entry_setting!("Message Format", message_format, ctx, settings_vbox);
     let proxy_entry = gui_option_entry_setting!("Socks5 proxy", proxy, ctx, settings_vbox);
+    let avatar_entry = gui_option_entry_setting!("Avatar", avatar, ctx, settings_vbox);
     let update_time_entry =
         gui_usize_entry_setting!("Update Time", update_time, ctx, settings_vbox);
     let oof_update_time_entry = gui_usize_entry_setting!(
@@ -257,6 +266,8 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         remove_gui_shit_entry,
         #[weak]
         new_ui_enabled_entry,
+        #[weak]
+        avatar_entry,
         move |_| {
             let config = Config {
                 host: host_entry.text().to_string(),
@@ -267,6 +278,15 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                         None
                     } else {
                         Some(name)
+                    }
+                },
+                avatar: {
+                    let avatar = avatar_entry.text().to_string();
+
+                    if avatar.is_empty() {
+                        None
+                    } else {
+                        Some(avatar)
                     }
                 },
                 message_format: message_format_entry.text().to_string(),
@@ -380,12 +400,15 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         remove_gui_shit_entry,
         #[weak]
         new_ui_enabled_entry,
+        #[weak]
+        avatar_entry,
         move |_| {
             let config = Config::default();
             ctx.set_config(&config);
             save_config(get_config_path(), &config);
             host_entry.set_text(&config.host);
             name_entry.set_text(&config.name.unwrap_or_default());
+            avatar_entry.set_text(&config.avatar.unwrap_or_default());
             proxy_entry.set_text(&config.proxy.unwrap_or_default());
             message_format_entry.set_text(&config.message_format);
             update_time_entry.set_text(&config.update_time.to_string());
@@ -791,6 +814,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         notifications: Arc::new(RwLock::new(Vec::<String>::new())),
         default_avatar: load_pixbuf(include_bytes!("images/avatar.png")).unwrap(),
         avatars: Arc::new(RwLock::new(HashMap::new())),
+        latest_sign: Arc::new(AtomicU64::new(0))
     }
 }
 
@@ -843,6 +867,7 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
         move || {
             while let Ok((messages, clear)) = receiver.recv() {
                 let ctx = ctx.clone();
+
                 timeout_add_once(Duration::ZERO, move || {
                     GLOBAL.with(|global| {
                         if let Some(ui) = &*global.borrow() {
@@ -852,6 +877,7 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
                                 }
                             }
                             for message in messages.iter() {
+                                prepare_avatar(&mut ui.avatars.write().unwrap(), message); // TODO: fuck
                                 on_add_message(ctx.clone(), &ui, message.to_string(), !clear);
                             }
                         }
@@ -1036,8 +1062,34 @@ fn get_message_box(
     hbox
 }
 
-fn load_avatar(ui: &UiModel, url: &str) -> Option<Pixbuf> {
-    Some(ui.default_avatar.clone())
+fn prepare_avatar(avatars: &mut RwLockWriteGuard<'_, HashMap<u64, Pixbuf>>, message: &str) {
+    if let Some(url) = grab_avatar(message) {
+        let mut hasher = DefaultHasher::new();
+        hasher.write(url.as_bytes());
+        let id = hasher.finish();
+
+        if !avatars.contains_key(&id) {
+            let Ok(data) = reqwest::blocking::get(&url).and_then(|o| o.bytes()) else { 
+                return 
+            };
+            let Ok(pixbuf) = load_pixbuf(&data.to_vec()) else { 
+                return 
+            };
+            avatars.insert(id, pixbuf);
+        }
+    }
+}
+
+fn get_avatar_or_default(ui: &UiModel, url: &str) -> Pixbuf {
+    let mut hasher = DefaultHasher::new();
+    hasher.write(url.as_bytes());
+    let id = hasher.finish();
+
+    if let Some(pixbuf) = ui.avatars.read().unwrap().get(&id) {
+        pixbuf.clone() // FIXME: cloning pixbufs is a dangerous shit
+    } else {
+        ui.default_avatar.clone()
+    }
 }
 
 fn get_new_message_box(
@@ -1045,7 +1097,7 @@ fn get_new_message_box(
     ui: &UiModel,
     message: String,
     notify: bool,
-    formatting_enabled: bool,
+    formatting_enabled: bool
 ) -> Overlay {
     // TODO: softcode these colors
 
@@ -1055,10 +1107,13 @@ fn get_new_message_box(
         ("#585858", "#292929", "#000000")
     };
 
+    let latest_sign = ui.latest_sign.load(Ordering::SeqCst);
+
     let (date, ip, content, name, color, avatar) =
         if let (true, Some((date, ip, content, nick, avatar))) =
             (formatting_enabled, parse_message(message.clone()))
         {
+            
             (
                 date,
                 ip,
@@ -1070,7 +1125,7 @@ fn get_new_message_box(
                     .map(|o| o.1.to_string())
                     .unwrap_or("#DDDDDD".to_string()),
                 avatar
-                    .and_then(|o| load_avatar(ui, &o))
+                    .map(|o| get_avatar_or_default(ui, &o))
                     .unwrap_or(ui.default_avatar.clone()),
             )
         } else {
@@ -1083,40 +1138,65 @@ fn get_new_message_box(
                 ui.default_avatar.clone(),
             )
         };
-        
+    
+    if notify && !ui.window.is_active() {
+        if ctx.config(|o| o.chunked_enabled) {
+            send_notification(
+                ctx.clone(),
+                ui,
+                &if name == "System" { 
+                    "System Message".to_string()
+                } else { 
+                    format!("{}'s Message", name)
+                },
+                &glib::markup_escape_text(&content),
+            );
+        }
+    }
+
+    let sign = get_message_sign(&name, &date);
+
+    let squashed = latest_sign == sign;
+
+    ui.latest_sign.store(sign, Ordering::SeqCst);
+
     let overlay = Overlay::new();
 
-    let fixed = Fixed::new();
+    if !squashed {
+        let fixed = Fixed::new();
+        fixed.set_can_target(false);
 
-    let avatar_picture = Picture::for_pixbuf(&avatar);
-    avatar_picture.set_css_classes(&["message-avatar"]);
-    avatar_picture.set_vexpand(false);
-    avatar_picture.set_hexpand(false);
-    avatar_picture.set_valign(Align::Start);
-    avatar_picture.set_halign(Align::Start);
-    avatar_picture.set_size_request(32, 32);
+        let avatar_picture = Picture::for_pixbuf(&avatar);
+        avatar_picture.set_css_classes(&["message-avatar"]);
+        avatar_picture.set_vexpand(false);
+        avatar_picture.set_hexpand(false);
+        avatar_picture.set_valign(Align::Start);
+        avatar_picture.set_halign(Align::Start);
+        avatar_picture.set_size_request(32, 32);
 
-    fixed.put(&avatar_picture, 0.0, 4.0);
+        fixed.put(&avatar_picture, 0.0, 4.0);
 
-    overlay.add_overlay(&fixed);
+        overlay.add_overlay(&fixed);
+    }
 
     let vbox = GtkBox::new(Orientation::Vertical, 2);
 
-    vbox.append(&Label::builder()
-        .label(format!(
-            "<span color=\"{color}\">{}</span> <span color=\"{date_color}\">{}</span> <span color=\"{ip_color}\">{}</span>", 
-            glib::markup_escape_text(&name), 
-            glib::markup_escape_text(&date),
-            glib::markup_escape_text(&ip.unwrap_or_default()),
-        ))
-        .halign(Align::Start)
-        .valign(Align::Start)
-        .selectable(true)
-        .wrap(true)
-        .wrap_mode(WrapMode::WordChar)
-        .use_markup(true)
-        .vexpand(true)
-        .build());
+    if !squashed {
+        vbox.append(&Label::builder()
+            .label(format!(
+                "<span color=\"{color}\">{}</span> <span color=\"{date_color}\">{}</span> <span color=\"{ip_color}\">{}</span>", 
+                glib::markup_escape_text(&name), 
+                glib::markup_escape_text(&date),
+                glib::markup_escape_text(&ip.unwrap_or_default()),
+            ))
+            .halign(Align::Start)
+            .valign(Align::Start)
+            .selectable(true)
+            .wrap(true)
+            .wrap_mode(WrapMode::WordChar)
+            .use_markup(true)
+            .build());
+    }
 
     vbox.append(&Label::builder()
         .label(format!(
@@ -1129,20 +1209,31 @@ fn get_new_message_box(
         .wrap(true)
         .wrap_mode(WrapMode::WordChar)
         .use_markup(true)
-        .vexpand(true)
         .build());
 
-    vbox.set_valign(Align::Fill);
-    vbox.set_vexpand(true);
     vbox.set_margin_start(37);
+    vbox.set_hexpand(true);
 
     overlay.set_child(Some(&vbox));
 
-    overlay.set_margin_top(7);
+    if !squashed {
+        overlay.set_margin_top(7);
+    } else {
+        overlay.set_margin_top(2);
+    }
 
     overlay
 }
 
+// creates sign that expires in 0-20 minutes
+fn get_message_sign(name: &str, date: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    hasher.write(name.as_bytes());
+    hasher.write(date[..date.len()-2].as_bytes());
+    hasher.finish()
+}
+
+/// returns message sign
 fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool) {
     let notify = notify && ctx.config(|c| c.notifications_enabled);
 
@@ -1164,7 +1255,7 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
         ui.chat_box.append(&get_new_message_box(ctx.clone(), ui, message, notify, formatting_enabled));
     } else {
         ui.chat_box.append(&get_message_box(ctx.clone(), ui, message, notify, formatting_enabled));
-    }
+    };
 
     timeout_add_local_once(Duration::from_millis(1000), move || {
         GLOBAL.with(|global| {

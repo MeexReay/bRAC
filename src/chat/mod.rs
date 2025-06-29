@@ -34,7 +34,7 @@ lazy_static! {
 
     pub static ref DATE_REGEX: Regex = Regex::new(r"\[(.*?)\] (.*)").unwrap();
     pub static ref IP_REGEX: Regex = Regex::new(r"\{(.*?)\} (.*)").unwrap();
-    pub static ref AVATAR_REGEX: Regex = Regex::new(r"(.*) \x06!!AR!!(.*)").unwrap();
+    pub static ref AVATAR_REGEX: Regex = Regex::new(r"(.*)\x06!!AR!!(.*)").unwrap();
 
     pub static ref DEFAULT_USER_AGENT: Regex = Regex::new(r"<(.*?)> (.*)").unwrap();
 
@@ -234,12 +234,16 @@ pub fn on_send_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn E
     if message.starts_with("/") && ctx.config(|o| o.commands_enabled) {
         on_command(ctx.clone(), &message)?;
     } else {
-        let message = prepare_message(
+        let mut message = prepare_message(
             ctx.clone(),
             &ctx.config(|o| o.message_format.clone())
                 .replace("{name}", &ctx.name())
                 .replace("{text}", &message),
         );
+
+        if let Some(avatar) = ctx.config(|o| o.avatar.clone()) {
+            message = format!("{message}\x06!!AR!!{avatar}"); // TODO: softcode this shittttttt
+        }
 
         if let Some(password) = ctx.registered.read().unwrap().clone() {
             send_message_auth(connect_rac!(ctx), &ctx.name(), &password, &message)?;
@@ -255,6 +259,15 @@ pub fn sanitize_message(message: String) -> Option<String> {
     let message = sanitize_text(&message);
     let message = message.trim().to_string();
     Some(message)
+}
+
+/// message -> avatar
+pub fn grab_avatar(message: &str) -> Option<String> {
+    if let Some(message) = AVATAR_REGEX.captures(&message) {
+        Some(message.get(2)?.as_str().to_string())
+    } else {
+        None
+    }
 }
 
 /// message -> (date, ip, text, (name, color), avatar)
