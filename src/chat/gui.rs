@@ -12,6 +12,7 @@ use std::time::{Duration, SystemTime};
 
 use chrono::Local;
 
+use gtk4::gdk_pixbuf::InterpType;
 use gtk4 as gtk;
 
 use gtk::gdk::{Cursor, Display, Texture};
@@ -1073,6 +1074,9 @@ fn prepare_avatar(avatars: &mut RwLockWriteGuard<'_, HashMap<u64, Pixbuf>>, mess
                 return 
             };
             let Ok(pixbuf) = load_pixbuf(&data.to_vec()) else { 
+                return 
+            };
+            let Some(pixbuf) = pixbuf.scale_simple(32, 32, InterpType::Bilinear) else { 
                 return 
             };
             avatars.insert(id, pixbuf);
