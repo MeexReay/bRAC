@@ -44,6 +44,7 @@ lazy_static! {
         (Regex::new(r"\u{00B0}\u{0298}<(.*?)> (.*)").unwrap(),         "#da70fa".to_string()),     // Mefidroniy
         (Regex::new(r"\u{2042}<(.*?)> (.*)").unwrap(),                 "#f8b91b".to_string()),     // cRACk
         (Regex::new(r"\u{0D9E}<(.*?)> (.*)").unwrap(),                 "#aeff00".to_string()),     // Snowdrop
+        (Regex::new(r"\u{30C4}<(.*?)> (.*)").unwrap(),                 "#ff5733".to_string()),     // Crack
         (Regex::new(r"<(.*?)> (.*)").unwrap(),                         "#70fadc".to_string()),     // clRAC
     ];
 
