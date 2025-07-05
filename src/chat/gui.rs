@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::hash::{DefaultHasher, Hasher};
 use std::sync::atomic::{AtomicBool, AtomicU64};
-use std::sync::{Mutex, RwLockWriteGuard};
+use std::sync::{mpsc, Mutex, RwLockWriteGuard};
 use std::sync::{atomic::Ordering, mpsc::channel, Arc, RwLock};
 use std::thread;
 use std::time::{Duration, SystemTime};
@@ -842,14 +842,28 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
                     }
                 });
 
-                let mut avatars = HashMap::new();
- 
+                let mut avatars = Vec::new();
+
                 for message in messages.iter() {
                     let Some(avatar_url) = grab_avatar(message) else { continue };
                     let avatar_id = get_avatar_id(&avatar_url);
-                    let Some(avatar) = load_avatar(&avatar_url) else { continue };
 
-                    avatars.insert(avatar_id, avatar);
+                    let Some(avatar) = load_avatar(&avatar_url)
+                        .and_then(|avatar| load_pixbuf(&avatar).ok())
+                        .and_then(|pixbuf| 
+                            pixbuf.scale_simple(32, 32, InterpType::Bilinear
+                        ))
+                        .and_then(|pixbuf| Some((
+                            pixbuf.pixel_bytes()?,
+                            pixbuf.colorspace(),
+                            pixbuf.has_alpha(),
+                            pixbuf.bits_per_sample(),
+                            pixbuf.width(),
+                            pixbuf.height(),
+                            pixbuf.rowstride()
+                        ))) else { continue };
+
+                    avatars.push((avatar_id, avatar));
                 }
 
                 timeout_add_once(Duration::ZERO, {
@@ -858,14 +872,20 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
 
                         GLOBAL.with(|global| {
                             if let Some(ui) = &*global.borrow() {
-                                for (id, avatar) in avatars.iter() {
-                                    if let Some(pics) = ui.avatars.lock().unwrap().remove(id) {
+                                for (id, avatar) in avatars {
+                                    if let Some(pics) = ui.avatars.lock().unwrap().remove(&id) {
                                         for pic in pics {
-                                            pic.set_pixbuf(
-                                                load_pixbuf(avatar).ok()
-                                                    .and_then(|o| o.scale_simple(
-                                                        32, 32, InterpType::Bilinear
-                                                    )).as_ref());
+                                            pic.set_pixbuf(Some(&
+                                                Pixbuf::from_bytes(
+                                                    &avatar.0,
+                                                    avatar.1,
+                                                    avatar.2,
+                                                    avatar.3,
+                                                    avatar.4,
+                                                    avatar.5,
+                                                    avatar.6
+                                                )
+                                            ));
                                         }
                                     }
                                 }
