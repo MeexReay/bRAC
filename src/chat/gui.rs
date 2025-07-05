@@ -4,8 +4,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::error::Error;
 use std::hash::{DefaultHasher, Hasher};
-use std::sync::atomic::AtomicU64;
-use std::sync::RwLockWriteGuard;
+use std::sync::atomic::{AtomicBool, AtomicU64};
+use std::sync::{Mutex, RwLockWriteGuard};
 use std::sync::{atomic::Ordering, mpsc::channel, Arc, RwLock};
 use std::thread;
 use std::time::{Duration, SystemTime};
@@ -53,7 +53,7 @@ struct UiModel {
     #[cfg(all(not(feature = "libnotify"), not(feature = "notify-rust")))]
     notifications: Arc<RwLock<Vec<String>>>,
     default_avatar: Pixbuf,
-    avatars: Arc<RwLock<HashMap<u64, Pixbuf>>>,
+    avatars: Arc<Mutex<HashMap<u64, Vec<Picture>>>>,
     latest_sign: Arc<AtomicU64>
 }
 
@@ -231,44 +231,25 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     vbox.append(&save_button);
 
     save_button.connect_clicked(clone!(
-        #[weak]
-        ctx,
-        #[weak]
-        host_entry,
-        #[weak]
-        name_entry,
-        #[weak]
-        message_format_entry,
-        #[weak]
-        update_time_entry,
-        #[weak]
-        max_messages_entry,
-        #[weak]
-        hide_my_ip_entry,
-        #[weak]
-        show_other_ip_entry,
-        #[weak]
-        chunked_enabled_entry,
-        #[weak]
-        formatting_enabled_entry,
-        #[weak]
-        commands_enabled_entry,
-        #[weak]
-        notifications_enabled_entry,
-        #[weak]
-        proxy_entry,
-        #[weak]
-        debug_logs_entry,
-        #[weak]
-        oof_update_time_entry,
-        #[weak]
-        konata_size_entry,
-        #[weak]
-        remove_gui_shit_entry,
-        #[weak]
-        new_ui_enabled_entry,
-        #[weak]
-        avatar_entry,
+        #[weak] ctx,
+        #[weak] host_entry,
+        #[weak] name_entry,
+        #[weak] message_format_entry,
+        #[weak] update_time_entry,
+        #[weak] max_messages_entry,
+        #[weak] hide_my_ip_entry,
+        #[weak] show_other_ip_entry,
+        #[weak] chunked_enabled_entry,
+        #[weak] formatting_enabled_entry,
+        #[weak] commands_enabled_entry,
+        #[weak] notifications_enabled_entry,
+        #[weak] proxy_entry,
+        #[weak] debug_logs_entry,
+        #[weak] oof_update_time_entry,
+        #[weak] konata_size_entry,
+        #[weak] remove_gui_shit_entry,
+        #[weak] new_ui_enabled_entry,
+        #[weak] avatar_entry,
         move |_| {
             let config = Config {
                 host: host_entry.text().to_string(),
@@ -365,44 +346,25 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     vbox.append(&reset_button);
 
     reset_button.connect_clicked(clone!(
-        #[weak]
-        ctx,
-        #[weak]
-        host_entry,
-        #[weak]
-        name_entry,
-        #[weak]
-        message_format_entry,
-        #[weak]
-        update_time_entry,
-        #[weak]
-        max_messages_entry,
-        #[weak]
-        hide_my_ip_entry,
-        #[weak]
-        show_other_ip_entry,
-        #[weak]
-        chunked_enabled_entry,
-        #[weak]
-        formatting_enabled_entry,
-        #[weak]
-        commands_enabled_entry,
-        #[weak]
-        notifications_enabled_entry,
-        #[weak]
-        proxy_entry,
-        #[weak]
-        debug_logs_entry,
-        #[weak]
-        oof_update_time_entry,
-        #[weak]
-        konata_size_entry,
-        #[weak]
-        remove_gui_shit_entry,
-        #[weak]
-        new_ui_enabled_entry,
-        #[weak]
-        avatar_entry,
+        #[weak] ctx,
+        #[weak] host_entry,
+        #[weak] name_entry,
+        #[weak] message_format_entry,
+        #[weak] update_time_entry,
+        #[weak] max_messages_entry,
+        #[weak] hide_my_ip_entry,
+        #[weak] show_other_ip_entry,
+        #[weak] chunked_enabled_entry,
+        #[weak] formatting_enabled_entry,
+        #[weak] commands_enabled_entry,
+        #[weak] notifications_enabled_entry,
+        #[weak] proxy_entry,
+        #[weak] debug_logs_entry,
+        #[weak] oof_update_time_entry,
+        #[weak] konata_size_entry,
+        #[weak] remove_gui_shit_entry,
+        #[weak] new_ui_enabled_entry,
+        #[weak] avatar_entry,
         move |_| {
             let config = Config::default();
             ctx.set_config(&config);
@@ -494,21 +456,7 @@ fn build_menu(ctx: Arc<Context>, app: &Application) {
                     AboutDialog::builder()
                         .application(&app)
                         .authors(["MeexReay"])
-                        .license(
-                            "        DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
-                    Version 2, December 2004 
-
- Copyright (C) 2004 Sam Hocevar <sam@hocevar.net> 
-
- Everyone is permitted to copy and distribute verbatim or modified 
- copies of this license document, and changing it is allowed as long 
- as the name is changed. 
-
-            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
-   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION 
-
-  0. You just DO WHAT THE FUCK YOU WANT TO.",
-                        )
+                        .license(include_str!("../../LICENSE"))
                         .comments("better RAC client")
                         .website("https://github.com/MeexReay/bRAC")
                         .website_label("source code")
@@ -814,7 +762,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         #[cfg(all(not(feature = "libnotify"), not(feature = "notify-rust")))]
         notifications: Arc::new(RwLock::new(Vec::<String>::new())),
         default_avatar: load_pixbuf(include_bytes!("images/avatar.png")).unwrap(),
-        avatars: Arc::new(RwLock::new(HashMap::new())),
+        avatars: Arc::new(Mutex::new(HashMap::new())),
         latest_sign: Arc::new(AtomicU64::new(0))
     }
 }
@@ -868,21 +816,62 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
         move || {
             while let Ok((messages, clear)) = receiver.recv() {
                 let ctx = ctx.clone();
+                let messages = Arc::new(messages);
+                let added = Arc::new(AtomicBool::new(false));
 
-                timeout_add_once(Duration::ZERO, move || {
-                    GLOBAL.with(|global| {
-                        if let Some(ui) = &*global.borrow() {
-                            if clear {
-                                while let Some(row) = ui.chat_box.last_child() {
-                                    ui.chat_box.remove(&row);
+                timeout_add_once(Duration::ZERO, {
+                    let messages = messages.clone();
+                    let added = added.clone();
+
+                    move || {
+                        GLOBAL.with(|global| {
+                            if let Some(ui) = &*global.borrow() {
+                                if clear {
+                                    while let Some(row) = ui.chat_box.last_child() {
+                                        ui.chat_box.remove(&row);
+                                    }
+                                }
+
+                                for message in messages.iter() {
+                                    on_add_message(ctx.clone(), &ui, message.to_string(), !clear);
+                                }
+                                
+                                added.store(true, Ordering::SeqCst)
+                            }
+                        });
+                    }
+                });
+
+                let mut avatars = HashMap::new();
+ 
+                for message in messages.iter() {
+                    let Some(avatar_url) = grab_avatar(message) else { continue };
+                    let avatar_id = get_avatar_id(&avatar_url);
+                    let Some(avatar) = load_avatar(&avatar_url) else { continue };
+
+                    avatars.insert(avatar_id, avatar);
+                }
+
+                timeout_add_once(Duration::ZERO, {
+                    move || {
+                        while !added.load(Ordering::SeqCst) {}
+
+                        GLOBAL.with(|global| {
+                            if let Some(ui) = &*global.borrow() {
+                                for (id, avatar) in avatars.iter() {
+                                    if let Some(pics) = ui.avatars.lock().unwrap().remove(id) {
+                                        for pic in pics {
+                                            pic.set_pixbuf(
+                                                load_pixbuf(avatar).ok()
+                                                    .and_then(|o| o.scale_simple(
+                                                        32, 32, InterpType::Bilinear
+                                                    )).as_ref());
+                                        }
+                                    }
                                 }
                             }
-                            for message in messages.iter() {
-                                prepare_avatar(&mut ui.avatars.write().unwrap(), message); // TODO: fuck
-                                on_add_message(ctx.clone(), &ui, message.to_string(), !clear);
-                            }
-                        }
-                    });
+                        });
+                    }
                 });
             }
         }
@@ -1063,37 +1052,16 @@ fn get_message_box(
     hbox
 }
 
-fn prepare_avatar(avatars: &mut RwLockWriteGuard<'_, HashMap<u64, Pixbuf>>, message: &str) {
-    if let Some(url) = grab_avatar(message) {
-        let mut hasher = DefaultHasher::new();
-        hasher.write(url.as_bytes());
-        let id = hasher.finish();
-
-        if !avatars.contains_key(&id) {
-            let Ok(data) = reqwest::blocking::get(&url).and_then(|o| o.bytes()) else { 
-                return 
-            };
-            let Ok(pixbuf) = load_pixbuf(&data.to_vec()) else { 
-                return 
-            };
-            let Some(pixbuf) = pixbuf.scale_simple(32, 32, InterpType::Bilinear) else { 
-                return 
-            };
-            avatars.insert(id, pixbuf);
-        }
-    }
-}
-
-fn get_avatar_or_default(ui: &UiModel, url: &str) -> Pixbuf {
+fn get_avatar_id(url: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
     hasher.write(url.as_bytes());
-    let id = hasher.finish();
+    hasher.finish()
+}
 
-    if let Some(pixbuf) = ui.avatars.read().unwrap().get(&id) {
-        pixbuf.clone() // FIXME: cloning pixbufs is a dangerous shit
-    } else {
-        ui.default_avatar.clone()
-    }
+fn load_avatar(url: &str) -> Option<Vec<u8>> {
+    reqwest::blocking::get(url).ok()
+        .and_then(|resp| resp.bytes().ok())
+        .map(|bytes| bytes.to_vec())
 }
 
 fn get_new_message_box(
@@ -1128,9 +1096,7 @@ fn get_new_message_box(
                 nick.as_ref()
                     .map(|o| o.1.to_string())
                     .unwrap_or("#DDDDDD".to_string()),
-                avatar
-                    .map(|o| get_avatar_or_default(ui, &o))
-                    .unwrap_or(ui.default_avatar.clone()),
+                avatar.map(|o| get_avatar_id(&o)).unwrap_or_default()
             )
         } else {
             (
@@ -1139,7 +1105,7 @@ fn get_new_message_box(
                 message,
                 "System".to_string(),
                 "#DDDDDD".to_string(),
-                ui.default_avatar.clone(),
+                0
             )
         };
     
@@ -1170,13 +1136,23 @@ fn get_new_message_box(
         let fixed = Fixed::new();
         fixed.set_can_target(false);
 
-        let avatar_picture = Picture::for_pixbuf(&avatar);
+        let avatar_picture = Picture::for_pixbuf(&ui.default_avatar.clone());
         avatar_picture.set_css_classes(&["message-avatar"]);
         avatar_picture.set_vexpand(false);
         avatar_picture.set_hexpand(false);
         avatar_picture.set_valign(Align::Start);
         avatar_picture.set_halign(Align::Start);
         avatar_picture.set_size_request(32, 32);
+
+        if avatar != 0 {
+            let mut lock = ui.avatars.lock().unwrap();
+            
+            if let Some(pics) = lock.get_mut(&avatar) {
+                pics.push(avatar_picture.clone());
+            } else {
+                lock.insert(avatar, vec![avatar_picture.clone()]);
+            }
+        }
 
         fixed.put(&avatar_picture, 0.0, 4.0);
 
