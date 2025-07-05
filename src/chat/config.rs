@@ -1,7 +1,7 @@
 use clap::Parser;
 use serde_default::DefaultFromSerde;
 use serde_yml;
-use std::{fs, path::PathBuf, error::Error};
+use std::{error::Error, fs, path::PathBuf};
 
 const MESSAGE_FORMAT: &str = "\u{B9AC}\u{3E70}<{name}> {text}";
 
@@ -91,6 +91,11 @@ pub fn get_config_path() -> PathBuf {
 
 pub fn load_config(path: PathBuf) -> Result<Config, Box<dyn Error>> {
     if !fs::exists(&path).unwrap_or_default() {
+        if fs::exists("bRAC/config.yml").unwrap_or_default() {
+            let config = &fs::read_to_string(&path)?;
+            return Ok(serde_yml::from_str(config)?);
+        }
+
         let config = Config::default();
         save_config(path, &config)?;
         Ok(config)
@@ -100,11 +105,24 @@ pub fn load_config(path: PathBuf) -> Result<Config, Box<dyn Error>> {
     }
 }
 
-pub fn save_config(path: PathBuf, config: &Config) -> Result<(), Box<dyn Error>> {
+fn save_config_mess(path: PathBuf, config: &Config) -> Result<(), Box<dyn Error>> {
+    println!(
+        "trying to save config into {}",
+        path.as_os_str().to_string_lossy()
+    );
     let config_text = serde_yml::to_string(config)?;
-    fs::create_dir_all(&path.parent().ok_or::<Box<dyn Error>>("cant find parent".into())?)?;
+    fs::create_dir_all(
+        &path
+            .parent()
+            .ok_or::<Box<dyn Error>>("cant find parent".into())?,
+    )?;
     fs::write(&path, config_text)?;
+    println!("saved config");
     Ok(())
+}
+
+pub fn save_config(path: PathBuf, config: &Config) -> Result<(), Box<dyn Error>> {
+    save_config_mess(path, config).or_else(|_| save_config_mess("bRAC/config.yml".into(), config))
 }
 
 #[derive(Parser, Debug)]
