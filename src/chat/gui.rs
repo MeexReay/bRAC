@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::hash::{DefaultHasher, Hasher};
 use std::sync::atomic::{AtomicBool, AtomicU64};
-use std::sync::{mpsc, Mutex, RwLockWriteGuard};
+use std::sync::Mutex;
 use std::sync::{atomic::Ordering, mpsc::channel, Arc, RwLock};
 use std::thread;
 use std::time::{Duration, SystemTime};
