@@ -12,6 +12,8 @@ rm -rf build
 mkdir build
 
 build_linux() {
+    sudo rm -rf target
+    rustup update
     mkdir build/linux-x86_64
     mkdir build/linux-x86_64/misc
     cargo build -r
@@ -28,11 +30,21 @@ build_linux() {
 
 build_windows() {
     chmod +x misc/mslink.sh
-    curl -L https://github.com/wingtk/gvsbuild/releases/download/2025.5.0/GTK4_Gvsbuild_2025.5.0_x64.zip -o build/gvsbuild.zip # TODO: make this link auto-update
-    unzip build/gvsbuild.zip "bin/*" -d build/windows-x86_64
-    rm build/gvsbuild.zip
-    cross build --target x86_64-pc-windows-gnu -F notify-rust,winapi -r
-    cp target/x86_64-pc-windows-gnu/release/bRAC.exe build/windows-x86_64/bin
+    # curl -L https://github.com/wingtk/gvsbuild/releases/download/2025.5.0/GTK4_Gvsbuild_2025.5.0_x64.zip -o build/gvsbuild.zip # TODO: make this link auto-update
+    # unzip build/gvsbuild.zip "bin/*" -d build/windows-x86_64
+    # rm build/gvsbuild.zip
+    # cross build --target x86_64-pc-windows-gnu -F notify-rust,winapi -r
+    mkdir build/windows-x86_64
+    docker run -ti -v `pwd`:/mnt mglolenstine/gtk4-cross:rust-gtk-nightly /bin/bash -c "
+    source \"\$HOME/.cargo/env\"
+    rustup update nightly;
+    rustup +nightly target add x86_64-pc-windows-gnu;
+    sed -i -e 's/cargo build/cargo +nightly build -F notify-rust,winapi/g' /bin/build;
+    build;
+    package;
+    mv package build/windows-x86_64/bin;
+    chmod -R 777 build/windows-x86_64"
+    # cp target/x86_64-pc-windows-gnu/release/bRAC.exe build/windows-x86_64/bin
     echo "@echo off" > build/windows-x86_64/start.bat
     echo "set \"PATH=%CD%\bin;%PATH%\"" >> build/windows-x86_64/start.bat
     echo "start \"\" /B \"bin\bRAC.exe\"" >> build/windows-x86_64/start.bat
