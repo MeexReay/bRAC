@@ -22,7 +22,7 @@ fn main() {
         return;
     }
 
-    let mut config = load_config(config_path);
+    let mut config = load_config(config_path).unwrap_or_default();
 
     args.patch_config(&mut config);
 

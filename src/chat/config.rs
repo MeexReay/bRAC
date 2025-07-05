@@ -1,7 +1,7 @@
 use clap::Parser;
 use serde_default::DefaultFromSerde;
 use serde_yml;
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, error::Error};
 
 const MESSAGE_FORMAT: &str = "\u{B9AC}\u{3E70}<{name}> {text}";
 
@@ -89,23 +89,22 @@ pub fn get_config_path() -> PathBuf {
         .join("config.yml")
 }
 
-pub fn load_config(path: PathBuf) -> Config {
+pub fn load_config(path: PathBuf) -> Result<Config, Box<dyn Error>> {
     if !fs::exists(&path).unwrap_or_default() {
         let config = Config::default();
-        let config_text = serde_yml::to_string(&config).expect("Config save error");
-        fs::create_dir_all(&path.parent().expect("Config save error")).expect("Config save error");
-        fs::write(&path, config_text).expect("Config save error");
-        config
+        save_config(path, &config)?;
+        Ok(config)
     } else {
-        let config = &fs::read_to_string(&path).expect("Config load error");
-        serde_yml::from_str(config).expect("Config load error")
+        let config = &fs::read_to_string(&path)?;
+        Ok(serde_yml::from_str(config)?)
     }
 }
 
-pub fn save_config(path: PathBuf, config: &Config) {
-    let config_text = serde_yml::to_string(config).expect("Config save error");
-    fs::create_dir_all(&path.parent().expect("Config save error")).expect("Config save error");
-    fs::write(&path, config_text).expect("Config save error");
+pub fn save_config(path: PathBuf, config: &Config) -> Result<(), Box<dyn Error>> {
+    let config_text = serde_yml::to_string(config)?;
+    fs::create_dir_all(&path.parent().ok_or::<Box<dyn Error>>("cant find parent".into())?)?;
+    fs::write(&path, config_text)?;
+    Ok(())
 }
 
 #[derive(Parser, Debug)]
