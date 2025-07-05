@@ -842,8 +842,6 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
                     }
                 });
 
-                let mut avatars = Vec::new();
-
                 for message in messages.iter() {
                     let Some(avatar_url) = grab_avatar(message) else { continue };
                     let avatar_id = get_avatar_id(&avatar_url);
@@ -863,36 +861,34 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
                             pixbuf.rowstride()
                         ))) else { continue };
 
-                    avatars.push((avatar_id, avatar));
-                }
+                    timeout_add_once(Duration::ZERO, {
+                        let added = added.clone();
+                        
+                        move || {
+                            while !added.load(Ordering::SeqCst) {}
 
-                timeout_add_once(Duration::ZERO, {
-                    move || {
-                        while !added.load(Ordering::SeqCst) {}
-
-                        GLOBAL.with(|global| {
-                            if let Some(ui) = &*global.borrow() {
-                                for (id, avatar) in avatars {
-                                    if let Some(pics) = ui.avatars.lock().unwrap().remove(&id) {
+                            GLOBAL.with(|global| {
+                                if let Some(ui) = &*global.borrow() {
+                                    let pixbuf = Pixbuf::from_bytes(
+                                        &avatar.0,
+                                        avatar.1,
+                                        avatar.2,
+                                        avatar.3,
+                                        avatar.4,
+                                        avatar.5,
+                                        avatar.6
+                                    );
+                                    
+                                    if let Some(pics) = ui.avatars.lock().unwrap().remove(&avatar_id) {
                                         for pic in pics {
-                                            pic.set_pixbuf(Some(&
-                                                Pixbuf::from_bytes(
-                                                    &avatar.0,
-                                                    avatar.1,
-                                                    avatar.2,
-                                                    avatar.3,
-                                                    avatar.4,
-                                                    avatar.5,
-                                                    avatar.6
-                                                )
-                                            ));
+                                            pic.set_pixbuf(Some(&pixbuf));
                                         }
                                     }
                                 }
-                            }
-                        });
-                    }
-                });
+                            });
+                        }
+                    });
+                }
             }
         }
     });
