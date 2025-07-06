@@ -12,6 +12,7 @@ better RAC client
 - gtk4 modern GUI
 - RACv1.99.x and RACv2.0 compatible
 - WRAC compatible ([docs](docs/wrac.md))
+- avatars drawing ([docs](docs/avatars.md))
 - chat commands (type /help)
 - no ip and date visible for anyone (almost)
 - coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc.)
@@ -24,25 +25,17 @@ better RAC client
 
 ## how to run
 
-### install (recommended)
+### download binary
 
-**for linux:**
+go to [releases](https://github.com/MeexReay/bRAC/releases/latest) and download file you need. its simple.
+
+### install (for linux)
 
 1. Install requirements: `gtk4-dev gtk4 make rust git openssl-dev openssl`
 
 2. Clone repository and run `make install`
 
 3. Now you are able to start bRAC with desktop icon
-
-**for windows:**
-
-NO SOLUTION
-
-Read [compiling docs](docs/compiling.md) to build it manually.
-
-### download binary
-
-go to [releases](https://github.com/MeexReay/bRAC/releases/latest) and download file you need. its simple.
 
 ### build from source
 
@@ -56,8 +49,7 @@ cd bRAC
 
 3. Run with Cargo
 ```bash
-cargo build -r # build release (target/release/bRAC) 
-cargo run -r # build and run
+cargo build -r # build release (target/release/bRAC)
 ```
 
 Read more about that on the [compiling docs](docs/compiling.md).
