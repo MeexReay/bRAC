@@ -482,6 +482,9 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         false
     };
 
+    #[cfg(target_os = "windows")]
+    let is_dark_theme = true;
+
     let main_box = GtkBox::new(Orientation::Vertical, 5);
 
     main_box.set_css_classes(&["main-box"]);
@@ -1294,6 +1297,12 @@ pub fn run_main_loop(ctx: Arc<Context>) {
     #[cfg(feature = "libnotify")]
     {
         libnotify::init("ru.themixray.bRAC").expect("libnotify init error");
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::env;
+        env::set_var("GTK_THEME", "Adwaita:dark");
     }
 
     let application = Application::builder()
