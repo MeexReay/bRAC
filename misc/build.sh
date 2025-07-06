@@ -39,13 +39,15 @@ build_windows() {
     package;  # package it (adds some libs)
     mv package build/windows-x86_64;
     chmod -R 777 build/windows-x86_64;
-    rm -rf target/x86_64-pc-windows-gnu"
+    chmod -R 777 target"
     
     # copy readme, license and make a zip
     cp README.md build/windows-x86_64
     cp LICENSE build/windows-x86_64
     zip -r build/bRAC-windows-x86_64.zip build/windows-x86_64
 }                                      
+
+mkdir -p build
 
 if [ $# -eq 0 ]; then
     if [ ! -d build/windows-x86_64 ]; then
