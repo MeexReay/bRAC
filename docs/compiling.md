@@ -64,22 +64,22 @@ All of these, with adding icons and other, makes this command: `make install` (u
 But make sure, that you have `.local/bin` in the `PATH` variable, otherwise it won't work. \
 Now, if you'll run with the desktop file, GNotifications will work perfectly.
 
-# Cross-compiling
+# Cross-compiling (from Linux)
 
-## From Linux to Windows
+Build for all supported systems:
 
 ```bash
 ./misc/build.sh
 ```
 
-## From NixOS to Windows
+The result will be in `build/` directory.
 
-```bash
-nix-shell -p rustup gcc cargo-cross zip unzip curl
-rustup toolchain install stable
-./misc/build.sh
-```
+Supported systems:
 
-## From Windows to Linux
+- `windows-x86_64`
+- `linux-x86_64`
 
-That's your problem
+To clean up the build, run `./misc/build.sh clean`
+
+To build for only one system, run `./misc/build.sh <system>`,
+example: `./misc/build.sh linux-x86_64`
