@@ -15,6 +15,7 @@ better RAC client
 - avatars drawing ([docs](docs/avatars.md))
 - chat commands (type /help)
 - no ip and date visible for anyone (almost)
+- libtesl environment support
 - coloring usernames by their clients (CRAB, clRAC, Mefidroniy, etc.)
 - many command-line options (see --help)
 - rich configuration (--config-path to get file path)
