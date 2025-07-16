@@ -1,14 +1,8 @@
-.PHONY: clean install uninstall build_linux build_windows build_all
+.PHONY: clean install uninstall package
 
-TARGETS = \
-	i686-unknown-linux-gnu \
-	i686-unknown-linux-musl \
-	x86_64-unknown-linux-none \
-	x86_64-unknown-linux-gnu \
-	x86_64-unknown-linux-musl \
-	aarch64-unknown-linux-gnu \
-	aarch64-unknown-linux-musl
-
+target/release/bRAC:
+	cargo build -r
+	
 install: target/release/bRAC
 	mkdir -p ~/.local
 	mkdir -p ~/.local/bin
@@ -20,25 +14,15 @@ install: target/release/bRAC
 	chmod +x misc/create-desktop.sh
 	./misc/create-desktop.sh > ~/.local/share/applications/ru.themixray.bRAC.desktop
 uninstall:
-	rm -rf ~/.local/share/bRAC
 	rm -rf ~/.config/bRAC ~/.local/share/bRAC
-	rm -f ~/.local/share/applications/ru.themixray.bRAC.desktop
-target/release/bRAC:
-	cargo build -r
+	rm -f ~/.local/bin/bRAC ~/.local/share/applications/ru.themixray.bRAC.desktop
 
-build_all: build_linux build_windows
-
-build_linux:
-	mkdir -p build
-	mkdir -p build/linux
-	for target in $(TARGETS); do \
-		cargo build -r --target $$target; \
-		cp target/$$target/bRAC build/linux/$$target-bRAC; \
+package:
+	./misc/build.sh
+	mkdir -p package
+	for i in $$( ls build/*.zip ); do \
+		mv $$i package/bRAC-$$(basename $$i); \
 	done
-
-build_windows:
-	echo "Windows build is in development!!!"
-
+	
 clean: 
-	cargo clean
-	rm -rf build
+	rm -rf build package target
