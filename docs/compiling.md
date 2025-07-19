@@ -64,6 +64,14 @@ All of these, with adding icons and other, makes this command: `make install` (u
 But make sure, that you have `.local/bin` in the `PATH` variable, otherwise it won't work. \
 Now, if you'll run with the desktop file, GNotifications will work perfectly.
 
+### Error: have you installed the static version of the ? library
+
+Use this rustflags:
+
+```bash
+RUSTFLAGS="-C target-feature=-crt-static" cargo build -r
+```
+
 # Cross-compiling (from Linux)
 
 Build for all supported systems:
