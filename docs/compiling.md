@@ -72,6 +72,15 @@ Use this rustflags:
 RUSTFLAGS="-C target-feature=-crt-static" cargo build -r
 ```
 
+### Dark theme dont work
+
+Edit `~/.config/gtk-4.0/settings.ini`:
+
+```ini
+[Settings]
+gtk-application-prefer-dark-theme=1
+```
+
 # Cross-compiling (from Linux)
 
 Build for all supported systems:
