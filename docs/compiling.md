@@ -59,7 +59,7 @@ Libnotify sucks in many situations, but it always work
 - Make a desktop file:
 
 Enter the repository folder and run: `./misc/create-desktop.sh` \
-You'll get a desktop file contents, just edit paths here and write it to a new file in the `~/.local/share/applications` or `/usr/share/applications`\
+You'll get a desktop file contents, just edit paths here and write it to a new file `ru.themixray.bRAC.desktop` in the `~/.local/share/applications` or `/usr/share/applications`\
 All of these, with adding icons and other, makes this command: `make install` (using `gnumake` package) \
 But make sure, that you have `.local/bin` in the `PATH` variable, otherwise it won't work. \
 Now, if you'll run with the desktop file, GNotifications will work perfectly.
