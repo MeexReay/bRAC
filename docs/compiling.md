@@ -62,7 +62,7 @@ Enter the repository folder and run: `./misc/create-desktop.sh` \
 You'll get a desktop file contents, just edit paths here and write it to a new file `ru.themixray.bRAC.desktop` in the `~/.local/share/applications` or `/usr/share/applications`\
 All of these, with adding icons and other, makes this command: `make install` (using `gnumake` package) \
 But make sure, that you have `.local/bin` in the `PATH` variable, otherwise it won't work. \
-Now, if you'll run with the desktop file, GNotifications will work perfectly.
+Now, when you run that desktop file, GNotifications will work correctly.
 
 ### Error: have you installed the static version of the ? library
 
