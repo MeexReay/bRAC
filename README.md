@@ -55,13 +55,35 @@ cargo build -r # build release (target/release/bRAC)
 
 Read more about that on the [compiling docs](docs/compiling.md).
 
-### nix package
+### nixos installation
 
 If you have Nix package manager installed, you can use:
 
 ```bash
 nix build github:MeexReay/bRAC # build release (result/bin/bRAC)
 nix run github:MeexReay/bRAC # build and run
+```
+
+To install, you need to make [a flake for system](https://nixos.wiki/wiki/flakes#Using_nix_flakes_with_NixOS)
+
+Add bRAC repository to inputs:
+
+```nix
+{
+  inputs.bRAC.url = "github:MeexReay/bRAC"
+}
+```
+
+Then add the package to nixos/home-manager config like this:
+
+```nix
+{ inputs, ... }
+
+{
+  environment.systemPackages = [
+    inputs.bRAC.packages.x86-64_linux.default
+  ];
+}
 ```
 
 ## chat commands
