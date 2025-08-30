@@ -29,14 +29,14 @@
         devShells.default = (mkDevShell pkgs.rust-bin.stable.latest.default);
 
         packages.default = (pkgs.makeRustPlatform {
-            cargo = pkgs.rust-bin.stable.latest.minimal;
-            rustc = pkgs.rust-bin.stable.latest.minimal;
+            cargo = pkgs.rust-bin.nightly.latest.minimal;
+            rustc = pkgs.rust-bin.nightly.latest.minimal;
           }).buildRustPackage {
             inherit (cargoToml.package) name version;
             src = ./.;
             cargoLock.lockFile = ./Cargo.lock;
             buildInputs = devDeps;
-            nativeBuildInputs = devDeps ++ [ pkgs.rustc ];
+            nativeBuildInputs = devDeps;
           };
       }
     );
