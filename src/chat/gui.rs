@@ -13,7 +13,7 @@ use std::time::{Duration, SystemTime};
 use chrono::Local;
 use clap::crate_version;
 
-use libadwaita as adw;
+use libadwaita::{self as adw, ActionRow, EntryRow, PreferencesDialog, PreferencesGroup, PreferencesPage, PreferencesRow, SpinRow, SwitchRow};
 use adw::gdk::{Cursor, Display, Texture};
 use adw::gio::{self, ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
 use adw::glib::clone;
@@ -92,76 +92,6 @@ fn load_pixbuf(data: &[u8]) -> Result<Pixbuf, Box<dyn Error>> {
     Ok(loader.pixbuf().ok_or("laod pixbuf error")?)
 }
 
-macro_rules! gui_entry_setting {
-    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {{
-        let hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-        hbox.append(&Label::builder().label($e).build());
-
-        let entry = Entry::builder()
-            .text(&$ctx.config(|o| o.$i.clone()))
-            .build();
-
-        hbox.append(&entry);
-
-        $vbox.append(&hbox);
-
-        entry
-    }};
-}
-
-macro_rules! gui_usize_entry_setting {
-    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {{
-        let hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-        hbox.append(&Label::builder().label($e).build());
-
-        let entry = Entry::builder()
-            .text(&$ctx.config(|o| o.$i.to_string()))
-            .build();
-
-        hbox.append(&entry);
-
-        $vbox.append(&hbox);
-
-        entry
-    }};
-}
-
-macro_rules! gui_option_entry_setting {
-    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {{
-        let hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-        hbox.append(&Label::builder().label($e).build());
-
-        let entry = Entry::builder()
-            .text(&$ctx.config(|o| o.$i.clone()).unwrap_or_default())
-            .build();
-
-        hbox.append(&entry);
-
-        $vbox.append(&hbox);
-
-        entry
-    }};
-}
-
-macro_rules! gui_checkbox_setting {
-    ($e:expr, $i:ident, $ctx:ident, $vbox:ident) => {{
-        let hbox = GtkBox::new(Orientation::Horizontal, 5);
-
-        hbox.append(&Label::builder().label($e).build());
-
-        let entry = CheckButton::builder().active($ctx.config(|o| o.$i)).build();
-
-        hbox.append(&entry);
-
-        $vbox.append(&hbox);
-
-        entry
-    }};
-}
-
 fn update_window_title(ctx: Arc<Context>) {
     GLOBAL.with(|global| {
         if let Some(ui) = &*global.borrow() {
@@ -175,252 +105,404 @@ fn update_window_title(ctx: Arc<Context>) {
 }
 
 fn open_settings(ctx: Arc<Context>, app: &Application) {
-    let vbox = GtkBox::new(Orientation::Vertical, 10);
+    let dialog = PreferencesDialog::builder().build();
 
-    vbox.set_margin_bottom(15);
-    vbox.set_margin_top(15);
-    vbox.set_margin_start(15);
-    vbox.set_margin_end(15);
 
-    let settings_vbox = GtkBox::new(Orientation::Vertical, 10);
-
-    let host_entry = gui_entry_setting!("Host", host, ctx, settings_vbox);
-    let name_entry = gui_option_entry_setting!("Name", name, ctx, settings_vbox);
-    let message_format_entry =
-        gui_entry_setting!("Message Format", message_format, ctx, settings_vbox);
-    let proxy_entry = gui_option_entry_setting!("Socks5 proxy", proxy, ctx, settings_vbox);
-    let avatar_entry = gui_option_entry_setting!("Avatar", avatar, ctx, settings_vbox);
-    let update_time_entry =
-        gui_usize_entry_setting!("Update Time", update_time, ctx, settings_vbox);
-    let oof_update_time_entry = gui_usize_entry_setting!(
-        "Out-of-focus Update Time",
-        oof_update_time,
-        ctx,
-        settings_vbox
-    );
-    let max_messages_entry =
-        gui_usize_entry_setting!("Max Messages", max_messages, ctx, settings_vbox);
-    let hide_my_ip_entry = gui_checkbox_setting!("Hide My IP", hide_my_ip, ctx, settings_vbox);
-    let show_other_ip_entry =
-        gui_checkbox_setting!("Show Other IP", show_other_ip, ctx, settings_vbox);
-    let chunked_enabled_entry =
-        gui_checkbox_setting!("Chunked Enabled", chunked_enabled, ctx, settings_vbox);
-    let formatting_enabled_entry =
-        gui_checkbox_setting!("Formatting Enabled", formatting_enabled, ctx, settings_vbox);
-    let commands_enabled_entry =
-        gui_checkbox_setting!("Commands Enabled", commands_enabled, ctx, settings_vbox);
-    let notifications_enabled_entry = gui_checkbox_setting!(
-        "Notifications Enabled",
-        notifications_enabled,
-        ctx,
-        settings_vbox
-    );
-    let debug_logs_entry = gui_checkbox_setting!("Debug Logs", debug_logs, ctx, settings_vbox);
-    let konata_size_entry =
-        gui_usize_entry_setting!("Konata Size", konata_size, ctx, settings_vbox);
-    let remove_gui_shit_entry =
-        gui_checkbox_setting!("Remove Gui Shit", remove_gui_shit, ctx, settings_vbox);
-    let new_ui_enabled_entry = gui_checkbox_setting!("New UI", new_ui_enabled, ctx, settings_vbox);
-
-    let scrollable = ScrolledWindow::builder()
-        .child(&settings_vbox)
-        .vexpand(true)
-        .hexpand(true)
+    let page = PreferencesPage::builder()
+        .title("General")
+        .icon_name("avatar-default-symbolic")
         .build();
 
-    vbox.append(&scrollable);
+    let group = PreferencesGroup::builder()
+        .title("User Profile")
+        .description("Profile preferences")
+        .build();
 
-    let save_button = Button::builder().label("Save").build();
+    
+    // Name preference
 
-    vbox.append(&save_button);
+    let name = EntryRow::builder()
+        .title("Name")
+        .text(ctx.config(|o| o.name.clone()).unwrap_or_default())
+        .build();
 
-    save_button.connect_clicked(clone!(
-        #[weak] ctx,
-        #[weak] host_entry,
-        #[weak] name_entry,
-        #[weak] message_format_entry,
-        #[weak] update_time_entry,
-        #[weak] max_messages_entry,
-        #[weak] hide_my_ip_entry,
-        #[weak] show_other_ip_entry,
-        #[weak] chunked_enabled_entry,
-        #[weak] formatting_enabled_entry,
-        #[weak] commands_enabled_entry,
-        #[weak] notifications_enabled_entry,
-        #[weak] proxy_entry,
-        #[weak] debug_logs_entry,
-        #[weak] oof_update_time_entry,
-        #[weak] konata_size_entry,
-        #[weak] remove_gui_shit_entry,
-        #[weak] new_ui_enabled_entry,
-        #[weak] avatar_entry,
-        move |_| {
-            let config = Config {
-                host: host_entry.text().to_string(),
-                name: {
-                    let name = name_entry.text().to_string();
+    group.add(&name);
 
-                    if name.is_empty() {
-                        None
-                    } else {
-                        Some(name)
-                    }
-                },
-                avatar: {
-                    let avatar = avatar_entry.text().to_string();
 
-                    if avatar.is_empty() {
-                        None
-                    } else {
-                        Some(avatar)
-                    }
-                },
-                message_format: message_format_entry.text().to_string(),
-                update_time: {
-                    let update_time = update_time_entry.text();
+    // Avatar preference
+    
+    let avatar = EntryRow::builder()
+        .title("Avatar URL")
+        .text(ctx.config(|o| o.avatar.clone()).unwrap_or_default())
+        .build();
 
-                    if let Ok(update_time) = update_time.parse::<usize>() {
-                        update_time
-                    } else {
-                        let update_time = default_update_time();
-                        update_time_entry.set_text(&update_time.to_string());
-                        update_time
-                    }
-                },
-                oof_update_time: {
-                    let oof_update_time = oof_update_time_entry.text();
+    group.add(&avatar);
+    
 
-                    if let Ok(oof_update_time) = oof_update_time.parse::<usize>() {
-                        oof_update_time
-                    } else {
-                        let oof_update_time = default_oof_update_time();
-                        oof_update_time_entry.set_text(&oof_update_time.to_string());
-                        oof_update_time
-                    }
-                },
-                konata_size: {
-                    let konata_size = konata_size_entry.text();
+    page.add(&group);
 
-                    if let Ok(konata_size) = konata_size.parse::<usize>() {
-                        konata_size.max(0).min(200)
-                    } else {
-                        let konata_size = default_konata_size();
-                        konata_size_entry.set_text(&konata_size.to_string());
-                        konata_size
-                    }
-                },
-                max_messages: {
-                    let max_messages = max_messages_entry.text();
 
-                    if let Ok(max_messages) = max_messages.parse::<usize>() {
-                        max_messages
-                    } else {
-                        let max_messages = default_max_messages();
-                        max_messages_entry.set_text(&max_messages.to_string());
-                        max_messages
-                    }
-                },
-                hide_my_ip: hide_my_ip_entry.is_active(),
-                remove_gui_shit: remove_gui_shit_entry.is_active(),
-                show_other_ip: show_other_ip_entry.is_active(),
-                chunked_enabled: chunked_enabled_entry.is_active(),
-                formatting_enabled: formatting_enabled_entry.is_active(),
-                commands_enabled: commands_enabled_entry.is_active(),
-                notifications_enabled: notifications_enabled_entry.is_active(),
-                new_ui_enabled: new_ui_enabled_entry.is_active(),
-                debug_logs: debug_logs_entry.is_active(),
-                proxy: {
-                    let proxy = proxy_entry.text().to_string();
 
-                    if proxy.is_empty() {
-                        None
-                    } else {
-                        Some(proxy)
-                    }
-                },
-            };
-            ctx.set_config(&config);
-            save_config(get_config_path(), &config);
-            update_window_title(ctx.clone());
-        }
-    ));
+    let group = PreferencesGroup::builder()
+        .title("Server")
+        .description("Connection preferences")
+        .build();
+
+    
+    // Host preference
+
+    let host = EntryRow::builder()
+        .title("Host")
+        .text(ctx.config(|o| o.host.clone()))
+        .build();
+
+    group.add(&host);
+
+
+    // Messages limit preference
+    
+    let messages_limit = SpinRow::builder()
+        .title("Messages limit")
+        .build();
+
+    messages_limit.set_range(0.0, 1048576.0);
+    messages_limit.set_value(ctx.config(|o| o.max_messages) as f64);
+    
+    group.add(&messages_limit);
+
+    
+    // Update interval preference
+    
+    let update_interval = SpinRow::builder()
+        .title("Update interval")
+        .subtitle("In milliseconds")
+        .build();
+
+    update_interval.set_range(1.0, 1048576.0);
+    update_interval.set_value(ctx.config(|o| o.update_time) as f64);
+    
+    group.add(&update_interval);
+
+    
+    // Update interval OOF preference
+    
+    let update_interval_oof = SpinRow::builder()
+        .title("Update interval when unfocused")
+        .subtitle("In milliseconds")
+        .build();
+
+    update_interval_oof.set_range(1.0, 1048576.0);
+    update_interval_oof.set_value(ctx.config(|o| o.oof_update_time) as f64);
+    
+    group.add(&update_interval_oof);
+
+    page.add(&group);
+
+
+    
+    let group = PreferencesGroup::builder()
+        .title("Config")
+        .description("Config tools")
+        .build();
+
+
+    // Reset button
 
     let reset_button = Button::builder().label("Reset all").build();
 
-    vbox.append(&reset_button);
-
     reset_button.connect_clicked(clone!(
         #[weak] ctx,
-        #[weak] host_entry,
-        #[weak] name_entry,
-        #[weak] message_format_entry,
-        #[weak] update_time_entry,
-        #[weak] max_messages_entry,
-        #[weak] hide_my_ip_entry,
-        #[weak] show_other_ip_entry,
-        #[weak] chunked_enabled_entry,
-        #[weak] formatting_enabled_entry,
-        #[weak] commands_enabled_entry,
-        #[weak] notifications_enabled_entry,
-        #[weak] proxy_entry,
-        #[weak] debug_logs_entry,
-        #[weak] oof_update_time_entry,
-        #[weak] konata_size_entry,
-        #[weak] remove_gui_shit_entry,
-        #[weak] new_ui_enabled_entry,
-        #[weak] avatar_entry,
+        #[weak] app,
+        #[weak] dialog,
         move |_| {
+            dialog.close();
             let config = Config::default();
             ctx.set_config(&config);
             save_config(get_config_path(), &config);
-            host_entry.set_text(&config.host);
-            name_entry.set_text(&config.name.unwrap_or_default());
-            avatar_entry.set_text(&config.avatar.unwrap_or_default());
-            proxy_entry.set_text(&config.proxy.unwrap_or_default());
-            message_format_entry.set_text(&config.message_format);
-            update_time_entry.set_text(&config.update_time.to_string());
-            max_messages_entry.set_text(&config.max_messages.to_string());
-            hide_my_ip_entry.set_active(config.hide_my_ip);
-            show_other_ip_entry.set_active(config.show_other_ip);
-            chunked_enabled_entry.set_active(config.chunked_enabled);
-            formatting_enabled_entry.set_active(config.formatting_enabled);
-            commands_enabled_entry.set_active(config.commands_enabled);
-            notifications_enabled_entry.set_active(config.notifications_enabled);
-            debug_logs_entry.set_active(config.debug_logs);
-            oof_update_time_entry.set_text(&config.oof_update_time.to_string());
-            konata_size_entry.set_text(&config.konata_size.to_string());
-            remove_gui_shit_entry.set_active(config.remove_gui_shit);
-            new_ui_enabled_entry.set_active(config.new_ui_enabled);
+            open_settings(ctx, &app);
         }
     ));
-    let window = Window::builder()
-        .application(app)
-        .title("Settings")
-        .default_width(400)
-        .default_height(500)
-        .resizable(true)
-        .decorated(true)
-        .content(&vbox)
-        .modal(true)
+    
+    group.add(&reset_button);
+
+    page.add(&group);
+
+    dialog.add(&page);
+
+
+
+    let page = PreferencesPage::builder()
+        .title("Protocol")
+        .icon_name("network-wired-symbolic")
         .build();
 
-    let controller = gtk::EventControllerKey::new();
-    controller.connect_key_pressed({
-        let window = window.clone();
+    let group = PreferencesGroup::builder()
+        .title("Network")
+        .description("Network preferences")
+        .build();
 
-        move |_, key, _, _| {
-            if key == gtk::gdk::Key::Escape {
-                window.close();
-                gtk::glib::Propagation::Proceed
-            } else {
-                gtk::glib::Propagation::Stop
-            }
-        }
+
+    // Proxy preference
+
+    let proxy = EntryRow::builder()
+        .title("Socks proxy")
+        .text(ctx.config(|o| o.proxy.clone()).unwrap_or_default())
+        .build();
+
+    group.add(&proxy);
+
+    
+    page.add(&group);
+
+
+    let group = PreferencesGroup::builder()
+        .title("Protocol")
+        .description("Rac protocol preferences")
+        .build();
+
+    
+    // Message format preference
+    
+    let message_format = EntryRow::builder()
+        .title("Message format")
+        .text(ctx.config(|o| o.message_format.clone()))
+        .build();
+
+    group.add(&message_format);
+
+    page.add(&group);
+
+    
+    // Hide IP preference
+    
+    let hide_my_ip = SwitchRow::builder()
+        .title("Hide IP")
+        .subtitle("Hides only for clRAC and other dummy clients")
+        .active(ctx.config(|o| o.hide_my_ip))
+        .build();
+
+    group.add(&hide_my_ip);
+
+
+    // Chunked reading preference
+    
+    let chunked_reading = SwitchRow::builder()
+        .title("Chunked reading")
+        .subtitle("Read messages in chunks (less traffic usage, less compatibility)")
+        .active(ctx.config(|o| o.chunked_enabled))
+        .build();
+
+    group.add(&chunked_reading);
+
+    
+    // Enable commands preference
+    
+    let enable_commands = SwitchRow::builder()
+        .title("Enable commands")
+        .subtitle("Enable slash commands (eg. /login) on client-side")
+        .active(ctx.config(|o| o.commands_enabled))
+        .build();
+
+    group.add(&enable_commands);
+
+    
+    page.add(&group);
+    
+    dialog.add(&page);
+
+
+    let page = PreferencesPage::builder()
+        .title("Interface")
+        .icon_name("applications-graphics-symbolic")
+        .build();
+
+    let group = PreferencesGroup::builder()
+        .title("Messages")
+        .description("Messages render preferences")
+        .build();
+
+    
+    // Debug logs preference
+    
+    let debug_logs = SwitchRow::builder()
+        .title("Debug logs")
+        .subtitle("Print debug logs to the chat")
+        .active(ctx.config(|o| o.debug_logs))
+        .build();
+    
+    group.add(&debug_logs);
+
+    
+    // Show IPs preference
+    
+    let show_ips = SwitchRow::builder()
+        .title("Show IPs")
+        .subtitle("Show authors IP addresses if possible")
+        .active(ctx.config(|o| o.show_other_ip))
+        .build();
+    
+    group.add(&show_ips);
+
+    
+    // Format messages preference
+    
+    let format_messages = SwitchRow::builder()
+        .title("Format messages")
+        .subtitle("Disable to see raw messages")
+        .active(ctx.config(|o| o.formatting_enabled))
+        .build();
+    
+    group.add(&format_messages);
+
+    
+    // Show avatars preference
+    
+    let show_avatars = SwitchRow::builder()
+        .title("Show avatars")
+        .subtitle("Enables new messages UI")
+        .active(ctx.config(|o| o.new_ui_enabled))
+        .build();
+    
+    group.add(&show_avatars);
+    page.add(&group);
+
+    
+    let group = PreferencesGroup::builder()
+        .title("Interface")
+        .description("General interface preferences")
+        .build();
+
+    
+    // Remove GUI shit preference
+    
+    let remove_gui_shit = SwitchRow::builder()
+        .title("Remove GUI shit")
+        .subtitle("Removes calendar, konata and clock")
+        .active(ctx.config(|o| o.remove_gui_shit))
+        .build();
+    
+    group.add(&remove_gui_shit);
+
+    
+    // Konata size preference
+    
+    let konata_size = SpinRow::builder()
+        .title("Konata size")
+        .subtitle("Set konata size percent")
+        .build();
+
+    konata_size.set_range(0.0, 200.0);
+    konata_size.set_value(ctx.config(|o| o.konata_size) as f64);
+    
+    group.add(&konata_size);
+    
+    
+    // Enable notifications preference
+    
+    let enable_notifications = SwitchRow::builder()
+        .title("Enable notifications")
+        .subtitle("Send notifications on chat and system messages")
+        .active(ctx.config(|o| o.notifications_enabled))
+        .build();
+    
+    group.add(&enable_notifications);
+    page.add(&group);
+    
+    
+    dialog.add(&page);
+
+    
+    dialog.connect_closed(move |_| {
+        let config = Config {
+            host: host.text().to_string(),
+            name: {
+                let name = name.text().to_string();
+
+                if name.is_empty() {
+                    None
+                } else {
+                    Some(name)
+                }
+            },
+            avatar: {
+                let avatar = avatar.text().to_string();
+
+                if avatar.is_empty() {
+                    None
+                } else {
+                    Some(avatar)
+                }
+            },
+            message_format: message_format.text().to_string(),
+            update_time: {
+                let update_time = update_interval.text();
+
+                if let Ok(update_time) = update_time.parse::<usize>() {
+                    update_time
+                } else {
+                    let update_time = default_update_time();
+                    update_interval.set_text(&update_time.to_string());
+                    update_time
+                }
+            },
+            oof_update_time: {
+                let oof_update_time = update_interval_oof.text();
+
+                if let Ok(oof_update_time) = oof_update_time.parse::<usize>() {
+                    oof_update_time
+                } else {
+                    let oof_update_time = default_oof_update_time();
+                    update_interval_oof.set_text(&oof_update_time.to_string());
+                    oof_update_time
+                }
+            },
+            konata_size: {
+                let konata_size_n = konata_size.text();
+
+                if let Ok(konata_size_n) = konata_size_n.parse::<usize>() {
+                    konata_size_n.max(0).min(200)
+                } else {
+                    let konata_size_n = default_konata_size();
+                    konata_size.set_text(&konata_size_n.to_string());
+                    konata_size_n
+                }
+            },
+            max_messages: {
+                let max_messages = messages_limit.text();
+
+                if let Ok(max_messages) = max_messages.parse::<usize>() {
+                    max_messages
+                } else {
+                    let max_messages = default_max_messages();
+                    messages_limit.set_text(&max_messages.to_string());
+                    max_messages
+                }
+            },
+            hide_my_ip: hide_my_ip.is_active(),
+            remove_gui_shit: remove_gui_shit.is_active(),
+            show_other_ip: show_ips.is_active(),
+            chunked_enabled: chunked_reading.is_active(),
+            formatting_enabled: format_messages.is_active(),
+            commands_enabled: enable_commands.is_active(),
+            notifications_enabled: enable_notifications.is_active(),
+            new_ui_enabled: show_avatars.is_active(),
+            debug_logs: debug_logs.is_active(),
+            proxy: {
+                let proxy = proxy.text().to_string();
+
+                if proxy.is_empty() {
+                    None
+                } else {
+                    Some(proxy)
+                }
+            },
+        };
+        ctx.set_config(&config);
+        save_config(get_config_path(), &config);
+        update_window_title(ctx.clone());
     });
 
-    window.add_controller(controller);
-
-    window.present();
+    dialog.present(app.active_window().as_ref());
 }
 
 fn build_menu(ctx: Arc<Context>, app: &Application) {
