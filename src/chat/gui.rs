@@ -16,9 +16,7 @@ use libadwaita::gdk::{MemoryTexture, Texture};
 use libadwaita::gtk::gdk_pixbuf::InterpType;
 use libadwaita::gtk::{Adjustment, Image};
 use libadwaita::{
-    self as adw, Avatar, EntryRow,
-    PreferencesDialog, PreferencesGroup, PreferencesPage,
-    SpinRow, SwitchRow
+    self as adw, Avatar, ButtonRow, EntryRow, PreferencesDialog, PreferencesGroup, PreferencesPage, SpinRow, SwitchRow
 };
 use adw::gdk::{Cursor, Display};
 use adw::gio::{ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
@@ -224,9 +222,12 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
 
     // Reset button
 
-    let reset_button = Button::builder().label("Reset all").build();
+    let reset_button = ButtonRow::builder()
+        .title("Reset all")
+        .end_icon_name("user-trash-symbolic")
+        .build();
 
-    reset_button.connect_clicked(clone!(
+    reset_button.connect_activated(clone!(
         #[weak] ctx,
         #[weak] app,
         #[weak] dialog,
