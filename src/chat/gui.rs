@@ -13,6 +13,7 @@ use std::time::{Duration, SystemTime};
 use chrono::Local;
 use clap::crate_version;
 
+use libadwaita::gtk::Adjustment;
 use libadwaita::{self as adw, ActionRow, EntryRow, PreferencesDialog, PreferencesGroup, PreferencesPage, PreferencesRow, SpinRow, SwitchRow};
 use adw::gdk::{Cursor, Display, Texture};
 use adw::gio::{self, ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
@@ -163,10 +164,14 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     
     let messages_limit = SpinRow::builder()
         .title("Messages limit")
+        .adjustment(&Adjustment::builder()
+            .lower(1.0)
+            .upper(1048576.0)
+            .page_increment(10.0)
+            .step_increment(10.0)
+            .value(ctx.config(|o| o.max_messages) as f64)
+            .build())
         .build();
-
-    messages_limit.set_range(0.0, 1048576.0);
-    messages_limit.set_value(ctx.config(|o| o.max_messages) as f64);
     
     group.add(&messages_limit);
 
@@ -176,10 +181,14 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     let update_interval = SpinRow::builder()
         .title("Update interval")
         .subtitle("In milliseconds")
+        .adjustment(&Adjustment::builder()
+            .lower(10.0)
+            .upper(1048576.0)
+            .page_increment(10.0)
+            .step_increment(10.0)
+            .value(ctx.config(|o| o.update_time) as f64)
+            .build())
         .build();
-
-    update_interval.set_range(1.0, 1048576.0);
-    update_interval.set_value(ctx.config(|o| o.update_time) as f64);
     
     group.add(&update_interval);
 
@@ -189,11 +198,15 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     let update_interval_oof = SpinRow::builder()
         .title("Update interval when unfocused")
         .subtitle("In milliseconds")
+        .adjustment(&Adjustment::builder()
+            .lower(10.0)
+            .upper(1048576.0)
+            .page_increment(10.0)
+            .step_increment(10.0)
+            .value(ctx.config(|o| o.oof_update_time) as f64)
+            .build())
         .build();
 
-    update_interval_oof.set_range(1.0, 1048576.0);
-    update_interval_oof.set_value(ctx.config(|o| o.oof_update_time) as f64);
-    
     group.add(&update_interval_oof);
 
     page.add(&group);
@@ -369,7 +382,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     
     let group = PreferencesGroup::builder()
         .title("Interface")
-        .description("General interface preferences")
+        .description("General interface preferences (restart after changing)")
         .build();
 
     
@@ -389,11 +402,15 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     let konata_size = SpinRow::builder()
         .title("Konata size")
         .subtitle("Set konata size percent")
+        .adjustment(&Adjustment::builder()
+            .lower(0.0)
+            .upper(200.0)
+            .page_increment(10.0)
+            .step_increment(10.0)
+            .value(ctx.config(|o| o.konata_size) as f64)
+            .build())
         .build();
 
-    konata_size.set_range(0.0, 200.0);
-    konata_size.set_value(ctx.config(|o| o.konata_size) as f64);
-    
     group.add(&konata_size);
     
     
