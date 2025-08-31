@@ -72,6 +72,7 @@ pub fn clear_chat_messages(ctx: Arc<Context>, messages: Vec<String>) {
 }
 
 pub fn add_chat_messages(ctx: Arc<Context>, messages: Vec<String>) {
+    println!("add chat messages: {}", messages.len());
     let _ = ctx
         .sender
         .read()
@@ -818,13 +819,12 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
         let ctx = ctx.clone();
         move || {
             while let Ok((messages, clear)) = receiver.recv() {
+                println!("got chat messages: {}", messages.len());
                 let ctx = ctx.clone();
                 let messages = Arc::new(messages);
-                let added = Arc::new(AtomicBool::new(false));
 
                 timeout_add_once(Duration::ZERO, {
                     let messages = messages.clone();
-                    let added = added.clone();
 
                     move || {
                         GLOBAL.with(|global| {
@@ -838,60 +838,56 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
                                 for message in messages.iter() {
                                     on_add_message(ctx.clone(), &ui, message.to_string(), !clear);
                                 }
+                            }
+                        });
                                 
-                                added.store(true, Ordering::SeqCst)
+                        thread::spawn(move || {
+                            for message in messages.iter() {
+                                let Some(avatar_url) = grab_avatar(message) else { continue };
+                                let avatar_id = get_avatar_id(&avatar_url);
+
+                                let Some(avatar) = load_avatar(&avatar_url)
+                                    .and_then(|avatar| load_pixbuf(&avatar).ok())
+                                    .and_then(|pixbuf| 
+                                        pixbuf.scale_simple(32, 32, InterpType::Bilinear
+                                    ))
+                                    .and_then(|pixbuf| Some((
+                                        pixbuf.pixel_bytes()?,
+                                        pixbuf.colorspace(),
+                                        pixbuf.has_alpha(),
+                                        pixbuf.bits_per_sample(),
+                                        pixbuf.width(),
+                                        pixbuf.height(),
+                                        pixbuf.rowstride()
+                                    ))) else { continue };
+
+                                timeout_add_once(Duration::ZERO, {
+                                    move || {
+                                        GLOBAL.with(|global| {
+                                            if let Some(ui) = &*global.borrow() {
+                                                let pixbuf = Pixbuf::from_bytes(
+                                                    &avatar.0,
+                                                    avatar.1,
+                                                    avatar.2,
+                                                    avatar.3,
+                                                    avatar.4,
+                                                    avatar.5,
+                                                    avatar.6
+                                                );
+                        
+                                                if let Some(pics) = ui.avatars.lock().unwrap().remove(&avatar_id) {
+                                                    for pic in pics {
+                                                        pic.set_pixbuf(Some(&pixbuf));
+                                                    }
+                                                }
+                                            }
+                                        });
+                                    }
+                                });
                             }
                         });
                     }
                 });
-
-                for message in messages.iter() {
-                    let Some(avatar_url) = grab_avatar(message) else { continue };
-                    let avatar_id = get_avatar_id(&avatar_url);
-
-                    let Some(avatar) = load_avatar(&avatar_url)
-                        .and_then(|avatar| load_pixbuf(&avatar).ok())
-                        .and_then(|pixbuf| 
-                            pixbuf.scale_simple(32, 32, InterpType::Bilinear
-                        ))
-                        .and_then(|pixbuf| Some((
-                            pixbuf.pixel_bytes()?,
-                            pixbuf.colorspace(),
-                            pixbuf.has_alpha(),
-                            pixbuf.bits_per_sample(),
-                            pixbuf.width(),
-                            pixbuf.height(),
-                            pixbuf.rowstride()
-                        ))) else { continue };
-
-                    timeout_add_once(Duration::ZERO, {
-                        let added = added.clone();
-                        
-                        move || {
-                            while !added.load(Ordering::SeqCst) {}
-
-                            GLOBAL.with(|global| {
-                                if let Some(ui) = &*global.borrow() {
-                                    let pixbuf = Pixbuf::from_bytes(
-                                        &avatar.0,
-                                        avatar.1,
-                                        avatar.2,
-                                        avatar.3,
-                                        avatar.4,
-                                        avatar.5,
-                                        avatar.6
-                                    );
-                                    
-                                    if let Some(pics) = ui.avatars.lock().unwrap().remove(&avatar_id) {
-                                        for pic in pics {
-                                            pic.set_pixbuf(Some(&pixbuf));
-                                        }
-                                    }
-                                }
-                            });
-                        }
-                    });
-                }
             }
         }
     });

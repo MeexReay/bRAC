@@ -67,9 +67,9 @@ pub fn sanitize_text(input: &str) -> String {
 
 #[cfg(feature = "gtk")]
 pub fn add_message(ctx: Arc<Context>, message: &str) -> Result<(), Box<dyn Error>> {
-    for i in message.split("\n").map(|o| o.to_string()) {
-        print_message(ctx.clone(), i)?;
-    }
+    let messages: Vec<String> = message.split("\n").map(|o| o.to_string()).collect();
+    ctx.add_message(ctx.config(|o| o.max_messages), messages.clone());
+    add_chat_messages(ctx.clone(), messages);
     Ok(())
 }
 
