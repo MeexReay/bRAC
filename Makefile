@@ -4,18 +4,17 @@ target/release/bRAC:
 	cargo build -r
 	
 install: target/release/bRAC
-	mkdir -p ~/.local
-	mkdir -p ~/.local/bin
-	mkdir -p ~/.local/share
-	cp $< ~/.local/bin/bRAC
-	chmod +x ~/.local/bin/bRAC
-	mkdir ~/.local/share/bRAC -p
-	cp misc/bRAC.png ~/.local/share/bRAC/icon.png
+	mkdir -p /usr/bin
+	mkdir -p /usr/share
+	cp $< /usr/bin/bRAC
+	chmod +x /usr/bin/bRAC
+	cp misc/bRAC.png /usr/share/pixmaps/ru.themixray.bRAC.png
 	chmod +x misc/create-desktop.sh
-	./misc/create-desktop.sh > ~/.local/share/applications/ru.themixray.bRAC.desktop
+	./misc/create-desktop.sh > /usr/share/applications/ru.themixray.bRAC.desktop
 uninstall:
-	rm -rf ~/.config/bRAC ~/.local/share/bRAC
-	rm -f ~/.local/bin/bRAC ~/.local/share/applications/ru.themixray.bRAC.desktop
+	rm -f /usr/bin/bRAC
+	rm -f /usr/share/applications/ru.themixray.bRAC.desktop
+	rm -f /usr/share/pixmaps/ru.themixray.bRAC.png
 
 package:
 	./misc/build.sh
