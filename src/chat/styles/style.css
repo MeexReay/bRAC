@@ -1,26 +1,30 @@
-.send-button, .send-text { border-radius: 0; }
-.calendar { 
-    transform: scale(0.6); 
-    margin: -35px;
-}
-.widget_box {
-    box-shadow: 0 10px 10px rgba(0, 0, 0, 0.20);
-    border-bottom: 2px solid rgba(0, 0, 0, 0.20);
-    min-height: 121px;
-}
-.time {
-    font-size: 20px;
-    font-family: monospace;
-    font-weight: bold;
+/* .send-button, .send-text { border-radius: 0; } */
+.calendar {
+  transform: scale(0.6);
+  margin: -35px;
 }
 
-.message-avatar { 
-    border-radius: 64px; 
+.widget_box {
+  box-shadow: 0 10px 10px rgba(0, 0, 0, 0.20);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.20);
+  min-height: 121px;
+}
+
+.time {
+  font-size: 20px;
+  font-family: monospace;
+  font-weight: bold;
+}
+
+.message-avatar {
+  border-radius: 64px;
 }
 
 /* Now made with GTK Pango Markup */
 
-.message-name { font-weight: bold; }
+.message-name {
+  font-weight: bold;
+}
 
 /* .message-name-green { color: #70fa7a; }
 .message-name-red { color: #fa7070; }

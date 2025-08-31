@@ -12,23 +12,25 @@ use std::time::{Duration, SystemTime};
 
 use chrono::Local;
 
-use gtk4::gdk_pixbuf::InterpType;
-use gtk4 as gtk;
-
-use gtk::gdk::{Cursor, Display, Texture};
-use gtk::gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader};
-use gtk::gio::{self, ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
-use gtk::glib::clone;
-use gtk::glib::{
+use libadwaita as adw;
+use adw::gdk::{Cursor, Display, Texture};
+use adw::gio::{self, ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
+use adw::glib::clone;
+use adw::glib::{
     self, clone::Downgrade, source::timeout_add_local_once, timeout_add_local, timeout_add_once,
     ControlFlow,
 };
+use adw::prelude::*;
+use adw::{Application, ApplicationWindow, Window};
+
+use adw::gtk;
+use gtk::gdk_pixbuf::InterpType;
+use gtk::gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader};
 use gtk::pango::WrapMode;
-use gtk::prelude::*;
 use gtk::{
-    AboutDialog, Align, Application, ApplicationWindow, Box as GtkBox, Button, Calendar,
+    AboutDialog, Align, Box as GtkBox, Button, Calendar,
     CheckButton, CssProvider, Entry, Fixed, GestureClick, Justification, Label, ListBox,
-    Orientation, Overlay, Picture, ScrolledWindow, Settings, Window,
+    Orientation, Overlay, Picture, ScrolledWindow, Settings,
 };
 
 use crate::chat::grab_avatar;
@@ -397,7 +399,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         .default_height(500)
         .resizable(true)
         .decorated(true)
-        .child(&vbox)
+        .content(&vbox)
         .build();
 
     let controller = gtk::EventControllerKey::new();
@@ -736,7 +738,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         .resizable(true)
         .decorated(true)
         .show_menubar(true)
-        .child(&main_box)
+        .content(&main_box)
         .build();
 
     window.connect_default_width_notify({
@@ -954,7 +956,7 @@ fn send_notification(_: Arc<Context>, ui: &UiModel, title: &str, message: &str) 
         time::UNIX_EPOCH,
     };
 
-    use gtk4::gio::Notification;
+    use gtk::gio::Notification;
 
     let mut hash = DefaultHasher::new();
     hash.write(title.as_bytes());
