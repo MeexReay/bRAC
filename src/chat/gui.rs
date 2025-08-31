@@ -840,7 +840,11 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
                                 }
                             }
                         });
-                                
+
+                        if ctx.config(|o| !o.new_ui_enabled) {
+                            return;
+                        }
+                        
                         thread::spawn(move || {
                             for message in messages.iter() {
                                 let Some(avatar_url) = grab_avatar(message) else { continue };
