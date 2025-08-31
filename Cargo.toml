@@ -23,6 +23,9 @@ winapi = { version = "0.3.9", optional = true, features = ["wincon", "winuser"] 
 tungstenite = "0.27.0"
 reqwest = { version = "0.12.20", features = ["blocking"] }
 libadwaita = { version = "0.8.0", optional = true, features = ["v1_5"] }
+# glycin = { version = "2.1.1", optional = true }
+futures = "0.3.31"
+# gio = { version = "0.20.12", optional = true }
 
 [build-dependencies]
 winresource = { version = "0.1.20", optional = true }

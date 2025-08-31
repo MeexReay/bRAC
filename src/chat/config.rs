@@ -11,6 +11,9 @@ fn default_true() -> bool {
 pub fn default_max_messages() -> usize {
     200
 }
+pub fn default_max_avatar_size() -> u64 {
+    5248000 // 5MB
+}
 pub fn default_update_time() -> usize {
     100
 }
@@ -41,6 +44,8 @@ pub struct Config {
     pub oof_update_time: usize,
     #[serde(default = "default_max_messages")]
     pub max_messages: usize,
+    #[serde(default = "default_max_avatar_size")]
+    pub max_avatar_size: u64,
     #[serde(default = "default_konata_size")]
     pub konata_size: usize,
     #[serde(default)]
@@ -149,6 +154,8 @@ pub struct Args {
     #[arg(long)]
     pub update_time: Option<usize>,
     #[arg(long)]
+    pub max_avatar_size: Option<u64>,
+    #[arg(long)]
     pub oof_update_time: Option<usize>,
     #[arg(long)]
     pub max_messages: Option<usize>,
@@ -203,6 +210,9 @@ impl Args {
         }
         if let Some(v) = self.konata_size {
             config.konata_size = v
+        }
+        if let Some(v) = self.max_avatar_size {
+            config.max_avatar_size = v
         }
         if let Some(v) = self.hide_my_ip {
             config.hide_my_ip = v

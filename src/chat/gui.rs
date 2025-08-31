@@ -1,10 +1,9 @@
-// TODO: REFACTOR THIS SHIT!!!!!!!!!!!!!!!
-
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::error::Error;
 use std::hash::{DefaultHasher, Hasher};
-use std::sync::atomic::{AtomicBool, AtomicU64};
+use std::io::Read;
+use std::sync::atomic::AtomicU64;
 use std::sync::Mutex;
 use std::sync::{atomic::Ordering, mpsc::channel, Arc, RwLock};
 use std::thread;
@@ -13,25 +12,31 @@ use std::time::{Duration, SystemTime};
 use chrono::Local;
 use clap::crate_version;
 
-use libadwaita::gtk::Adjustment;
-use libadwaita::{self as adw, ActionRow, EntryRow, PreferencesDialog, PreferencesGroup, PreferencesPage, PreferencesRow, SpinRow, SwitchRow};
-use adw::gdk::{Cursor, Display, Texture};
-use adw::gio::{self, ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
+use libadwaita::gdk::{MemoryTexture, Texture};
+use libadwaita::gtk::gdk_pixbuf::InterpType;
+use libadwaita::gtk::{Adjustment, Image};
+use libadwaita::{
+    self as adw, Avatar, EntryRow,
+    PreferencesDialog, PreferencesGroup, PreferencesPage,
+    SpinRow, SwitchRow
+};
+use adw::gdk::{Cursor, Display};
+use adw::gio::{ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
 use adw::glib::clone;
 use adw::glib::{
-    self, clone::Downgrade, source::timeout_add_local_once, timeout_add_local, timeout_add_once,
+    self, clone::Downgrade, source::timeout_add_local_once,
+    timeout_add_local, timeout_add_once,
     ControlFlow,
 };
 use adw::prelude::*;
-use adw::{Application, ApplicationWindow, Window};
+use adw::{Application, ApplicationWindow};
 
 use adw::gtk;
-use gtk::gdk_pixbuf::InterpType;
 use gtk::gdk_pixbuf::{Pixbuf, PixbufAnimation, PixbufLoader};
 use gtk::pango::WrapMode;
 use gtk::{
-    AboutDialog, Align, Box as GtkBox, Button, Calendar,
-    CheckButton, CssProvider, Entry, Fixed, GestureClick, Justification, Label, ListBox,
+    Align, Box as GtkBox, Button, Calendar,
+    CssProvider, Entry, Fixed, GestureClick, Justification, Label, ListBox,
     Orientation, Overlay, Picture, ScrolledWindow, Settings,
 };
 
@@ -39,7 +44,6 @@ use crate::chat::grab_avatar;
 
 use super::{
     config::{
-        default_konata_size, default_max_messages, default_oof_update_time, default_update_time,
         get_config_path, save_config, Config,
     },
     ctx::Context,
@@ -56,8 +60,7 @@ struct UiModel {
     notifications: Arc<RwLock<Vec<libnotify::Notification>>>,
     #[cfg(all(not(feature = "libnotify"), not(feature = "notify-rust")))]
     notifications: Arc<RwLock<Vec<String>>>,
-    default_avatar: Pixbuf,
-    avatars: Arc<Mutex<HashMap<u64, Vec<Picture>>>>,
+    avatars: Arc<Mutex<HashMap<u64, Vec<Avatar>>>>,
     latest_sign: Arc<AtomicU64>
 }
 
@@ -264,6 +267,23 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
 
     group.add(&proxy);
 
+
+    // Max avatar size preference
+    
+    let max_avatar_size = SpinRow::builder()
+        .title("Max avatar size")
+        .subtitle("Maximum avatar size in bytes")
+        .adjustment(&Adjustment::builder()
+            .lower(0.0)
+            .upper(1074790400.0)
+            .page_increment(1024.0)
+            .step_increment(1024.0)
+            .value(ctx.config(|o| o.max_avatar_size) as f64)
+            .build())
+        .build();
+
+    group.add(&max_avatar_size);
+
     
     page.add(&group);
 
@@ -451,50 +471,11 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
                 }
             },
             message_format: message_format.text().to_string(),
-            update_time: {
-                let update_time = update_interval.text();
-
-                if let Ok(update_time) = update_time.parse::<usize>() {
-                    update_time
-                } else {
-                    let update_time = default_update_time();
-                    update_interval.set_text(&update_time.to_string());
-                    update_time
-                }
-            },
-            oof_update_time: {
-                let oof_update_time = update_interval_oof.text();
-
-                if let Ok(oof_update_time) = oof_update_time.parse::<usize>() {
-                    oof_update_time
-                } else {
-                    let oof_update_time = default_oof_update_time();
-                    update_interval_oof.set_text(&oof_update_time.to_string());
-                    oof_update_time
-                }
-            },
-            konata_size: {
-                let konata_size_n = konata_size.text();
-
-                if let Ok(konata_size_n) = konata_size_n.parse::<usize>() {
-                    konata_size_n.max(0).min(200)
-                } else {
-                    let konata_size_n = default_konata_size();
-                    konata_size.set_text(&konata_size_n.to_string());
-                    konata_size_n
-                }
-            },
-            max_messages: {
-                let max_messages = messages_limit.text();
-
-                if let Ok(max_messages) = max_messages.parse::<usize>() {
-                    max_messages
-                } else {
-                    let max_messages = default_max_messages();
-                    messages_limit.set_text(&max_messages.to_string());
-                    max_messages
-                }
-            },
+            update_time: update_interval.value() as usize,
+            oof_update_time: update_interval_oof.value() as usize,
+            konata_size: konata_size.value() as usize,
+            max_messages: messages_limit.value() as usize,
+            max_avatar_size: max_avatar_size.value() as u64,
             hide_my_ip: hide_my_ip.is_active(),
             remove_gui_shit: remove_gui_shit.is_active(),
             show_other_ip: show_ips.is_active(),
@@ -666,7 +647,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
         let logo_anim = PixbufAnimation::from_stream(
             &MemoryInputStream::from_bytes(&glib::Bytes::from(logo_gif)),
-            None::<&gio::Cancellable>,
+            None::<&adw::gtk::gio::Cancellable>,
         )
         .unwrap()
         .iter(Some(SystemTime::now()));
@@ -866,7 +847,6 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         notifications: Arc::new(RwLock::new(Vec::<libnotify::Notification>::new())),
         #[cfg(all(not(feature = "libnotify"), not(feature = "notify-rust")))]
         notifications: Arc::new(RwLock::new(Vec::<String>::new())),
-        default_avatar: load_pixbuf(include_bytes!("images/avatar.png")).unwrap(),
         avatars: Arc::new(Mutex::new(HashMap::new())),
         latest_sign: Arc::new(AtomicU64::new(0))
     }
@@ -951,38 +931,18 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
                                 let Some(avatar_url) = grab_avatar(message) else { continue };
                                 let avatar_id = get_avatar_id(&avatar_url);
 
-                                let Some(avatar) = load_avatar(&avatar_url)
-                                    .and_then(|avatar| load_pixbuf(&avatar).ok())
-                                    .and_then(|pixbuf| 
-                                        pixbuf.scale_simple(32, 32, InterpType::Bilinear
-                                    ))
-                                    .and_then(|pixbuf| Some((
-                                        pixbuf.pixel_bytes()?,
-                                        pixbuf.colorspace(),
-                                        pixbuf.has_alpha(),
-                                        pixbuf.bits_per_sample(),
-                                        pixbuf.width(),
-                                        pixbuf.height(),
-                                        pixbuf.rowstride()
-                                    ))) else { continue };
+                                let Some(avatar) = load_avatar(&avatar_url, ctx.config(|o| o.max_avatar_size as usize)) else { println!("cant load avatar: {avatar_url} request error"); continue };
+                                let Ok(pixbuf) = load_pixbuf(&avatar) else { println!("cant load avatar: {avatar_url} pixbuf error"); continue; };
+                                let Some(pixbuf) = pixbuf.scale_simple(32, 32, InterpType::Bilinear) else { println!("cant load avatar: {avatar_url} scale image error"); continue };
+                                let texture = Texture::for_pixbuf(&pixbuf);
 
                                 timeout_add_once(Duration::ZERO, {
                                     move || {
                                         GLOBAL.with(|global| {
                                             if let Some(ui) = &*global.borrow() {
-                                                let pixbuf = Pixbuf::from_bytes(
-                                                    &avatar.0,
-                                                    avatar.1,
-                                                    avatar.2,
-                                                    avatar.3,
-                                                    avatar.4,
-                                                    avatar.5,
-                                                    avatar.6
-                                                );
-                        
                                                 if let Some(pics) = ui.avatars.lock().unwrap().remove(&avatar_id) {
                                                     for pic in pics {
-                                                        pic.set_pixbuf(Some(&pixbuf));
+                                                        pic.set_custom_image(Some(&texture));
                                                     }
                                                 }
                                             }
@@ -1178,10 +1138,28 @@ fn get_avatar_id(url: &str) -> u64 {
     hasher.finish()
 }
 
-fn load_avatar(url: &str) -> Option<Vec<u8>> {
+fn load_avatar(url: &str, response_limit: usize) -> Option<Vec<u8>> {
     reqwest::blocking::get(url).ok()
-        .and_then(|resp| resp.bytes().ok())
-        .map(|bytes| bytes.to_vec())
+        .and_then(|mut resp| {
+            let mut data = Vec::new();
+            let mut length = 0;
+            
+            loop {
+                if length >= response_limit {
+                    break;
+                }
+                let mut buf = vec![0; (response_limit - length).min(1024)];
+                let now_len = resp.read(&mut buf).ok()?;
+                if now_len == 0 {
+                    break;
+                }
+                buf.truncate(now_len);
+                length += now_len;
+                data.append(&mut buf);
+            }
+
+            Some(data)
+        })
 }
 
 fn get_new_message_box(
@@ -1256,13 +1234,19 @@ fn get_new_message_box(
         let fixed = Fixed::new();
         fixed.set_can_target(false);
 
-        let avatar_picture = Picture::for_pixbuf(&ui.default_avatar.clone());
-        avatar_picture.set_css_classes(&["message-avatar"]);
+        let avatar_picture = Avatar::builder()
+            .text(&name)
+            .show_initials(true)
+            // .width_request(64)
+            // .height_request(64)
+            .size(32)
+            .build();
+        // avatar_picture.set_css_classes(&["message-avatar"]);
         avatar_picture.set_vexpand(false);
         avatar_picture.set_hexpand(false);
         avatar_picture.set_valign(Align::Start);
         avatar_picture.set_halign(Align::Start);
-        avatar_picture.set_size_request(32, 32);
+        // avatar_picture.set_size_request(64, 64);
 
         if avatar != 0 {
             let mut lock = ui.avatars.lock().unwrap();
