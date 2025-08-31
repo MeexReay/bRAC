@@ -14,9 +14,9 @@ use clap::crate_version;
 
 use libadwaita::gdk::{MemoryTexture, Texture};
 use libadwaita::gtk::gdk_pixbuf::InterpType;
-use libadwaita::gtk::{Adjustment, Image};
+use libadwaita::gtk::{Adjustment, Image, MenuButton};
 use libadwaita::{
-    self as adw, Avatar, ButtonRow, EntryRow, PreferencesDialog, PreferencesGroup, PreferencesPage, SpinRow, SwitchRow
+    self as adw, Avatar, ButtonRow, EntryRow, HeaderBar, PreferencesDialog, PreferencesGroup, PreferencesPage, SpinRow, SwitchRow
 };
 use adw::gdk::{Cursor, Display};
 use adw::gio::{ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
@@ -504,20 +504,12 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     dialog.present(app.active_window().as_ref());
 }
 
-fn build_menu(ctx: Arc<Context>, app: &Application) {
+fn build_menu(ctx: Arc<Context>, app: &Application) -> Menu {
     let menu = Menu::new();
 
-    let file_menu = Menu::new();
-    file_menu.append(Some("About"), Some("app.about"));
-    file_menu.append(Some("Close"), Some("app.close"));
-
-    let edit_menu = Menu::new();
-    edit_menu.append(Some("Settings"), Some("app.settings"));
-
-    menu.append_submenu(Some("File"), &file_menu);
-    menu.append_submenu(Some("Edit"), &edit_menu);
-
-    app.set_menubar(Some((&menu).into()));
+    menu.append(Some("Settings"), Some("app.settings"));
+    menu.append(Some("About"), Some("app.about"));
+    menu.append(Some("Close"), Some("app.close"));
 
     app.add_action_entries([
         ActionEntry::builder("settings")
@@ -553,6 +545,8 @@ fn build_menu(ctx: Arc<Context>, app: &Application) {
             ))
             .build(),
     ]);
+
+    menu
 }
 
 fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
@@ -570,6 +564,15 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     let is_dark_theme = true;
 
     let main_box = GtkBox::new(Orientation::Vertical, 5);
+
+    let header = HeaderBar::new();
+
+    header.pack_end(&MenuButton::builder()
+        .icon_name("open-menu-symbolic")
+        .menu_model(&build_menu(ctx.clone(), &app))
+        .build());
+    
+    main_box.append(&header);
 
     main_box.set_css_classes(&["main-box"]);
 
@@ -821,7 +824,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         .show_menubar(true)
         .content(&main_box)
         .build();
-
+    
     window.connect_default_width_notify({
         let scrolled_window_weak = scrolled_window_weak.clone();
 
