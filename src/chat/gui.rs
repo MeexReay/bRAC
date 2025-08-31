@@ -11,6 +11,7 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 
 use chrono::Local;
+use clap::crate_version;
 
 use libadwaita as adw;
 use adw::gdk::{Cursor, Display, Texture};
@@ -400,6 +401,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
         .resizable(true)
         .decorated(true)
         .content(&vbox)
+        .modal(true)
         .build();
 
     let controller = gtk::EventControllerKey::new();
@@ -456,18 +458,16 @@ fn build_menu(ctx: Arc<Context>, app: &Application) {
                 #[weak]
                 app,
                 move |_, _, _| {
-                    AboutDialog::builder()
-                        .application(&app)
-                        .authors(["MeexReay"])
-                        .license(include_str!("../../LICENSE"))
+                    let dialog = adw::AboutDialog::builder()
+                        .developer_name("MeexReay")
+                        .license(glib::markup_escape_text(include_str!("../../LICENSE")))
                         .comments("better RAC client")
                         .website("https://github.com/MeexReay/bRAC")
-                        .website_label("source code")
-                        .logo(&Texture::for_pixbuf(
-                            &load_pixbuf(include_bytes!("images/icon.png")).unwrap(),
-                        ))
-                        .build()
-                        .present();
+                        .application_name("bRAC")
+                        .application_icon("ru.themixray.bRAC")
+                        .version(crate_version!())
+                        .build();
+                    dialog.present(app.active_window().as_ref());
                 }
             ))
             .build(),
