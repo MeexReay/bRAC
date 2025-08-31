@@ -9,7 +9,7 @@ better RAC client
 
 ## features
 
-- gtk4 modern GUI
+- gtk4 (libadwaita) modern GUI
 - RACv1.99.x and RACv2.0 compatible
 - WRAC compatible ([docs](docs/wrac.md))
 - avatars drawing ([docs](docs/avatars.md))
