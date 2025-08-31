@@ -10,7 +10,7 @@
   outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        devDeps = with pkgs; [ pkg-config openssl gtk4 pango libnotify ];
+        devDeps = with pkgs; [ pkg-config openssl gtk4 pango libnotify libadwaita ];
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs {
