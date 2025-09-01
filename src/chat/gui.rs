@@ -13,8 +13,7 @@ use std::time::{Duration, SystemTime};
 use chrono::Local;
 use clap::crate_version;
 
-use libadwaita::gdk::{Texture, BUTTON_SECONDARY};
-use libadwaita::gtk::ffi::GtkPopover;
+use libadwaita::gdk::{Texture, BUTTON_PRIMARY, BUTTON_SECONDARY};
 use libadwaita::gtk::gdk_pixbuf::InterpType;
 use libadwaita::gtk::{Adjustment, GestureLongPress, MenuButton, Popover};
 use libadwaita::{
@@ -1203,6 +1202,34 @@ fn load_avatar(url: &str, response_limit: usize) -> Option<Vec<u8>> {
         })
 }
 
+fn open_avatar_popup(avatar: String, avatar_picture: &Avatar) {
+    let display = Display::default().unwrap();
+    let clipboard = display.clipboard();
+            
+    let popover = Popover::new();
+
+    let button = Button::with_label("Copy Link");
+    button.connect_clicked(clone!(
+        #[weak] clipboard,
+        #[weak] popover,
+        #[strong] avatar,
+        move |_| {
+            clipboard.set_text(avatar.as_str());
+            popover.popdown();
+        })
+    );
+
+    let vbox = GtkBox::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(6)
+        .build();
+    vbox.append(&button);
+
+    popover.set_child(Some(&vbox));
+    popover.set_parent(avatar_picture);
+    popover.popup();
+}
+
 fn get_new_message_box(
     ctx: Arc<Context>,
     ui: &UiModel,
@@ -1287,19 +1314,22 @@ fn get_new_message_box(
         avatar_picture.set_valign(Align::Start);
         avatar_picture.set_halign(Align::Start);
 
-        // let long_gesture = GestureLongPress::new();
-        // long_gesture.connect_pressed(|_, x, y| {
-        //     println!("long {x} {y}");
-
-        //     if x <= 32.0 && y >= 4.0 && y <= 32.0 {
-        //         open_popup();
-        //     }
-        // });
-
-        // overlay.add_controller(long_gesture);
         if let Some(avatar) = avatar {
-            let display = Display::default().unwrap();
-            let clipboard = display.clipboard();
+            let long_gesture = GestureLongPress::builder()
+                .button(BUTTON_PRIMARY)
+                .build();
+
+            long_gesture.connect_pressed(clone!(
+                #[weak] avatar_picture,
+                #[strong] avatar,
+                move |_, x, y| {
+                    if x < 32.0 && y > 4.0 && y < 32.0 {
+                        open_avatar_popup(avatar.clone(), &avatar_picture);
+                    }
+                }
+            ));
+
+            overlay.add_controller(long_gesture);
         
             let short_gesture = GestureClick::builder()
                 .button(BUTTON_SECONDARY)
@@ -1307,32 +1337,10 @@ fn get_new_message_box(
 
             short_gesture.connect_released(clone!(
                 #[weak] avatar_picture,
-                #[weak] clipboard,
                 #[strong] avatar,
                 move |_, _, x, y| {
                     if x < 32.0 && y > 4.0 && y < 32.0 {
-                        let popover = Popover::new();
-
-                        let button = Button::with_label("Copy Link");
-                        button.connect_clicked(clone!(
-                            #[weak] clipboard,
-                            #[weak] popover,
-                            #[strong] avatar,
-                            move |_| {
-                                clipboard.set_text(avatar.as_str());
-                                popover.popdown();
-                            })
-                        );
-
-                        let vbox = GtkBox::builder()
-                            .orientation(Orientation::Vertical)
-                            .spacing(6)
-                            .build();
-                        vbox.append(&button);
-
-                        popover.set_child(Some(&vbox));
-                        popover.set_parent(&avatar_picture);
-                        popover.popup();
+                        open_avatar_popup(avatar.clone(), &avatar_picture);
                     }
                 }
             ));
