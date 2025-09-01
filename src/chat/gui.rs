@@ -13,10 +13,11 @@ use chrono::Local;
 use clap::crate_version;
 
 use libadwaita::gdk::{MemoryTexture, Texture};
+use libadwaita::glib::Variant;
 use libadwaita::gtk::gdk_pixbuf::InterpType;
 use libadwaita::gtk::{Adjustment, Image, MenuButton};
 use libadwaita::{
-    self as adw, Avatar, ButtonRow, EntryRow, HeaderBar, PreferencesDialog, PreferencesGroup, PreferencesPage, SpinRow, SwitchRow
+    self as adw, ActionRow, Avatar, ButtonRow, EntryRow, HeaderBar, PreferencesDialog, PreferencesGroup, PreferencesPage, SpinRow, SwitchRow
 };
 use adw::gdk::{Cursor, Display};
 use adw::gio::{ActionEntry, ApplicationFlags, MemoryInputStream, Menu};
@@ -216,15 +217,40 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     
     let group = PreferencesGroup::builder()
         .title("Config")
-        .description("Config tools")
+        .description("Configuration tools")
         .build();
 
+    let display = Display::default().unwrap();
+    let clipboard = display.clipboard();
+
+    let config_path = ActionRow::builder()
+        .title("Config path")
+        .subtitle(get_config_path().to_string_lossy())
+        .css_classes(["property", "monospace"])
+        .build();
+
+    let config_path_copy = Button::from_icon_name("edit-copy-symbolic");
+
+    config_path_copy.set_margin_top(10);
+    config_path_copy.set_margin_bottom(10);
+    config_path_copy.connect_clicked(clone!(
+        #[weak] clipboard,
+        move |_| {
+            if let Some(text) = get_config_path().to_str() {
+                clipboard.set_text(text);
+            }
+        }
+    ));
+
+    config_path.add_suffix(&config_path_copy);
+    config_path.set_activatable(false);
+    
+    group.add(&config_path);
 
     // Reset button
 
     let reset_button = ButtonRow::builder()
         .title("Reset all")
-        .end_icon_name("user-trash-symbolic")
         .build();
 
     reset_button.connect_activated(clone!(
@@ -241,7 +267,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     ));
     
     group.add(&reset_button);
-
+    
     page.add(&group);
 
     dialog.add(&page);
