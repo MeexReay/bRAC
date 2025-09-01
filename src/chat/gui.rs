@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::hash::{DefaultHasher, Hasher};
 use std::io::Read;
+use std::path::PathBuf;
 use std::sync::atomic::AtomicU64;
 use std::sync::Mutex;
 use std::sync::{atomic::Ordering, mpsc::channel, Arc, RwLock};
@@ -12,10 +13,9 @@ use std::time::{Duration, SystemTime};
 use chrono::Local;
 use clap::crate_version;
 
-use libadwaita::gdk::{MemoryTexture, Texture};
-use libadwaita::glib::Variant;
+use libadwaita::gdk::Texture;
 use libadwaita::gtk::gdk_pixbuf::InterpType;
-use libadwaita::gtk::{Adjustment, Image, MenuButton};
+use libadwaita::gtk::{Adjustment, MenuButton};
 use libadwaita::{
     self as adw, ActionRow, Avatar, ButtonRow, EntryRow, HeaderBar, PreferencesDialog, PreferencesGroup, PreferencesPage, SpinRow, SwitchRow
 };
@@ -48,6 +48,15 @@ use super::{
     ctx::Context,
     on_send_message, parse_message, print_message, recv_tick, sanitize_message, SERVER_LIST,
 };
+
+pub fn try_save_config(path: PathBuf, config: &Config) {
+    match save_config(path, config) {
+        Ok(_) => {},
+        Err(e) => {
+            println!("save config error: {e}")
+        }
+    }
+}
 
 struct UiModel {
     is_dark_theme: bool,
@@ -261,7 +270,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
             dialog.close();
             let config = Config::default();
             ctx.set_config(&config);
-            save_config(get_config_path(), &config);
+            try_save_config(get_config_path(), &config);
             open_settings(ctx, &app);
         }
     ));
@@ -523,7 +532,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
             },
         };
         ctx.set_config(&config);
-        save_config(get_config_path(), &config);
+        try_save_config(get_config_path(), &config);
         update_window_title(ctx.clone());
     });
 
@@ -638,7 +647,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
                 let mut config = ctx.config.read().unwrap().clone();
                 config.host = url.clone();
                 ctx.set_config(&config);
-                save_config(get_config_path(), &config);
+                try_save_config(get_config_path(), &config);
                 update_window_title(ctx.clone());
             }
         ));
