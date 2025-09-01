@@ -971,7 +971,7 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
                                 let Some(avatar_url) = grab_avatar(message) else { continue };
                                 let avatar_id = get_avatar_id(&avatar_url);
 
-                                let Some(avatar) = load_avatar(&avatar_url, ctx.config(|o| o.max_avatar_size as usize)) else { println!("cant load avatar: {avatar_url} request error"); continue };
+                                let Some(avatar) = load_avatar(&avatar_url, ctx.config(|o| o.proxy.clone()), ctx.config(|o| o.max_avatar_size as usize)) else { println!("cant load avatar: {avatar_url} request error"); continue };
                                 let Ok(pixbuf) = load_pixbuf(&avatar) else { println!("cant load avatar: {avatar_url} pixbuf error"); continue; };
                                 let Some(pixbuf) = pixbuf.scale_simple(32, 32, InterpType::Bilinear) else { println!("cant load avatar: {avatar_url} scale image error"); continue };
                                 let texture = Texture::for_pixbuf(&pixbuf);
@@ -1178,8 +1178,22 @@ fn get_avatar_id(url: &str) -> u64 {
     hasher.finish()
 }
 
-fn load_avatar(url: &str, response_limit: usize) -> Option<Vec<u8>> {
-    reqwest::blocking::get(url).ok()
+fn load_avatar(url: &str, proxy: Option<String>, response_limit: usize) -> Option<Vec<u8>> {
+    let client = if let Some(proxy) = proxy {
+        let proxy = if proxy.starts_with("socks5://") {
+            proxy
+        } else {
+            format!("socks5://{proxy}")
+        };
+        
+        reqwest::blocking::Client::builder()
+            .proxy(reqwest::Proxy::all(&proxy).ok()?)
+            .build().ok()?
+    } else {
+        reqwest::blocking::Client::new()
+    };
+    
+    client.get(url).send().ok()
         .and_then(|mut resp| {
             let mut data = Vec::new();
             let mut length = 0;
