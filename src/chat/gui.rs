@@ -13,9 +13,10 @@ use std::time::{Duration, SystemTime};
 use chrono::Local;
 use clap::crate_version;
 
-use libadwaita::gdk::Texture;
+use libadwaita::gdk::{Texture, BUTTON_SECONDARY};
+use libadwaita::gtk::ffi::GtkPopover;
 use libadwaita::gtk::gdk_pixbuf::InterpType;
-use libadwaita::gtk::{Adjustment, MenuButton};
+use libadwaita::gtk::{Adjustment, GestureLongPress, MenuButton, Popover};
 use libadwaita::{
     self as adw, ActionRow, Avatar, ButtonRow, EntryRow, HeaderBar, PreferencesDialog, PreferencesGroup, PreferencesPage, SpinRow, SwitchRow
 };
@@ -144,7 +145,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
     // Avatar preference
     
     let avatar = EntryRow::builder()
-        .title("Avatar URL")
+        .title("Avatar Link")
         .text(ctx.config(|o| o.avatar.clone()).unwrap_or_default())
         .build();
 
@@ -240,6 +241,7 @@ fn open_settings(ctx: Arc<Context>, app: &Application) {
 
     let config_path_copy = Button::from_icon_name("edit-copy-symbolic");
 
+    // config_path_copy.set_css_classes(&["circular"]);
     config_path_copy.set_margin_top(10);
     config_path_copy.set_margin_bottom(10);
     config_path_copy.connect_clicked(clone!(
@@ -1218,11 +1220,10 @@ fn get_new_message_box(
 
     let latest_sign = ui.latest_sign.load(Ordering::SeqCst);
 
-    let (date, ip, content, name, color, avatar) =
+    let (date, ip, content, name, color, avatar, avatar_id) =
         if let (true, Some((date, ip, content, nick, avatar))) =
             (formatting_enabled, parse_message(message.clone()))
         {
-            
             (
                 date,
                 ip,
@@ -1233,6 +1234,7 @@ fn get_new_message_box(
                 nick.as_ref()
                     .map(|o| o.1.to_string())
                     .unwrap_or("#DDDDDD".to_string()),
+                avatar.clone(),
                 avatar.map(|o| get_avatar_id(&o)).unwrap_or_default()
             )
         } else {
@@ -1242,6 +1244,7 @@ fn get_new_message_box(
                 message,
                 "System".to_string(),
                 "#DDDDDD".to_string(),
+                None,
                 0
             )
         };
@@ -1276,24 +1279,74 @@ fn get_new_message_box(
         let avatar_picture = Avatar::builder()
             .text(&name)
             .show_initials(true)
-            // .width_request(64)
-            // .height_request(64)
             .size(32)
             .build();
-        // avatar_picture.set_css_classes(&["message-avatar"]);
+        
         avatar_picture.set_vexpand(false);
         avatar_picture.set_hexpand(false);
         avatar_picture.set_valign(Align::Start);
         avatar_picture.set_halign(Align::Start);
-        // avatar_picture.set_size_request(64, 64);
 
-        if avatar != 0 {
+        // let long_gesture = GestureLongPress::new();
+        // long_gesture.connect_pressed(|_, x, y| {
+        //     println!("long {x} {y}");
+
+        //     if x <= 32.0 && y >= 4.0 && y <= 32.0 {
+        //         open_popup();
+        //     }
+        // });
+
+        // overlay.add_controller(long_gesture);
+        if let Some(avatar) = avatar {
+            let display = Display::default().unwrap();
+            let clipboard = display.clipboard();
+        
+            let short_gesture = GestureClick::builder()
+                .button(BUTTON_SECONDARY)
+                .build();
+
+            short_gesture.connect_released(clone!(
+                #[weak] avatar_picture,
+                #[weak] clipboard,
+                #[strong] avatar,
+                move |_, _, x, y| {
+                    if x < 32.0 && y > 4.0 && y < 32.0 {
+                        let popover = Popover::new();
+
+                        let button = Button::with_label("Copy Link");
+                        button.connect_clicked(clone!(
+                            #[weak] clipboard,
+                            #[weak] popover,
+                            #[strong] avatar,
+                            move |_| {
+                                clipboard.set_text(avatar.as_str());
+                                popover.popdown();
+                            })
+                        );
+
+                        let vbox = GtkBox::builder()
+                            .orientation(Orientation::Vertical)
+                            .spacing(6)
+                            .build();
+                        vbox.append(&button);
+
+                        popover.set_child(Some(&vbox));
+                        popover.set_parent(&avatar_picture);
+                        popover.popup();
+                    }
+                }
+            ));
+
+            overlay.add_controller(short_gesture);
+        }
+
+        if avatar_id != 0 {
             let mut lock = ui.avatars.lock().unwrap();
             
-            if let Some(pics) = lock.get_mut(&avatar) {
+            if let Some(pics) = lock.get_mut(&avatar_id) {
                 pics.push(avatar_picture.clone());
             } else {
-                lock.insert(avatar, vec![avatar_picture.clone()]);
+                lock.insert(avatar_id, vec![avatar_picture.clone()]);
             }
         }
 
