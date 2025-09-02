@@ -5,9 +5,9 @@ use std::time::{Duration, SystemTime};
 use chrono::Local;
 
 use libadwaita::gdk::{BUTTON_PRIMARY, BUTTON_SECONDARY};
-use libadwaita::gtk::{GestureLongPress, Popover};
+use libadwaita::gtk::{GestureLongPress, MenuButton, Popover};
 use libadwaita::{
-    self as adw, Avatar
+    self as adw, Avatar, HeaderBar, NavigationPage, ToolbarView
 };
 use adw::gdk::{Cursor, Display};
 use adw::gio::MemoryInputStream;
@@ -36,7 +36,7 @@ use crate::chat::{
 };
 
 use super::widgets::CustomLayout;
-use super::{add_chat_messages, get_avatar_id, get_message_sign, load_pixbuf, send_notification, try_save_config, update_window_title, UiModel};
+use super::{add_chat_messages, build_menu, get_avatar_id, get_message_sign, load_pixbuf, send_notification, try_save_config, update_window_title, UiModel};
 
 pub fn get_message_box(
     ctx: Arc<Context>,
@@ -341,9 +341,22 @@ pub fn get_new_message_box(
 }
 
 /// page_box, chat_box, chat_scrolled
-pub fn build_page_box(ctx: Arc<Context>, app: &Application) -> (GtkBox, GtkBox, ScrolledWindow) {
+pub fn build_page(ctx: Arc<Context>, app: &Application, title: &str) -> (NavigationPage, GtkBox, ScrolledWindow) {
     let page_box = GtkBox::new(Orientation::Vertical, 5);
     page_box.set_css_classes(&["page-box"]);
+
+    let toolbar = ToolbarView::new();
+
+    let header = HeaderBar::new();
+
+    header.pack_end(&MenuButton::builder()
+        .icon_name("open-menu-symbolic")
+        .menu_model(&build_menu(ctx.clone(), &app))
+        .build());
+
+    toolbar.set_content(Some(&header));
+    
+    page_box.append(&toolbar);
     
     page_box.append(&build_widget_box(ctx.clone(), app));
 
@@ -458,8 +471,10 @@ pub fn build_page_box(ctx: Arc<Context>, app: &Application) -> (GtkBox, GtkBox, 
     send_box.append(&send_btn);
 
     page_box.append(&send_box);
+
+    let page = NavigationPage::new(&page_box, title);
     
-    (page_box, chat_box, chat_scrolled)
+    (page, chat_box, chat_scrolled)
 }
 
 fn build_widget_box(ctx: Arc<Context>, _app: &Application) -> Overlay {

@@ -14,9 +14,9 @@ use clap::crate_version;
 
 use libadwaita::gdk::Texture;
 use libadwaita::gtk::gdk_pixbuf::InterpType;
-use libadwaita::gtk::MenuButton;
+use libadwaita::gtk::Label;
 use libadwaita::{
-    self as adw, Avatar, HeaderBar
+    self as adw, Avatar, Breakpoint, BreakpointCondition, NavigationPage, NavigationSplitView
 };
 use adw::gdk::Display;
 use adw::gio::{ActionEntry, ApplicationFlags, Menu};
@@ -163,6 +163,19 @@ fn build_menu(ctx: Arc<Context>, app: &Application) -> Menu {
     menu
 }
 
+fn build_sidebar(_ctx: Arc<Context>, _app: &Application) -> NavigationPage {
+    let sidebar = GtkBox::new(Orientation::Vertical, 0);
+
+    sidebar.append(&Label::new(Some("hello worlding")));
+
+    let page = NavigationPage::builder()
+        .child(&sidebar)
+        .title("sidebar")
+        .build();
+
+    page
+}
+
 fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     let is_dark_theme = if let Some(settings) = Settings::default() {
         settings.is_gtk_application_prefer_dark_theme()
@@ -178,27 +191,28 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
     let is_dark_theme = true;
     
     let main_box = GtkBox::new(Orientation::Vertical, 0);
-    
-    let header = HeaderBar::new();
 
-    header.pack_end(&MenuButton::builder()
-        .icon_name("open-menu-symbolic")
-        .menu_model(&build_menu(ctx.clone(), &app))
-        .build());
-    
-    main_box.append(&header);
+    let title = format!(
+        "bRAC - Connected to {} as {}",
+        ctx.config(|o| o.host.clone()),
+        &ctx.name()
+    );
 
-    let (page_box, chat_box, chat_scrolled) = build_page_box(ctx.clone(), app);
+    let (page, chat_box, chat_scrolled) = build_page(ctx.clone(), app, &title);
+
+    let sidebar = build_sidebar(ctx.clone(), &app);
+
+    let split_view = NavigationSplitView::builder()
+        .sidebar(&sidebar)
+        .content(&page)
+        .show_content(true)
+        .build();
     
-    main_box.append(&page_box);
+    main_box.append(&split_view);
 
     let window = ApplicationWindow::builder()
         .application(app)
-        .title(format!(
-            "bRAC - Connected to {} as {}",
-            ctx.config(|o| o.host.clone()),
-            &ctx.name()
-        ))
+        .title(&title)
         .default_width(500)
         .default_height(500)
         .resizable(true)
@@ -206,31 +220,17 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         .content(&main_box)
         .build();
 
-    // window.connect_default_width_notify(clone!(
-    //     #[weak] chat_scrolled,
-    //     move |_| {
-    //         timeout_add_local_once(Duration::ZERO, clone!(
-    //             #[weak] chat_scrolled,
-    //             move || {
-    //                 let value = chat_scrolled.vadjustment().upper() - chat_scrolled.vadjustment().page_size();
-    //                 chat_scrolled.vadjustment().set_value(value);
-    //             }
-    //         ));
-    //     }
-    // ));
+    let breakpoint = Breakpoint::new(
+        BreakpointCondition::new_length(
+            libadwaita::BreakpointConditionLengthType::MaxWidth,
+            700.0,
+            libadwaita::LengthUnit::Px
+        )
+    );
+
+    breakpoint.add_setter(&split_view, "collapsed", Some(&true.into()));
     
-    // window.connect_default_height_notify(clone!(
-    //     #[weak] chat_scrolled,
-    //     move |_| {
-    //         timeout_add_local_once(Duration::ZERO, clone!(
-    //             #[weak] chat_scrolled,
-    //             move || {
-    //                 let value = chat_scrolled.vadjustment().upper() - chat_scrolled.vadjustment().page_size();
-    //                 chat_scrolled.vadjustment().set_value(value);
-    //             }
-    //         ));
-    //     }
-    // ));
+    window.add_breakpoint(breakpoint);
 
     window.present();
 
