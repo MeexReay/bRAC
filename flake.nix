@@ -7,7 +7,7 @@
     rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
+  outputs = { nixpkgs, rust-overlay, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         devDeps = with pkgs; [ pkg-config openssl gtk4 pango libnotify libadwaita ];
@@ -25,8 +25,8 @@
             nativeBuildInputs = devDeps ++ [ rustc ];
           };
       in {
-        devShells.nightly = (mkDevShell (pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)));
-        devShells.default = (mkDevShell pkgs.rust-bin.stable.latest.default);
+        devShells.default = (mkDevShell (pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)));
+        devShells.stable = (mkDevShell pkgs.rust-bin.stable.latest.default);
 
         packages.default = (pkgs.makeRustPlatform {
             cargo = pkgs.rust-bin.nightly.latest.minimal;
