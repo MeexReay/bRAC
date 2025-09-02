@@ -35,6 +35,7 @@ use crate::chat::{
     on_send_message, parse_message, SERVER_LIST,
 };
 
+use super::widgets::CustomLayout;
 use super::{add_chat_messages, get_avatar_id, get_message_sign, load_pixbuf, send_notification, try_save_config, update_window_title, UiModel};
 
 pub fn get_message_box(
@@ -358,6 +359,21 @@ pub fn build_page_box(ctx: Arc<Context>, app: &Application) -> (GtkBox, GtkBox, 
         .margin_start(5)
         .propagate_natural_height(true)
         .build();
+
+    let layout = CustomLayout::default();
+
+    layout.connect_local("size-changed", false, {
+        let chat_scrolled = chat_scrolled.downgrade();
+        move |_| {
+            if let Some(chat_scrolled) = chat_scrolled.upgrade() {
+                let value = chat_scrolled.vadjustment().upper() - chat_scrolled.vadjustment().page_size();
+                chat_scrolled.vadjustment().set_value(value);
+            }
+            return None;
+        }
+    });
+
+    page_box.set_layout_manager(Some(layout));
 
     timeout_add_local_once(Duration::ZERO, clone!(
         #[weak] chat_scrolled,

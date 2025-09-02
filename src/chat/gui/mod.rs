@@ -46,6 +46,7 @@ use super::{
 
 mod preferences;
 mod page;
+mod widgets;
 
 use page::*;
 use preferences::*;
