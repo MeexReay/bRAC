@@ -424,7 +424,7 @@ pub fn build_page(
 
     let send_btn = Button::builder()
         .label("Send")
-        .css_classes(["send-text"])
+        .css_classes(["send-text", "suggested-action"])
         .cursor(&Cursor::from_name("pointer", None).unwrap())
         .build();
 

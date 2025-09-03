@@ -188,6 +188,8 @@ fn build_sidebar_button(
 
     let delete_button = Button::from_icon_name("user-trash-symbolic");
 
+    delete_button.set_css_classes(&["destructive-action"]);
+
     delete_button.connect_clicked(clone!(
         #[weak]
         ctx,
@@ -213,7 +215,10 @@ fn build_sidebar_button(
 }
 
 fn build_sidebar(ctx: Arc<Context>, app: &Application, split_view: &OverlaySplitView) -> GtkBox {
-    let sidebar = GtkBox::new(Orientation::Vertical, 5);
+    let sidebar = GtkBox::new(Orientation::Vertical, 15);
+
+    sidebar.set_margin_start(5);
+    sidebar.set_margin_end(5);
 
     sidebar.append(
         &Picture::builder()
@@ -239,7 +244,7 @@ fn build_sidebar(ctx: Arc<Context>, app: &Application, split_view: &OverlaySplit
     let add_server = Button::builder()
         .label("Add Server")
         // .start_icon_name("list-add-symbolic")
-        .margin_top(10)
+        .css_classes(["suggested-action"])
         .build();
 
     add_server.connect_clicked(clone!(
@@ -254,22 +259,34 @@ fn build_sidebar(ctx: Arc<Context>, app: &Application, split_view: &OverlaySplit
         move |_| {
             let dialog = Dialog::new();
 
-            let vbox = GtkBox::new(Orientation::Vertical, 5);
+            let vbox = GtkBox::new(Orientation::Vertical, 10);
 
             vbox.set_margin_bottom(20);
             vbox.set_margin_top(20);
             vbox.set_margin_end(20);
             vbox.set_margin_start(20);
 
-            vbox.append(&Label::builder().label("Add server").build());
+            vbox.append(
+                &Label::builder()
+                    .label("Add server")
+                    .css_classes(["title-2"])
+                    .build(),
+            );
 
-            let entry = Entry::builder().placeholder_text("Server host").build();
+            let entry = Entry::builder()
+                .placeholder_text("Server host")
+                .hexpand(true)
+                .build();
 
             vbox.append(&entry);
 
             let hbox = GtkBox::new(Orientation::Horizontal, 5);
 
-            let confirm = Button::builder().label("Confirm").build();
+            let confirm = Button::builder()
+                .label("Confirm")
+                .hexpand(true)
+                .css_classes(["suggested-action"])
+                .build();
 
             confirm.connect_clicked(clone!(
                 #[weak]
@@ -302,7 +319,7 @@ fn build_sidebar(ctx: Arc<Context>, app: &Application, split_view: &OverlaySplit
 
             hbox.append(&confirm);
 
-            let cancel = Button::builder().label("Cancel").build();
+            let cancel = Button::builder().label("Cancel").hexpand(true).build();
 
             cancel.connect_clicked(clone!(
                 #[weak]
