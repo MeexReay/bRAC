@@ -14,9 +14,9 @@ use clap::crate_version;
 
 use libadwaita::gdk::Texture;
 use libadwaita::gtk::gdk_pixbuf::InterpType;
-use libadwaita::gtk::Label;
+use libadwaita::gtk::{Button, Label};
 use libadwaita::{
-    self as adw, Avatar, Breakpoint, BreakpointCondition, NavigationPage, NavigationSplitView
+    self as adw, Avatar, Breakpoint, BreakpointCondition, OverlaySplitView
 };
 use adw::gdk::Display;
 use adw::gio::{ActionEntry, ApplicationFlags, Menu};
@@ -163,17 +163,10 @@ fn build_menu(ctx: Arc<Context>, app: &Application) -> Menu {
     menu
 }
 
-fn build_sidebar(_ctx: Arc<Context>, _app: &Application) -> NavigationPage {
+fn build_sidebar(_ctx: Arc<Context>, _app: &Application) -> GtkBox {
     let sidebar = GtkBox::new(Orientation::Vertical, 0);
-
     sidebar.append(&Label::new(Some("hello worlding")));
-
-    let page = NavigationPage::builder()
-        .child(&sidebar)
-        .title("sidebar")
-        .build();
-
-    page
+    sidebar
 }
 
 fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
@@ -198,17 +191,30 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         &ctx.name()
     );
 
-    let (page, chat_box, chat_scrolled) = build_page(ctx.clone(), app, &title);
+    let (header, page, chat_box, chat_scrolled) = build_page(ctx.clone(), app);
 
     let sidebar = build_sidebar(ctx.clone(), &app);
 
-    let split_view = NavigationSplitView::builder()
+    let split_view = OverlaySplitView::builder()
         .sidebar(&sidebar)
         .content(&page)
-        .show_content(true)
+        .enable_hide_gesture(true)
+        .enable_show_gesture(true)
+        .collapsed(true)
         .build();
     
     main_box.append(&split_view);
+
+    let toggle_button = Button::from_icon_name("go-previous-symbolic");
+
+    toggle_button.connect_clicked(clone!(
+        #[weak] split_view,
+        move |_| {
+            split_view.set_show_sidebar(!split_view.shows_sidebar());
+        }
+    ));
+    
+    header.pack_start(&toggle_button);
 
     let window = ApplicationWindow::builder()
         .application(app)
@@ -222,13 +228,14 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
     let breakpoint = Breakpoint::new(
         BreakpointCondition::new_length(
-            libadwaita::BreakpointConditionLengthType::MaxWidth,
+            libadwaita::BreakpointConditionLengthType::MinWidth,
             700.0,
             libadwaita::LengthUnit::Px
         )
     );
 
-    breakpoint.add_setter(&split_view, "collapsed", Some(&true.into()));
+    breakpoint.add_setter(&split_view, "collapsed", Some(&false.into()));
+    breakpoint.add_setter(&toggle_button, "visible", Some(&false.into()));
     
     window.add_breakpoint(breakpoint);
 

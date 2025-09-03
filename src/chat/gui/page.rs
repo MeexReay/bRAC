@@ -7,7 +7,7 @@ use chrono::Local;
 use libadwaita::gdk::{BUTTON_PRIMARY, BUTTON_SECONDARY};
 use libadwaita::gtk::{GestureLongPress, MenuButton, Popover};
 use libadwaita::{
-    self as adw, Avatar, HeaderBar, NavigationPage, ToolbarView
+    self as adw, Avatar, HeaderBar, ToolbarView
 };
 use adw::gdk::{Cursor, Display};
 use adw::gio::MemoryInputStream;
@@ -340,8 +340,8 @@ pub fn get_new_message_box(
     overlay
 }
 
-/// page_box, chat_box, chat_scrolled
-pub fn build_page(ctx: Arc<Context>, app: &Application, title: &str) -> (NavigationPage, GtkBox, ScrolledWindow) {
+/// header, page_box, chat_box, chat_scrolled
+pub fn build_page(ctx: Arc<Context>, app: &Application) -> (HeaderBar, GtkBox, GtkBox, ScrolledWindow) {
     let page_box = GtkBox::new(Orientation::Vertical, 5);
     page_box.set_css_classes(&["page-box"]);
 
@@ -472,9 +472,7 @@ pub fn build_page(ctx: Arc<Context>, app: &Application, title: &str) -> (Navigat
 
     page_box.append(&send_box);
 
-    let page = NavigationPage::new(&page_box, title);
-    
-    (page, chat_box, chat_scrolled)
+    (header, page_box, chat_box, chat_scrolled)
 }
 
 fn build_widget_box(ctx: Arc<Context>, _app: &Application) -> Overlay {
