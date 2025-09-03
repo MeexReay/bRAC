@@ -4,39 +4,33 @@ use std::time::{Duration, SystemTime};
 
 use chrono::Local;
 
-use libadwaita::gdk::{BUTTON_PRIMARY, BUTTON_SECONDARY};
-use libadwaita::gtk::{GestureLongPress, MenuButton, Popover};
-use libadwaita::{
-    self as adw, Avatar, HeaderBar, ToolbarView
-};
 use adw::gdk::{Cursor, Display};
 use adw::gio::MemoryInputStream;
 use adw::glib::clone;
-use adw::glib::{
-    self, source::timeout_add_local_once,
-    timeout_add_local,
-    ControlFlow,
-};
+use adw::glib::{self, source::timeout_add_local_once, timeout_add_local, ControlFlow};
 use adw::prelude::*;
 use adw::Application;
+use libadwaita::gdk::{BUTTON_PRIMARY, BUTTON_SECONDARY};
+use libadwaita::gtk::{GestureLongPress, MenuButton, Popover};
+use libadwaita::{self as adw, Avatar, HeaderBar, ToolbarView};
 
 use adw::gtk;
 use gtk::gdk_pixbuf::PixbufAnimation;
 use gtk::pango::WrapMode;
 use gtk::{
-    Align, Box as GtkBox, Button, Calendar, Entry, Fixed, GestureClick, Justification, Label, ListBox,
-    Orientation, Overlay, Picture, ScrolledWindow,
+    Align, Box as GtkBox, Button, Calendar, Entry, Fixed, GestureClick, Justification, Label,
+    ListBox, Orientation, Overlay, Picture, ScrolledWindow,
 };
 
-
 use crate::chat::{
-    config::get_config_path,
-    ctx::Context,
-    on_send_message, parse_message, SERVER_LIST,
+    config::get_config_path, ctx::Context, on_send_message, parse_message, SERVER_LIST,
 };
 
 use super::widgets::CustomLayout;
-use super::{add_chat_messages, build_menu, get_avatar_id, get_message_sign, load_pixbuf, send_notification, try_save_config, update_window_title, UiModel};
+use super::{
+    add_chat_messages, build_menu, get_avatar_id, get_message_sign, load_pixbuf, send_notification,
+    try_save_config, update_window_title, UiModel,
+};
 
 pub fn get_message_box(
     ctx: Arc<Context>,
@@ -136,19 +130,22 @@ pub fn get_message_box(
 fn open_avatar_popup(avatar: String, avatar_picture: &Avatar) {
     let display = Display::default().unwrap();
     let clipboard = display.clipboard();
-            
+
     let popover = Popover::new();
 
     let button = Button::with_label("Copy Link");
     button.connect_clicked(clone!(
-        #[weak] clipboard,
-        #[weak] popover,
-        #[strong] avatar,
+        #[weak]
+        clipboard,
+        #[weak]
+        popover,
+        #[strong]
+        avatar,
         move |_| {
             clipboard.set_text(avatar.as_str());
             popover.popdown();
-        })
-    );
+        }
+    ));
 
     let vbox = GtkBox::builder()
         .orientation(Orientation::Vertical)
@@ -166,7 +163,7 @@ pub fn get_new_message_box(
     ui: &UiModel,
     message: String,
     notify: bool,
-    formatting_enabled: bool
+    formatting_enabled: bool,
 ) -> Overlay {
     // TODO: softcode these colors
 
@@ -193,7 +190,7 @@ pub fn get_new_message_box(
                     .map(|o| o.1.to_string())
                     .unwrap_or("#DDDDDD".to_string()),
                 avatar.clone(),
-                avatar.map(|o| get_avatar_id(&o)).unwrap_or_default()
+                avatar.map(|o| get_avatar_id(&o)).unwrap_or_default(),
             )
         } else {
             (
@@ -203,18 +200,18 @@ pub fn get_new_message_box(
                 "System".to_string(),
                 "#DDDDDD".to_string(),
                 None,
-                0
+                0,
             )
         };
-    
+
     if notify && !ui.window.is_active() {
         if ctx.config(|o| o.chunked_enabled) {
             send_notification(
                 ctx.clone(),
                 ui,
-                &if name == *"System" { 
+                &if name == *"System" {
                     "System Message".to_string()
-                } else { 
+                } else {
                     format!("{}'s Message", name)
                 },
                 &glib::markup_escape_text(&content),
@@ -239,20 +236,20 @@ pub fn get_new_message_box(
             .show_initials(true)
             .size(32)
             .build();
-        
+
         avatar_picture.set_vexpand(false);
         avatar_picture.set_hexpand(false);
         avatar_picture.set_valign(Align::Start);
         avatar_picture.set_halign(Align::Start);
 
         if let Some(avatar) = avatar {
-            let long_gesture = GestureLongPress::builder()
-                .button(BUTTON_PRIMARY)
-                .build();
+            let long_gesture = GestureLongPress::builder().button(BUTTON_PRIMARY).build();
 
             long_gesture.connect_pressed(clone!(
-                #[weak] avatar_picture,
-                #[strong] avatar,
+                #[weak]
+                avatar_picture,
+                #[strong]
+                avatar,
                 move |_, x, y| {
                     if x < 32.0 && y > 4.0 && y < 32.0 {
                         open_avatar_popup(avatar.clone(), &avatar_picture);
@@ -261,14 +258,14 @@ pub fn get_new_message_box(
             ));
 
             overlay.add_controller(long_gesture);
-        
-            let short_gesture = GestureClick::builder()
-                .button(BUTTON_SECONDARY)
-                .build();
+
+            let short_gesture = GestureClick::builder().button(BUTTON_SECONDARY).build();
 
             short_gesture.connect_released(clone!(
-                #[weak] avatar_picture,
-                #[strong] avatar,
+                #[weak]
+                avatar_picture,
+                #[strong]
+                avatar,
                 move |_, _, x, y| {
                     if x < 32.0 && y > 4.0 && y < 32.0 {
                         open_avatar_popup(avatar.clone(), &avatar_picture);
@@ -281,7 +278,7 @@ pub fn get_new_message_box(
 
         if avatar_id != 0 {
             let mut lock = ui.avatars.lock().unwrap();
-            
+
             if let Some(pics) = lock.get_mut(&avatar_id) {
                 pics.push(avatar_picture.clone());
             } else {
@@ -300,7 +297,7 @@ pub fn get_new_message_box(
         vbox.append(&Label::builder()
             .label(format!(
                 "<span color=\"{color}\">{}</span> <span color=\"{date_color}\">{}</span> <span color=\"{ip_color}\">{}</span>", 
-                glib::markup_escape_text(&name), 
+                glib::markup_escape_text(&name),
                 glib::markup_escape_text(&date),
                 glib::markup_escape_text(&ip.unwrap_or_default()),
             ))
@@ -313,18 +310,20 @@ pub fn get_new_message_box(
             .build());
     }
 
-    vbox.append(&Label::builder()
-        .label(format!(
-            "<span color=\"{text_color}\">{}</span>", 
-            glib::markup_escape_text(&content)
-        ))
-        .halign(Align::Start)
-        .hexpand(true)
-        .selectable(true)
-        .wrap(true)
-        .wrap_mode(WrapMode::WordChar)
-        .use_markup(true)
-        .build());
+    vbox.append(
+        &Label::builder()
+            .label(format!(
+                "<span color=\"{text_color}\">{}</span>",
+                glib::markup_escape_text(&content)
+            ))
+            .halign(Align::Start)
+            .hexpand(true)
+            .selectable(true)
+            .wrap(true)
+            .wrap_mode(WrapMode::WordChar)
+            .use_markup(true)
+            .build(),
+    );
 
     vbox.set_margin_start(37);
     vbox.set_hexpand(true);
@@ -341,7 +340,10 @@ pub fn get_new_message_box(
 }
 
 /// header, page_box, chat_box, chat_scrolled
-pub fn build_page(ctx: Arc<Context>, app: &Application) -> (HeaderBar, GtkBox, GtkBox, ScrolledWindow) {
+pub fn build_page(
+    ctx: Arc<Context>,
+    app: &Application,
+) -> (HeaderBar, GtkBox, GtkBox, ScrolledWindow) {
     let page_box = GtkBox::new(Orientation::Vertical, 5);
     page_box.set_css_classes(&["page-box"]);
 
@@ -349,15 +351,17 @@ pub fn build_page(ctx: Arc<Context>, app: &Application) -> (HeaderBar, GtkBox, G
 
     let header = HeaderBar::new();
 
-    header.pack_end(&MenuButton::builder()
-        .icon_name("open-menu-symbolic")
-        .menu_model(&build_menu(ctx.clone(), &app))
-        .build());
+    header.pack_end(
+        &MenuButton::builder()
+            .icon_name("open-menu-symbolic")
+            .menu_model(&build_menu(ctx.clone(), &app))
+            .build(),
+    );
 
     toolbar.set_content(Some(&header));
-    
+
     page_box.append(&toolbar);
-    
+
     page_box.append(&build_widget_box(ctx.clone(), app));
 
     let chat_box = GtkBox::new(Orientation::Vertical, 2);
@@ -379,7 +383,8 @@ pub fn build_page(ctx: Arc<Context>, app: &Application) -> (HeaderBar, GtkBox, G
         let chat_scrolled = chat_scrolled.downgrade();
         move |_| {
             if let Some(chat_scrolled) = chat_scrolled.upgrade() {
-                let value = chat_scrolled.vadjustment().upper() - chat_scrolled.vadjustment().page_size();
+                let value =
+                    chat_scrolled.vadjustment().upper() - chat_scrolled.vadjustment().page_size();
                 chat_scrolled.vadjustment().set_value(value);
             }
             return None;
@@ -388,13 +393,18 @@ pub fn build_page(ctx: Arc<Context>, app: &Application) -> (HeaderBar, GtkBox, G
 
     page_box.set_layout_manager(Some(layout));
 
-    timeout_add_local_once(Duration::ZERO, clone!(
-        #[weak] chat_scrolled,
-        move || {
-            let value = chat_scrolled.vadjustment().upper() - chat_scrolled.vadjustment().page_size();
-            chat_scrolled.vadjustment().set_value(value);
-        }
-    ));
+    timeout_add_local_once(
+        Duration::ZERO,
+        clone!(
+            #[weak]
+            chat_scrolled,
+            move || {
+                let value =
+                    chat_scrolled.vadjustment().upper() - chat_scrolled.vadjustment().page_size();
+                chat_scrolled.vadjustment().set_value(value);
+            }
+        ),
+    );
 
     page_box.append(&chat_scrolled);
 
@@ -419,8 +429,10 @@ pub fn build_page(ctx: Arc<Context>, app: &Application) -> (HeaderBar, GtkBox, G
         .build();
 
     send_btn.connect_clicked(clone!(
-        #[weak] text_entry,
-        #[weak] ctx,
+        #[weak]
+        text_entry,
+        #[weak]
+        ctx,
         move |_| {
             let text = text_entry.text().clone();
 
@@ -444,8 +456,10 @@ pub fn build_page(ctx: Arc<Context>, app: &Application) -> (HeaderBar, GtkBox, G
     ));
 
     text_entry.connect_activate(clone!(
-        #[weak] text_entry,
-        #[weak] ctx,
+        #[weak]
+        text_entry,
+        #[weak]
+        ctx,
         move |_| {
             let text = text_entry.text().clone();
 
@@ -477,7 +491,7 @@ pub fn build_page(ctx: Arc<Context>, app: &Application) -> (HeaderBar, GtkBox, G
 
 fn build_widget_box(ctx: Arc<Context>, _app: &Application) -> Overlay {
     let widget_box_overlay = Overlay::new();
-    
+
     let widget_box = GtkBox::new(Orientation::Horizontal, 5);
     widget_box.set_css_classes(&["widget-box"]);
 
@@ -505,7 +519,8 @@ fn build_widget_box(ctx: Arc<Context>, _app: &Application) -> Overlay {
         let click = GestureClick::new();
 
         click.connect_pressed(clone!(
-            #[weak] ctx,
+            #[weak]
+            ctx,
             move |_, _, _, _| {
                 let mut config = ctx.config.read().unwrap().clone();
                 config.host = url.clone();
@@ -601,4 +616,3 @@ fn build_widget_box(ctx: Arc<Context>, _app: &Application) -> Overlay {
 
     widget_box_overlay
 }
-

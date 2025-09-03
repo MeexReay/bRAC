@@ -1,7 +1,7 @@
 mod imp;
 
-use libadwaita::gtk::glib;
 use libadwaita::gtk;
+use libadwaita::gtk::glib;
 
 glib::wrapper! {
     pub struct CustomLayout(ObjectSubclass<imp::CustomLayout>)

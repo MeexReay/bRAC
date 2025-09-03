@@ -1,11 +1,11 @@
 use libadwaita::{glib, gtk};
 
 use glib::object::ObjectExt;
-use gtk::{subclass::prelude::*, prelude::LayoutManagerExt, BoxLayout};
+use gtk::{prelude::LayoutManagerExt, subclass::prelude::*, BoxLayout};
 
 #[derive(Debug)]
 pub struct CustomLayout {
-    box_layout: BoxLayout
+    box_layout: BoxLayout,
 }
 
 impl Default for CustomLayout {
@@ -14,7 +14,7 @@ impl Default for CustomLayout {
             box_layout: BoxLayout::builder()
                 .orientation(gtk::Orientation::Vertical)
                 .spacing(5)
-                .build()
+                .build(),
         }
     }
 }
@@ -29,12 +29,10 @@ impl ObjectSubclass for CustomLayout {
 impl ObjectImpl for CustomLayout {
     fn signals() -> &'static [glib::subclass::Signal] {
         use std::sync::OnceLock;
-        
+
         static SIGNALS: OnceLock<Vec<glib::subclass::Signal>> = OnceLock::new();
 
-        SIGNALS.get_or_init(|| {
-            vec![glib::subclass::Signal::builder("size-changed").build()]
-        })
+        SIGNALS.get_or_init(|| vec![glib::subclass::Signal::builder("size-changed").build()])
     }
 }
 impl LayoutManagerImpl for CustomLayout {
@@ -43,11 +41,11 @@ impl LayoutManagerImpl for CustomLayout {
         self.box_layout.allocate(widget, width, height, baseline)
     }
     fn measure(
-            &self,
-            widget: &gtk::Widget,
-            orientation: gtk::Orientation,
-            for_size: i32,
-        ) -> (i32, i32, i32, i32) {
+        &self,
+        widget: &gtk::Widget,
+        orientation: gtk::Orientation,
+        for_size: i32,
+    ) -> (i32, i32, i32, i32) {
         self.box_layout.measure(widget, orientation, for_size)
     }
 }
