@@ -3,6 +3,8 @@ use serde_default::DefaultFromSerde;
 use serde_yml;
 use std::{error::Error, fs, path::PathBuf};
 
+use super::SERVER_LIST;
+
 const MESSAGE_FORMAT: &str = "\u{B9AC}\u{3E70}<{name}> {text}";
 
 fn default_true() -> bool {
@@ -28,6 +30,10 @@ pub fn default_host() -> String {
 }
 pub fn default_message_format() -> String {
     MESSAGE_FORMAT.to_string()
+}
+
+pub fn default_servers() -> Vec<String> {
+    SERVER_LIST.to_vec()
 }
 
 #[derive(serde::Serialize, serde::Deserialize, DefaultFromSerde, Clone)]
@@ -70,6 +76,8 @@ pub struct Config {
     pub debug_logs: bool,
     #[serde(default)]
     pub avatar: Option<String>,
+    #[serde(default = "default_servers")]
+    pub servers: Vec<String>,
 }
 
 #[cfg(target_os = "windows")]
@@ -183,6 +191,7 @@ pub struct Args {
     pub avatar: Option<String>,
     #[arg(long)]
     pub debug_logs: bool,
+    // TODO: add servers
 }
 
 impl Args {

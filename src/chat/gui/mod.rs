@@ -12,40 +12,32 @@ use std::time::{Duration, SystemTime};
 
 use clap::crate_version;
 
-use libadwaita::gdk::Texture;
-use libadwaita::gtk::gdk_pixbuf::InterpType;
-use libadwaita::gtk::{Button, Label};
-use libadwaita::{
-    self as adw, Avatar, Breakpoint, BreakpointCondition, OverlaySplitView
-};
 use adw::gdk::Display;
 use adw::gio::{ActionEntry, ApplicationFlags, Menu};
 use adw::glib::clone;
-use adw::glib::{
-    self, source::timeout_add_local_once, timeout_add_once,
-};
+use adw::glib::{self, source::timeout_add_local_once, timeout_add_once};
 use adw::prelude::*;
 use adw::{Application, ApplicationWindow};
+use libadwaita::gdk::Texture;
+use libadwaita::gtk::gdk_pixbuf::InterpType;
+use libadwaita::gtk::{Button, Entry, Label, Picture};
+use libadwaita::{self as adw, Avatar, Breakpoint, BreakpointCondition, Dialog, OverlaySplitView};
 
 use adw::gtk;
 use gtk::gdk_pixbuf::{Pixbuf, PixbufLoader};
-use gtk::{
-    Box as GtkBox,
-    CssProvider,
-    Orientation, ScrolledWindow, Settings,
-};
+use gtk::{Box as GtkBox, CssProvider, Orientation, ScrolledWindow, Settings};
 
 use crate::chat::grab_avatar;
 
+use super::config::get_config_path;
 use super::{
-    config::{
-        save_config, Config,
-    },
-    ctx::Context, print_message, recv_tick, sanitize_message,
+    config::{save_config, Config},
+    ctx::Context,
+    print_message, recv_tick, sanitize_message,
 };
 
-mod preferences;
 mod page;
+mod preferences;
 mod widgets;
 
 use page::*;
@@ -53,7 +45,7 @@ use preferences::*;
 
 pub fn try_save_config(path: PathBuf, config: &Config) {
     match save_config(path, config) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(e) => {
             println!("save config error: {e}")
         }
@@ -71,7 +63,7 @@ struct UiModel {
     #[cfg(all(not(feature = "libnotify"), not(feature = "notify-rust")))]
     notifications: Arc<RwLock<Vec<String>>>,
     avatars: Arc<Mutex<HashMap<u64, Vec<Avatar>>>>,
-    latest_sign: Arc<AtomicU64>
+    latest_sign: Arc<AtomicU64>,
 }
 
 thread_local!(
@@ -163,9 +155,175 @@ fn build_menu(ctx: Arc<Context>, app: &Application) -> Menu {
     menu
 }
 
-fn build_sidebar(_ctx: Arc<Context>, _app: &Application) -> GtkBox {
-    let sidebar = GtkBox::new(Orientation::Vertical, 0);
-    sidebar.append(&Label::new(Some("hello worlding")));
+fn build_sidebar_button(
+    ctx: Arc<Context>,
+    split_view: &OverlaySplitView,
+    server: String,
+    servers_list: &GtkBox,
+) -> GtkBox {
+    let hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+    let button = Button::builder().label(&server).hexpand(true).build();
+
+    button.connect_clicked(clone!(
+        #[weak]
+        split_view,
+        #[weak]
+        ctx,
+        #[strong]
+        server,
+        move |_| {
+            let mut config = ctx.config.read().unwrap().clone();
+            config.host = server.clone();
+            ctx.set_config(&config);
+            try_save_config(get_config_path(), &config);
+            update_window_title(ctx.clone());
+            if split_view.is_collapsed() {
+                split_view.set_show_sidebar(false);
+            }
+        }
+    ));
+
+    hbox.append(&button);
+
+    let delete_button = Button::from_icon_name("user-trash-symbolic");
+
+    delete_button.connect_clicked(clone!(
+        #[weak]
+        ctx,
+        #[weak]
+        hbox,
+        #[weak]
+        servers_list,
+        #[strong]
+        server,
+        move |_| {
+            servers_list.remove(&hbox);
+            let mut config = ctx.config.read().unwrap().clone();
+            let index = config.servers.iter().position(|x| *x == server).unwrap();
+            config.servers.remove(index);
+            ctx.set_config(&config);
+            try_save_config(get_config_path(), &config);
+        }
+    ));
+
+    hbox.append(&delete_button);
+
+    hbox
+}
+
+fn build_sidebar(ctx: Arc<Context>, app: &Application, split_view: &OverlaySplitView) -> GtkBox {
+    let sidebar = GtkBox::new(Orientation::Vertical, 5);
+
+    sidebar.append(
+        &Picture::builder()
+            .paintable(&Texture::for_pixbuf(
+                &load_pixbuf(include_bytes!("images/servers.png")).unwrap(),
+            ))
+            .build(),
+    );
+
+    let servers_list = GtkBox::new(Orientation::Vertical, 5);
+
+    for server in ctx.config(|o| o.servers.clone()) {
+        servers_list.append(&build_sidebar_button(
+            ctx.clone(),
+            &split_view,
+            server,
+            &servers_list,
+        ));
+    }
+
+    sidebar.append(&servers_list);
+
+    let add_server = Button::builder()
+        .label("Add Server")
+        // .start_icon_name("list-add-symbolic")
+        .margin_top(10)
+        .build();
+
+    add_server.connect_clicked(clone!(
+        #[weak]
+        app,
+        #[weak]
+        servers_list,
+        #[weak]
+        ctx,
+        #[weak]
+        split_view,
+        move |_| {
+            let dialog = Dialog::new();
+
+            let vbox = GtkBox::new(Orientation::Vertical, 5);
+
+            vbox.set_margin_bottom(20);
+            vbox.set_margin_top(20);
+            vbox.set_margin_end(20);
+            vbox.set_margin_start(20);
+
+            vbox.append(&Label::builder().label("Add server").build());
+
+            let entry = Entry::builder().placeholder_text("Server host").build();
+
+            vbox.append(&entry);
+
+            let hbox = GtkBox::new(Orientation::Horizontal, 5);
+
+            let confirm = Button::builder().label("Confirm").build();
+
+            confirm.connect_clicked(clone!(
+                #[weak]
+                dialog,
+                #[weak]
+                servers_list,
+                #[weak]
+                ctx,
+                #[weak]
+                split_view,
+                #[weak]
+                entry,
+                move |_| {
+                    let server: String = entry.text().into();
+
+                    let mut config = ctx.config.read().unwrap().clone();
+                    config.servers.push(server.clone());
+                    ctx.set_config(&config);
+                    try_save_config(get_config_path(), &config);
+
+                    servers_list.append(&build_sidebar_button(
+                        ctx.clone(),
+                        &split_view,
+                        server,
+                        &servers_list,
+                    ));
+                    dialog.close();
+                }
+            ));
+
+            hbox.append(&confirm);
+
+            let cancel = Button::builder().label("Cancel").build();
+
+            cancel.connect_clicked(clone!(
+                #[weak]
+                dialog,
+                move |_| {
+                    dialog.close();
+                }
+            ));
+
+            hbox.append(&cancel);
+
+            vbox.append(&hbox);
+
+            dialog.set_child(Some(&vbox));
+
+            dialog.present(app.active_window().as_ref());
+        }
+    ));
+
+    sidebar.append(&add_server);
+
     sidebar
 }
 
@@ -182,43 +340,43 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
 
     #[cfg(target_os = "windows")]
     let is_dark_theme = true;
-    
-    let main_box = GtkBox::new(Orientation::Vertical, 0);
 
-    let title = format!(
-        "bRAC - Connected to {} as {}",
-        ctx.config(|o| o.host.clone()),
-        &ctx.name()
-    );
+    let main_box = GtkBox::new(Orientation::Vertical, 0);
 
     let (header, page, chat_box, chat_scrolled) = build_page(ctx.clone(), app);
 
-    let sidebar = build_sidebar(ctx.clone(), &app);
-
     let split_view = OverlaySplitView::builder()
-        .sidebar(&sidebar)
         .content(&page)
         .enable_hide_gesture(true)
         .enable_show_gesture(true)
         .collapsed(true)
         .build();
-    
+
+    let sidebar = build_sidebar(ctx.clone(), &app, &split_view);
+
+    split_view.set_sidebar(Some(&sidebar));
+
     main_box.append(&split_view);
 
     let toggle_button = Button::from_icon_name("go-previous-symbolic");
 
     toggle_button.connect_clicked(clone!(
-        #[weak] split_view,
+        #[weak]
+        split_view,
         move |_| {
             split_view.set_show_sidebar(!split_view.shows_sidebar());
         }
     ));
-    
+
     header.pack_start(&toggle_button);
 
     let window = ApplicationWindow::builder()
         .application(app)
-        .title(&title)
+        .title(&format!(
+            "bRAC - Connected to {} as {}",
+            ctx.config(|o| o.host.clone()),
+            &ctx.name()
+        ))
         .default_width(500)
         .default_height(500)
         .resizable(true)
@@ -226,17 +384,15 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         .content(&main_box)
         .build();
 
-    let breakpoint = Breakpoint::new(
-        BreakpointCondition::new_length(
-            libadwaita::BreakpointConditionLengthType::MinWidth,
-            700.0,
-            libadwaita::LengthUnit::Px
-        )
-    );
+    let breakpoint = Breakpoint::new(BreakpointCondition::new_length(
+        libadwaita::BreakpointConditionLengthType::MinWidth,
+        700.0,
+        libadwaita::LengthUnit::Px,
+    ));
 
     breakpoint.add_setter(&split_view, "collapsed", Some(&false.into()));
     breakpoint.add_setter(&toggle_button, "visible", Some(&false.into()));
-    
+
     window.add_breakpoint(breakpoint);
 
     window.present();
@@ -252,7 +408,7 @@ fn build_ui(ctx: Arc<Context>, app: &Application) -> UiModel {
         #[cfg(all(not(feature = "libnotify"), not(feature = "notify-rust")))]
         notifications: Arc::new(RwLock::new(Vec::<String>::new())),
         avatars: Arc::new(Mutex::new(HashMap::new())),
-        latest_sign: Arc::new(AtomicU64::new(0))
+        latest_sign: Arc::new(AtomicU64::new(0)),
     }
 }
 
@@ -329,22 +485,41 @@ fn setup(_: &Application, ctx: Arc<Context>, ui: UiModel) {
                         if ctx.config(|o| !o.new_ui_enabled) {
                             return;
                         }
-                        
+
                         thread::spawn(move || {
                             for message in messages.iter() {
-                                let Some(avatar_url) = grab_avatar(message) else { continue };
+                                let Some(avatar_url) = grab_avatar(message) else {
+                                    continue;
+                                };
                                 let avatar_id = get_avatar_id(&avatar_url);
 
-                                let Some(avatar) = load_avatar(&avatar_url, ctx.config(|o| o.proxy.clone()), ctx.config(|o| o.max_avatar_size as usize)) else { println!("cant load avatar: {avatar_url} request error"); continue };
-                                let Ok(pixbuf) = load_pixbuf(&avatar) else { println!("cant load avatar: {avatar_url} pixbuf error"); continue; };
-                                let Some(pixbuf) = pixbuf.scale_simple(32, 32, InterpType::Bilinear) else { println!("cant load avatar: {avatar_url} scale image error"); continue };
+                                let Some(avatar) = load_avatar(
+                                    &avatar_url,
+                                    ctx.config(|o| o.proxy.clone()),
+                                    ctx.config(|o| o.max_avatar_size as usize),
+                                ) else {
+                                    println!("cant load avatar: {avatar_url} request error");
+                                    continue;
+                                };
+                                let Ok(pixbuf) = load_pixbuf(&avatar) else {
+                                    println!("cant load avatar: {avatar_url} pixbuf error");
+                                    continue;
+                                };
+                                let Some(pixbuf) =
+                                    pixbuf.scale_simple(32, 32, InterpType::Bilinear)
+                                else {
+                                    println!("cant load avatar: {avatar_url} scale image error");
+                                    continue;
+                                };
                                 let texture = Texture::for_pixbuf(&pixbuf);
 
                                 timeout_add_once(Duration::ZERO, {
                                     move || {
                                         GLOBAL.with(|global| {
                                             if let Some(ui) = &*global.borrow() {
-                                                if let Some(pics) = ui.avatars.lock().unwrap().remove(&avatar_id) {
+                                                if let Some(pics) =
+                                                    ui.avatars.lock().unwrap().remove(&avatar_id)
+                                                {
                                                     for pic in pics {
                                                         pic.set_custom_image(Some(&texture));
                                                     }
@@ -454,42 +629,42 @@ fn load_avatar(url: &str, proxy: Option<String>, response_limit: usize) -> Optio
         } else {
             format!("socks5://{proxy}")
         };
-        
+
         reqwest::blocking::Client::builder()
             .proxy(reqwest::Proxy::all(&proxy).ok()?)
-            .build().ok()?
+            .build()
+            .ok()?
     } else {
         reqwest::blocking::Client::new()
     };
-    
-    client.get(url).send().ok()
-        .and_then(|mut resp| {
-            let mut data = Vec::new();
-            let mut length = 0;
-            
-            loop {
-                if length >= response_limit {
-                    break;
-                }
-                let mut buf = vec![0; (response_limit - length).min(1024)];
-                let now_len = resp.read(&mut buf).ok()?;
-                if now_len == 0 {
-                    break;
-                }
-                buf.truncate(now_len);
-                length += now_len;
-                data.append(&mut buf);
-            }
 
-            Some(data)
-        })
+    client.get(url).send().ok().and_then(|mut resp| {
+        let mut data = Vec::new();
+        let mut length = 0;
+
+        loop {
+            if length >= response_limit {
+                break;
+            }
+            let mut buf = vec![0; (response_limit - length).min(1024)];
+            let now_len = resp.read(&mut buf).ok()?;
+            if now_len == 0 {
+                break;
+            }
+            buf.truncate(now_len);
+            length += now_len;
+            data.append(&mut buf);
+        }
+
+        Some(data)
+    })
 }
 
 // creates sign that expires in 0-20 minutes
 fn get_message_sign(name: &str, date: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
     hasher.write(name.as_bytes());
-    hasher.write(date[..date.len()-2].as_bytes());
+    hasher.write(date[..date.len() - 2].as_bytes());
     hasher.finish()
 }
 
@@ -512,9 +687,21 @@ fn on_add_message(ctx: Arc<Context>, ui: &UiModel, message: String, notify: bool
     }
 
     if ctx.config(|o| o.new_ui_enabled) {
-        ui.chat_box.append(&get_new_message_box(ctx.clone(), ui, message, notify, formatting_enabled));
+        ui.chat_box.append(&get_new_message_box(
+            ctx.clone(),
+            ui,
+            message,
+            notify,
+            formatting_enabled,
+        ));
     } else {
-        ui.chat_box.append(&get_message_box(ctx.clone(), ui, message, notify, formatting_enabled));
+        ui.chat_box.append(&get_message_box(
+            ctx.clone(),
+            ui,
+            message,
+            notify,
+            formatting_enabled,
+        ));
     };
 
     timeout_add_local_once(Duration::from_millis(1000), move || {
