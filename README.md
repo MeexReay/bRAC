@@ -65,26 +65,7 @@ nix run github:MeexReay/bRAC # build and run
 ```
 
 To install, you need to make [a flake for system](https://nixos.wiki/wiki/flakes#Using_nix_flakes_with_NixOS)
-
-Add bRAC repository to inputs:
-
-```nix
-{
-  inputs.bRAC.url = "github:MeexReay/bRAC"
-}
-```
-
-Then add the package to nixos/home-manager config like this:
-
-```nix
-{ inputs, ... }
-
-{
-  environment.systemPackages = [
-    inputs.bRAC.packages.x86-64_linux.default
-  ];
-}
-```
+Example of the installation: [my dotfiles commit](https://git.meex.lol/MeexReay/dotfiles-nix/commit/ea4c8f18a54da8ae2d260bc714873a877f8e79e0)
 
 ## chat commands
 
