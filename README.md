@@ -64,8 +64,8 @@ nix build github:MeexReay/bRAC # build release (result/bin/bRAC)
 nix run github:MeexReay/bRAC # build and run
 ```
 
-To install, you need to make [a flake for system](https://nixos.wiki/wiki/flakes#Using_nix_flakes_with_NixOS) \
-Example of such installation: [my dotfiles commit](https://git.meex.lol/MeexReay/dotfiles-nix/commit/ea4c8f18a54da8ae2d260bc714873a877f8e79e0)
+To install, you need to add it to your [system flake](https://nixos.wiki/wiki/flakes#Using_nix_flakes_with_NixOS) \
+[Example of such installation from my dotfiles](https://git.meex.lol/MeexReay/dotfiles-nix/commit/ea4c8f18a54da8ae2d260bc714873a877f8e79e0)
 
 ## chat commands
 
